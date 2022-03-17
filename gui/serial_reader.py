@@ -4,8 +4,6 @@ from struct import unpack
 import logging
 from datetime import datetime
 import time
-from threading import Event
-import numpy as np
 
 solver_path = "C:\\Program Files (x86)\\PlateSolver\\PlateSolver.exe"
 test_file_path = "Capture_00001.fits"
@@ -27,7 +25,21 @@ SPECIAL_MOVE_DONE_ID = 17
 
 special_messages = [SPECIAL_MOVE_DONE_ID]
 special_message_desc = {SPECIAL_MOVE_DONE_ID : "MOVEMENT DONE"}
-move_done_callback = None
+
+
+class Callbacker:
+    def __init__(self):
+        self._move_done_callback = None
+
+    def set_callback(self, c):
+        self._move_done_callback = c
+
+    def callback_once(self):
+        self._move_done_callback()
+        self._move_done_callback = None
+
+
+callbacker = Callbacker()
 
 
 def is_special_message(id):
@@ -62,9 +74,7 @@ def get_is_tracking_response():
 
 
 def handle_move_done_special_message():
-    global move_done_callback
-    move_done_callback()
-    move_done_callback = None
+    callbacker.callback_once()
 
 
 special_message_handlers = {SPECIAL_MOVE_DONE_ID: handle_move_done_special_message}
@@ -155,7 +165,7 @@ def deserialize_timing(raw_payload, timestamp, logs):
     last_datetime = dt
 
 
-def deserialize_is_tracking(raw_payload, timestamp, logger):
+def deserialize_is_tracking(raw_payload, timestamp, logs):
     (value) = unpack("?", raw_payload)
     logger = logs[encoder_log_index]
     logger.write(f"{timestamp},VALUE={value}\n")

@@ -1,6 +1,5 @@
 import serial_reader
 from threading import Thread, Event
-from time import sleep
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import ttk
@@ -32,6 +31,7 @@ possible_units = ["steps", "arcsec", "pixels"]
 ra_precise_units_var = tk.StringVar(value=possible_units[0])
 dec_precise_units_var = tk.StringVar(value=possible_units[0])
 
+# TODO: should be separate classes for that!
 current_ra = None
 current_dec = None
 log_some_string = Event()
@@ -85,14 +85,15 @@ def set_dec():
     reader.write(f"SET_DEC {current_dec}")
 
 
-def normalize_ra(ra):
-    if ra >= max_ra_as:
-        ra -= max_ra_as
-    return ra
+def normalize_ra(value):
+    if value >= max_ra_as:
+        value -= max_ra_as
+    return value
 
 
-def on_ra_movement_end():
+def on_ra_movement_end(quantity):
     global is_moving
+    global current_ra
     log_event(f"RA Movement done!\n")
     is_moving = False
     current_ra += quantity
@@ -114,13 +115,14 @@ def move_ra_as(quantity):
 
     command = f"{command} {abs(quantity)}"
     is_moving = True
-    serial_reader.move_done_callback = on_ra_movement_end
+    serial_reader.move_done_callback = lambda: on_ra_movement_end(quantity)
     reader.write(command)
     log_event(f"Sending command to serial: {command}\n")
 
 
-def on_dec_movement_end():
+def on_dec_movement_end(quantity):
     global is_moving
+    global current_dec
     log_event(f"DEC Movement done!\n")
     is_moving = False
     current_dec += quantity
@@ -129,7 +131,6 @@ def on_dec_movement_end():
 def move_dec_as(quantity):
     global is_moving
     global current_dec
-    global move_done_callback
     if is_moving:
         log_event(f"Not allowed to move when already moving!\n")
         return
@@ -141,7 +142,7 @@ def move_dec_as(quantity):
 
     command = f"{command} {abs(quantity)}"
     is_moving = True
-    serial_reader.move_done_callback = on_dec_movement_end
+    serial_reader.move_done_callback = lambda: on_dec_movement_end(quantity)
     reader.write(command)
     log_event(f"Sending command to serial: {command}\n")
 
@@ -191,6 +192,7 @@ def start_dec_drift():
 
 def goto_ra():
     global new_string
+    global current_ra
     if current_ra is None:
         log_event("Current RA is not set!\n")
         return
@@ -206,6 +208,7 @@ def goto_ra():
 
 def goto_dec():
     global new_string
+    global current_dec
     if current_dec is None:
         log_event("Current DEC is not set!\n")
         return
