@@ -5,8 +5,8 @@ import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import ttk
 
-reader = serial_reader.SerialReader('COM8')
-# reader = serial_reader.SerialReader(None)
+# reader = serial_reader.SerialReader('COM8')
+reader = serial_reader.SerialReader(None)
 
 max_ra_as = 1296000
 min_ra_as = 0
@@ -36,6 +36,8 @@ current_ra = None
 current_dec = None
 log_some_string = Event()
 log_strings = []
+
+killer_flag = False
 
 
 def log_event(s):
@@ -219,8 +221,8 @@ def goto_dec():
 
 if __name__ == "__main__":
 
-    thread = Thread(target=reader.loop)
-    thread.start()
+    serial_thread = Thread(target=reader.loop)
+    serial_thread.start()
 
     root.geometry("640x480")
     [optics_row, separator1_row, precise_ra_row, separator2_row, ra_row,
@@ -361,13 +363,15 @@ if __name__ == "__main__":
     #     #
     #     # sub_btn.grid(row=2, column=1)
 
-    killer_flag = False
-
     def insert():
         global new_string
+        global killer_flag
         while not killer_flag:
-            log_some_string.wait()
-            log_some_string.clear()
+            result = log_some_string.wait(1)
+            if result:
+                log_some_string.clear()
+            else:
+                continue
             serial_log.configure(state='normal')
             while log_strings:
                 serial_log.insert(tk.INSERT, log_strings.pop(0))
