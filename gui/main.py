@@ -1,4 +1,4 @@
-import serial_reader
+
 from threading import Thread
 import tkinter as tk
 from tkinter import scrolledtext
@@ -6,12 +6,13 @@ from tkinter import ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
+from functions.serial_reader import SerialReader
 
 
 if __name__ == "__main__":
     event_logger = EventLogger()
-    # reader = serial_reader.SerialReader('COM8')
-    reader = serial_reader.SerialReader(None)
+    # reader = SerialReader('COM8')
+    reader = SerialReader(None)
     root = tk.Tk()
     mover = CoordinateMover(reader, event_logger)
 

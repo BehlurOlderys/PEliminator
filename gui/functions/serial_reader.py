@@ -243,7 +243,7 @@ class SerialReader:
                 print(f"Could not open serial port {com_port}, exiting...")
                 exit(-1)
 
-        self.log_file = open("log_entire_serial.txt", "w", buffering=1)
+        self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
         self.encoder_log_file = open(datetime.now().strftime('logs/encoder_log_%Y-%m-%d_%H-%M'), "w", buffering=1)
         self.timing_log_file = open('logs/timing_log', "w", buffering=1)
         self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
