@@ -19,6 +19,7 @@ class ImageFilesList:
         scrollbar.pack(side=tk.LEFT, fill=tk.BOTH)
         self._listbox.config(yscrollcommand=scrollbar.set)
         self._aggregator = aggregator
+        self._files_relative = []
 
     def get_dir(self):
         return self._dir
@@ -36,6 +37,8 @@ class ImageFilesList:
         print(f"Images dir = {self._dir}")
         self._files = [(f, os.path.getctime(os.path.join(self._dir, f))) for f in os.listdir(self._dir) if
                        ".fits" in f]
+        t0 = self._files[0][1]
+        self._files_relative = [f[1]-t0 for f in self._files]
         if not self._files:
             print("Could not find any fits images in given directory!")
             exit(0)
@@ -49,6 +52,9 @@ class ImageFilesList:
         print(f"Read {len(self._files)} fits files")
         self._aggregator.push_files(self._files)
         self._display_index(0)
+
+    def get_files_relative_time(self):
+        return self._files_relative
 
     def show_datetime_on(self, label):
         self._dt_label = label

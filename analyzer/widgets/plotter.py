@@ -64,7 +64,7 @@ class Plotter:
     def get_red_state(self):
         return self._red_on
 
-    def add_points(self, ps):
+    def add_points(self, ps, times=None):
         if not self._data:
             self._first_point = ps[0]
             self._line_green, self._line_red = self._ax.plot(0, 0, 'g', 0, 0, 'r')
@@ -76,7 +76,10 @@ class Plotter:
 
         data1 = [d[0] for d in self._data]
         data2 = [d[1] for d in self._data]
-        datax = np.arange(0, len(self._data))
+        if times is not None:
+            datax = times
+        else:
+            datax = np.arange(0, len(self._data))
 
         self._line_green.set_ydata(data1)
         self._line_green.set_xdata(datax)
@@ -102,3 +105,8 @@ class Plotter:
         self._line_red.set_ydata(data2)
         self._line_red.set_xdata(datax)
         self._redraw()
+
+    def change_ylim(self, values):
+        self._ax.set_ylim(values)
+        self._redraw()
+

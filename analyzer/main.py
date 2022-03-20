@@ -205,6 +205,22 @@ def green_action():
 plot_toggle_green.configure(command=green_action)
 plot_toggle_green.pack(side=tk.BOTTOM)
 
+ylim_low_value = tk.StringVar(value=0)
+ylim_high_value = tk.StringVar(value=1)
+
+ylim_frame = tk.Frame(plot_buttons_frame)
+ylim_frame.pack(side=tk.BOTTOM)
+ylim_low_spinbox = ttk.Spinbox(ylim_frame, from_=-1000, to=1000, textvariable=ylim_low_value, wrap=False)
+ylim_low_spinbox.pack(side=tk.LEFT)
+ylim_high_spinbox = ttk.Spinbox(ylim_frame, from_=-1000, to=1000, textvariable=ylim_high_value, wrap=False)
+ylim_high_spinbox.pack(side=tk.RIGHT)
+
+ylim_button = tk.Button(plot_buttons_frame, text="Set Y limit",
+                        command=lambda: plotter.change_ylim(
+                            (int(ylim_low_value.get()), int(ylim_high_value.get()))
+                        ))
+ylim_button.pack(side=tk.TOP)
+
 root.state("zoomed")
 root.mainloop()
 

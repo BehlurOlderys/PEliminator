@@ -35,7 +35,7 @@ class Automat:
             self._root.update_idletasks()
 
         self._progress["value"] = 0.0
-        self._plotter.add_points(points)
+        self._plotter.add_points(points, self._file_list.get_files_relative_time())
         drift_data = {os.path.basename(f): v for f, v in self._data.items()}
         self._aggregator.push_drift(drift_data)
         showinfo(message='The progress completed!')
