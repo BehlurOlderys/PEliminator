@@ -1,11 +1,63 @@
 from astropy.io import fits
 from common.global_settings import settings
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import os
+import numpy as np
+import matplotlib.patches as mpatches
+
+# TODO!
+# class StarChooser(tk.Toplevel):
+#     def __init__(self, data, parent):
+#         self._root = tk.Toplevel()
+#         self._root.title("Choose star")
+#         frame = tk.Frame(self._root)
+#         frame.pack(fill=tk.BOTH, expand=True)
+#         figure1 = plt.Figure(dpi=100)
+#         self._ax = figure1.add_subplot(111)
+#         self._canvas = FigureCanvasTkAgg(figure1, frame)
+#         self._canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+#         self._canvas.mpl_connect('button_press_event', parent._select_star)
+#         self._ax.imshow(np.log(data))
+#         button_frame = tk.Frame(frame)
+#         button_frame.pack(side=tk.BOTTOM)
+#         ok_button = tk.Button(button_frame, text="Accept", command=parent._accept_selection)
+#         ok_button.pack(side=tk.LEFT)
+#         cancel_button = tk.Button(button_frame, text="Cancel", command=parent._discard_selection)
+#         cancel_button.pack(side=tk.RIGHT)
+#
+#     def get_choice(self):
 
 
 class ImageCalculator:
     def __init__(self, callback):
         self._callback = callback
-        self._rectangle = None
+        self._rect = None
+        self._ax = None
+        self._canvas = None
+
+    def _select_star(self, event):
+        if not event.inaxes == self._ax:
+            return
+        ix, iy = event.xdata, event.ydata
+        w = settings.get_fragment_size()
+        self._rect = (ix - w / 2, iy - w / 2)
+        rect = mpatches.Rectangle(self._rect, w, w,
+                                  fill=False,
+                                  color="green",
+                                  linewidth=2)
+
+        self._ax.patches = []
+        self._ax.add_patch(rect)
+        self._canvas.draw()
+
+    def _accept_selection(self):
+        self._root.destroy()
+
+    def _discard_selection(self):
+        self._rect = None
+        self._root.destroy()
 
     def _first_image(self, data):
         """
@@ -17,28 +69,54 @@ class ImageCalculator:
         |   --------    Cancel  |
         ------------------------
         """
+        self._root = tk.Tk()
+        self._root.title("Choose star")
+        frame = tk.Frame(self._root)
+        frame.pack(fill=tk.BOTH, expand=True)
+        figure1 = plt.Figure(dpi=100)
+        self._ax = figure1.add_subplot(111)
+        self._canvas = FigureCanvasTkAgg(figure1, frame)
+        self._canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self._canvas.mpl_connect('button_press_event', self._select_star)
+        self._ax.imshow(np.log(data))
+        button_frame = tk.Frame(frame)
+        button_frame.pack(side=tk.BOTTOM)
 
-        self._next_image(data)
+        ok_button = tk.Button(button_frame, text="Accept", command=self._accept_selection)
+        ok_button.pack(side=tk.LEFT)
+        cancel_button = tk.Button(button_frame, text="Cancel", command=self._discard_selection)
+        cancel_button.pack(side=tk.RIGHT)
+        self._root.mainloop()
+        if self._rect is None:
+            return
+
+        return self._next_image(data)
 
     def _get_center(self, data):
-        # self._rect = (50, 50)
-        y0, x0 = self._rect
+        x0, y0 = self._rect
         w = settings.get_fragment_size()
         fragment = data[int(y0-w/2):int(y0+w/2), int(x0-w/2):int(x0 + w/2)]
-        # some calculations...
-        center_x, center_y = (0, 0)
-        return center_x, center_y
+        without_hot = np.where(fragment < 65535, fragment, 0)
+        mid_y, mid_x = np.unravel_index(without_hot.argmax(), without_hot.shape)
+        px = int(mid_x + x0 - w/2)
+        py = int(mid_y + y0 - w/2)
+        print(f"Rect = {(x0, y0)}, mid = {(mid_x, mid_y)}, point = {(px, py)}")
+        return px, py
 
     def _next_image(self, data):
         p = self._get_center(data)
         self._rect = p
-        self._callback(p)
+        return p
 
     def new_image(self, f):
         with fits.open(f) as hdul:
             current_data = hdul[0].data
 
+        timestamp = os.path.getctime(f)
         if self._rect is None:
-            self._first_image(current_data)
+            p = self._first_image(current_data)
         else:
-            self._next_image(current_data)
+            p = self._next_image(current_data)
+
+        if p is not None:
+            self._callback((*p, timestamp))

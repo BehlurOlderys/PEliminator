@@ -6,13 +6,13 @@ from tkinter import ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
-from functions.serial_reader import SerialReader
-
+from functions.serial_reader import SerialReader, encoder_data
+from analyzer.widgets.online_analyzer import OnlineAnalyzer
 
 if __name__ == "__main__":
     event_logger = EventLogger()
-    reader = SerialReader('COM8')
-    # reader = SerialReader(None)
+    # reader = SerialReader('COM8')
+    reader = SerialReader(None)
     root = tk.Tk()
     root.title("PEliminator GUI")
     mover = CoordinateMover(reader, event_logger)
@@ -138,6 +138,16 @@ if __name__ == "__main__":
 
     ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
+    online_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+    online_frame.pack(side=tk.TOP)
+
+    onliner = OnlineAnalyzer(encoder_data)
+    online_button = tk.Button(online_frame, text="Start online...", command=onliner.start)
+    online_button.pack(side=tk.LEFT)
+
+    ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+
+
     serial_log = scrolledtext.ScrolledText(root,
                                            font=('calibre', 10, 'normal'),
                                            background='black',
@@ -154,6 +164,7 @@ if __name__ == "__main__":
     root.mainloop()
     print("End of main loop!")
     event_logger.kill()
+    onliner.kill()
     reader.kill()
     logger_thread.join()
     serial_thread.join()

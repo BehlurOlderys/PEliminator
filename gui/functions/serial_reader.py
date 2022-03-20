@@ -4,9 +4,7 @@ from struct import unpack
 import logging
 from datetime import datetime
 import time
-
-solver_path = "C:\\Program Files (x86)\\PlateSolver\\PlateSolver.exe"
-test_file_path = "Capture_00001.fits"
+from common.global_settings import settings
 
 
 log = logging.getLogger(__name__)
@@ -173,6 +171,27 @@ def deserialize_is_tracking(raw_payload, timestamp, logs):
     return value
 
 
+class EncoderData:
+    def __init__(self):
+        self._latest = []
+        self._max = settings.get_encoder_history_size()
+
+    def add_readout(self, r):
+        self._latest.append(r)
+        if len(self._latest) > self._max:
+            self._latest.pop(0)
+
+    def find_readout_by_timestamp(self, t):
+        for t, r in reversed(self._latest):
+            if int(t) == t:
+                return r
+
+        return None
+
+
+encoder_data = EncoderData()
+
+
 def deserialize_abs_encoder(raw_payload, timestamp, logs):
     logger = logs[encoder_log_index]
     (position, raw_name) = unpack("H5s", raw_payload)
@@ -184,7 +203,9 @@ def deserialize_abs_encoder(raw_payload, timestamp, logs):
         "position": position,
     }
 
-    logger.write(f"{time.time()}, {timestamp} ABS_ENCODER: {info_dict}\n")
+    t = time.time()
+    logger.write(f"{t}, {timestamp} ABS_ENCODER: {info_dict}\n")
+    encoder_data.add_readout((t, position))
     # print(f"{time.ctime()}, {timestamp} ABS_ENCODER: {info_dict}\n")
     if name not in serial_mega_info[ABS_ENCODER_TYPE_ID]:
         serial_mega_info[ABS_ENCODER_TYPE_ID][name] = []
@@ -252,6 +273,7 @@ class SerialReader:
         self.current_time = 0
         self.previous_signals = None
         self.current_error = 0
+        self._latest_encoder_readouts = []
 
     @staticmethod
     def kill():
@@ -278,10 +300,17 @@ class SerialReader:
                 # print(f"Checking length= {something_to_write}")
                 if len(something_to_write) > 0:
                     element_to_write = something_to_write.pop(0)
-                    self.ser.write(element_to_write.encode())
-                    # log.info(f"Written {element_to_write} to serial")
-                    print(f"Written {element_to_write} to serial")
+                    message = f"Written {element_to_write} to serial"
+                    if self.ser is not None:
+                        self.ser.write(element_to_write.encode())
+                    else:
+                        message = "[PHONY] " + message
+                    # log.info()
+                    print(message)
 
+                if self.ser is None:
+                    time.sleep(1)
+                    continue
                 message = self.ser.readline().decode('UTF-8').rstrip()
                 if "BHS" == message:
                     header_line = self.ser.read(12)

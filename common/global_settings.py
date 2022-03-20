@@ -17,6 +17,10 @@ class GlobalSettings:
         self._encoder_ticks = 4096
         self._worm_teeth = 130
         self._correction_direction = 'positive'
+        self._encoder_history_size = 10000
+
+    def get_encoder_history_size(self):
+        return self._encoder_history_size
 
     def get_worm_speed_factor(self):
         return arcseconds_per_2pi / self._encoder_ticks
