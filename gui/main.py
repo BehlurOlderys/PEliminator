@@ -11,8 +11,8 @@ from functions.serial_reader import SerialReader
 
 if __name__ == "__main__":
     event_logger = EventLogger()
-    # reader = SerialReader('COM8')
-    reader = SerialReader(None)
+    reader = SerialReader('COM8')
+    # reader = SerialReader(None)
     root = tk.Tk()
     root.title("PEliminator GUI")
     mover = CoordinateMover(reader, event_logger)
@@ -148,12 +148,12 @@ if __name__ == "__main__":
     logger_thread = Thread(target=lambda: event_logger.run(serial_log))
     logger_thread.start()
 
-    # serial_thread = Thread(target=reader.loop)
-    # # serial_thread.start()
+    serial_thread = Thread(target=reader.loop)
+    serial_thread.start()
 
     root.mainloop()
     print("End of main loop!")
     event_logger.kill()
     reader.kill()
-    # logger_thread.join()
-    # serial_thread.join()
+    logger_thread.join()
+    serial_thread.join()

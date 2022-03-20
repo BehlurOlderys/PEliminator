@@ -1,5 +1,6 @@
 from functions import global_settings
 import tkinter as tk
+from functions.serial_reader import callbacker
 
 
 max_ra_as = 1296000
@@ -89,7 +90,7 @@ class CoordinateMover:
 
         command = f"{command} {abs(quantity)}"
         self._is_moving = True
-        self._reader.move_done_callback = lambda: self._on_ra_movement_end(quantity)
+        callbacker.set_callback(lambda: self._on_ra_movement_end(quantity))
         self._reader.write(command)
         self._logger.log_event(f"Sending command to serial: {command}\n")
 
@@ -109,7 +110,7 @@ class CoordinateMover:
 
         command = f"{command} {abs(quantity)}"
         self._is_moving = True
-        self._reader.move_done_callback = lambda: self._on_dec_movement_end(quantity)
+        callbacker.set_callback(lambda: self._on_dec_movement_end(quantity))
         self._reader.write(command)
         self._logger.log_event(f"Sending command to serial: {command}\n")
 

@@ -3,8 +3,8 @@ from widgets.global_settings import settings, us_in_1_second
 from tkinter import filedialog
 
 
-correction_data_path_mock = "C:/Users/Florek/Desktop/_STEROWANIE/PEliminator/old_data.txt"
-
+#correction_data_path_mock = "C:/Users/Florek/Desktop/_STEROWANIE/PEliminator/old_data.txt"
+correction_data_path_mock = None
 
 class TimesGenerator:
     def __init__(self):
