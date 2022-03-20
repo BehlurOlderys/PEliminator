@@ -1,5 +1,5 @@
 import numpy as np
-from widgets.global_settings import settings, us_in_1_second
+from common.global_settings import settings, us_in_1_second
 from tkinter import filedialog
 
 

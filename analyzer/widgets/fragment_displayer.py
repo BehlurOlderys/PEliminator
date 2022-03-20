@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-from widgets.global_settings import settings
+from common.global_settings import settings
 
 
 def force_aspect(ax, aspect=1):

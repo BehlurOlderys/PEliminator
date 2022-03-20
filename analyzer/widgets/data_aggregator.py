@@ -1,4 +1,4 @@
-from widgets.global_settings import settings
+from common.global_settings import settings
 import pickle
 import numpy as np
 

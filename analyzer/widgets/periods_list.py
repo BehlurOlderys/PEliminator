@@ -1,6 +1,6 @@
 import tkinter as tk
 import numpy as np
-from widgets.global_settings import settings
+from common.global_settings import settings
 
 
 def moving_mean(a, m):

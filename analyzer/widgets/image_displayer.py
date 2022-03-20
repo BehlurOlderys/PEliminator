@@ -2,7 +2,7 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from widgets.global_settings import settings
+from common.global_settings import settings
 import os
 import numpy as np
 import matplotlib.patches as mpatches
