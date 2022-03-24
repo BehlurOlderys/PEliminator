@@ -42,7 +42,7 @@ class ImageDisplayer:
         if p is not None:
             title_text = os.path.basename(p)
             with fits.open(p) as hdul:
-                hdul.info()
+                # hdul.info()
                 self._current_data = hdul[0].data
 
             self._ax.set_title(title_text)
@@ -111,7 +111,8 @@ class ImageDisplayer:
         #
         # np.savetxt("test_mid.csv", np.array(r), delimiter=",")
 
-        without_hot = np.where(data < 65535, data, 0)
+        without_hot = np.where(data < 30000, data, 0)
+        print(f"Max pixel value = {np.max(without_hot)}")
         mid_y, mid_x = np.unravel_index(without_hot.argmax(), without_hot.shape)
         px = mid_x + x0
         py = mid_y + y0

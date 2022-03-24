@@ -11,8 +11,8 @@ from analyzer.widgets.online_analyzer import OnlineAnalyzer
 
 if __name__ == "__main__":
     event_logger = EventLogger()
-    # reader = SerialReader('COM8')
-    reader = SerialReader(None)
+    reader = SerialReader('COM8')
+    # reader = SerialReader(None)
     root = tk.Tk()
     root.title("PEliminator GUI")
     mover = CoordinateMover(reader, event_logger)

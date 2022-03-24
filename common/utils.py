@@ -1,4 +1,10 @@
 import numpy as np
+import os
+from datetime import datetime
+
+
+def is_acceptable_file(s):
+    return s.lower().endswith(('.fit', '.fits'))
 
 
 def moving_mean(a, m):

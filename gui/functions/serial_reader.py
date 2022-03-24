@@ -4,7 +4,7 @@ from struct import unpack
 import logging
 from datetime import datetime
 import time
-from common.global_settings import settings
+#from ..//..//common.global_settings import settings
 
 
 log = logging.getLogger(__name__)
@@ -174,7 +174,7 @@ def deserialize_is_tracking(raw_payload, timestamp, logs):
 class EncoderData:
     def __init__(self):
         self._latest = []
-        self._max = settings.get_encoder_history_size()
+        self._max = 10000 #settings.get_encoder_history_size()
 
     def add_readout(self, r):
         self._latest.append(r)

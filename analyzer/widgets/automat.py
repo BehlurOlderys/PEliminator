@@ -29,7 +29,7 @@ class Automat:
 
             counter += 1
             percent = 100 * counter / self._file_list.get_files_number()
-            print(f"Percent = {percent}")
+            print(f"Percent = {percent}, file = {name}")
             self._progress.step(step_size)
             self._progress['value'] = percent
             self._root.update_idletasks()

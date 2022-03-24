@@ -1,9 +1,6 @@
 import os
 import time
-
-
-def is_acceptable_file(s):
-    return s.lower().endswith(('.fit', '.fits'))
+from common.utils import is_acceptable_file
 
 
 class ImageProvider:
