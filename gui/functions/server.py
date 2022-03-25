@@ -1,18 +1,31 @@
-# Python 3 server example
-import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import numpy as np
 from PIL import Image
 from astropy.io import fits
-from sharpcap_capture import get_latest_sharpcap_image
-
+import os
+from functions.coordinate_mover import CoordinateMover
+from functions.sharpcap_capture import get_latest_sharpcap_image, get_second_latest_sharpcap_image
 
 hostName = "192.168.0.45"
 serverPort = 8080
-latest_image = None
+
+
+class LatestImageCache:
+    def __init__(self):
+        self._cache = None
+
+    def update(self, p):
+        if self._cache != p:
+            self._cache = p
+            return True
+        return False
+
+
+latest_image = LatestImageCache()
 
 
 def save_as_latest_image_png(p):
+    print(f"Opening {p}")
     with fits.open(p) as hdul:
         raw_data = hdul[0].data
         max_int = 65535
@@ -35,58 +48,64 @@ def save_as_latest_image_png(p):
 
 
 post_actions = {}
+post_actions_no_args = {}
+html_replacements = {}
+index_html_text = ""
 
 
-class MyServer(BaseHTTPRequestHandler):
-    def display_latest_image(self):
-        path = get_latest_sharpcap_image()
-        if latest_image != path:
-            save_as_latest_image_png(path)
+class DefaultRequestHandler(BaseHTTPRequestHandler):
+    def _replace_in_index(self):
+        new_html = self.server._index_html_text
+        for k, v in html_replacements.items():
+            replacement = v(self)
+            new_html = new_html.replace(k, str(replacement))
+
+        return new_html
+
+    def _show_path(self, p):
+        if latest_image.update(p):
+            save_as_latest_image_png(p)
+        with open("latest.png", 'rb') as f:
+            self.send_response(200)
+            self.send_header('Content-type', 'image/png')
+            self.end_headers()
+            self.wfile.write(f.read())
+
+    def dec_correction(self, fdict):
+        if not "correction_value" in fdict:
+            return
+        value_str = fdict["correction_value"]
+        # try:
+        value = float(value_str)
+        # except
+        print(f"Value = {value}")
+        self.server.set_dec_correction(value)
         self._show_gui()
 
-    def show_latest(self):
-        path = get_latest_sharpcap_image()
-        if latest_image != path:
-            save_as_latest_image_png(path)
-        f = open("latest.png", 'rb')
-        self.send_response(200)
-        self.send_header('Content-type', 'image/png')
-        self.end_headers()
-        self.wfile.write(f.read())
-        f.close()
+    def go_back_ra(self):
+        self.server.go_back_ra()
+        self._show_gui()
+
+    def show_latest(self, fdict):
+        print("showing latest")
+        self._show_path(get_latest_sharpcap_image())
+
+    def show_previous(self, fdict):
+        print("showing previous")
+        self._show_path(get_second_latest_sharpcap_image())
+
+    def get_dec_correction(self):
+        return self.server.get_dec_correction()
+
+    def get_path(self):
+        return self.path
 
     def _show_gui(self):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.wfile.write(bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
-        self.wfile.write(bytes("<p>Request: %s</p>" % self.path, "utf-8"))
-        self.wfile.write(bytes("<body>", "utf-8"))
-        self.wfile.write(bytes("<form action=\"display\" method=\"post\"> "
-                               "<input type=\"submit\" value=\"Display latest image\" /> "
-                               "</form>", "utf-8"))
-        self.wfile.write(bytes("<p>This is an example web server.</p> "
-                               "<form action=\"home\" method=\"get\"> "
-                               "<input type=\"submit\" value=\"HOME\" /> "
-                               "</form>", "utf-8"))
-
-        self.wfile.write(bytes("<p>Do something else</p> "
-                               "<form action=\"omg\" method=\"post\"> "
-                               "<input type=\"text\" value=\"0\" name=\"test_name\"/> "
-                               "<input type=\"text\" value=\"1\" name=\"other_name\"/> "
-                               "<input type=\"submit\" value=\"Go to Google\" /> "
-                               "</form>", "utf-8"))
-        im_path = os.path.join(os.getcwd(), "latest.png")
-        picture_line = "<picture>"\
-                       "<source srcset=\"latest.png\" type=\"image/png\">"\
-                       "<img src=\"latest.png\" alt=\"Latest\">"\
-                       "</picture>"
-
-        image_line = "<img src=\"latest.png\" alt=\"Latest image\">"
-        print(f"Image line = {picture_line}")
-        self.wfile.write(bytes(picture_line, "utf-8"))
-
-        self.wfile.write(bytes("</body></html>", "utf-8"))
+        html = self._replace_in_index()
+        self.wfile.write(bytes(html, "utf-8"))
 
     def do_POST(self):
         method = self.path.split('/')[-1]
@@ -98,7 +117,9 @@ class MyServer(BaseHTTPRequestHandler):
             print(f"Method = {method}, Post body = {post_body}, dict={form_dict}")
 
         if method in post_actions:
-            post_actions[method](self)
+            post_actions[method](self, form_dict)
+        elif method in post_actions_no_args:
+            post_actions_no_args[method](self)
         else:
             self._show_gui()
 
@@ -106,20 +127,52 @@ class MyServer(BaseHTTPRequestHandler):
         self._show_gui()
 
 
-post_actions["display"] = MyServer.show_latest
+html_replacements = {
+    "@SELF_REQUEST": DefaultRequestHandler.get_path,
+    "@DEC_CORRECTION": DefaultRequestHandler.get_dec_correction
+}
+
+post_actions["display_latest"] = DefaultRequestHandler.show_latest
+post_actions["display_previous"] = DefaultRequestHandler.show_previous
+post_actions["dec_correction"] = DefaultRequestHandler.dec_correction
+post_actions_no_args["go_back_ra"] = DefaultRequestHandler.go_back_ra
+
+
+class PEliminatorServer(HTTPServer):
+    def __init__(self, mover: CoordinateMover, **kwargs):
+        HTTPServer.__init__(self, **kwargs)
+        self._mover = mover
+        index_abs_path = os.path.join(os.path.dirname(__file__), "index.html")
+        with open(index_abs_path) as f:
+            self._index_html_text = f.read()
+
+    def set_dec_correction(self, value):
+        self._mover.set_dec_drift(value)
+
+    def get_dec_correction(self):
+        return self._mover.get_dec_correction()
+
+    def go_back_ra(self):
+        self._mover.go_back_ra()
+
+
+
+def get_web_server(mover=None):
+    web_server = PEliminatorServer(mover,
+                                  server_address=(hostName, serverPort),
+                                  RequestHandlerClass=DefaultRequestHandler)
+    print("Server started http://%s:%s" % (hostName, serverPort))
+    return web_server
 
 
 if __name__ == "__main__":
-    path = get_latest_sharpcap_image()
-    save_as_latest_image_png(path)
 
-    webServer = HTTPServer((hostName, serverPort), MyServer)
-    print("Server started http://%s:%s" % (hostName, serverPort))
+    web_server = get_web_server()
 
     try:
-        webServer.serve_forever()
+        web_server.serve_forever()
     except KeyboardInterrupt:
         pass
 
-    webServer.server_close()
+    web_server.server_close()
     print("Server stopped.")

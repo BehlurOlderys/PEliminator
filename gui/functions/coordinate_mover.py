@@ -1,4 +1,4 @@
-from functions import global_settings
+from functions.global_settings import settings, possible_units
 import tkinter as tk
 from functions.serial_reader import callbacker
 
@@ -27,6 +27,7 @@ class CoordinateMover:
         self._is_moving = False
         self._current_ra = None
         self._current_dec = None
+        self._dec_correction = 0
         self.vars = {
             "ra_hours": tk.StringVar(value=23),
             "ra_minutes": tk.StringVar(value=59),
@@ -39,8 +40,8 @@ class CoordinateMover:
             "dec_minutes": tk.StringVar(value=59),
             "dec_seconds": tk.StringVar(value=59),
             "dec_drift": tk.StringVar(value=0),
-            "ra_precise_units": tk.StringVar(value=global_settings.possible_units[0]),
-            "dec_precise_units": tk.StringVar(value=global_settings.possible_units[0])
+            "ra_precise_units": tk.StringVar(value=possible_units[0]),
+            "dec_precise_units": tk.StringVar(value=possible_units[0])
         }
 
     def halt(self):
@@ -122,6 +123,9 @@ class CoordinateMover:
         if units == "arcsec":
             self._move_dec_as(quantity)
 
+    def go_back_ra(self):
+        self._move_ra_as(3*15*3600)
+
     def move_ra(self):
         quantity = int(self.vars["ra_precise"].get())
         units = self.vars["ra_precise_units"].get()
@@ -130,14 +134,22 @@ class CoordinateMover:
         if units == "arcsec":
             self._move_ra_as(quantity)
 
-    def set_dec_drift(self):
-        quantity = int(self.vars["dec_drift"].get())
+    def set_dec_drift(self, value=None):
+        if value is not None:
+            quantity = value
+        else:
+            quantity = int(self.vars["dec_drift"].get())
         if quantity < 0:
             command = f"SET_DC- {abs(quantity)}"
         else:
             command = f"SET_DC+ {quantity}"
+
+        self._dec_correction = quantity
         self._logger.log_event(f"Sending command {command} to set dec drift to {quantity} arcsek/100s\n")
         self._reader.write(command)
+
+    def get_dec_correction(self):
+        return self._dec_correction
 
     def stop_dec_drift(self):
         command = "STOP_DC"

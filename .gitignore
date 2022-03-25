@@ -9,6 +9,9 @@ __pycache__/
 #unwanted directories
 gui/logs/*
 
+# pictures
+*.png
+
 # Distribution / packaging
 .Python
 build/

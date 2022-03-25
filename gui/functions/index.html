@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PEliminator Web GUI</title>
+    <p>Request: @SELF_REQUEST</p>
+</head>
+<body>
+    <form action="display_latest" method="post" target="_blank">
+        <input type="submit" value="Display latest image"/>
+    </form>
+    <form action="display_previous" method="post" target="_blank">
+        <input type="submit" value="Display previous image"/>
+    </form>
+    <p>Current value of DEC correction = @DEC_CORRECTION</p>
+    <form action="dec_correction" method="post">
+        <label for="dec_correction_value_input">DEC correction: </label>
+        <input id="dec_correction_value_input" type="text" name="correction_value" value="0"/>
+        <input type="submit" value="Enter"/>
+    </form>
+    <br>
+    <form action="go_back_ra" method="post">
+        <label for="go_back_ra_value_input">Command mount to go back by 4h in RA: </label>
+        <input id="go_back_ra_value_input" type="submit" value="Enter"/>
+    </form>
+</body>
+</html>
