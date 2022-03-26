@@ -4,14 +4,27 @@ import numpy as np
 
 
 class Corrector:
-    def __init__(self, encoder_data_provider):
+    def __init__(self, encoder_data_provider, callback, data_file_name):
+        self._file_path = data_file_name
         self._current_period = []
         self._periods = []
         self._encoder_data_provider = encoder_data_provider
         self._log = open("corrector_log.log", "w")
+        self._speeds = []
+        self._callback = callback
 
     def __del__(self):
         self._log.close()
+
+    def _add_new_speed(self, speed):
+        self._speeds.append(speed)
+        if len(self._speeds) < 3:
+            return
+
+        latest_speeds = np.array(self._speeds[-3:])
+        average_speed = np.mean(latest_speeds, axis=0)
+        print(f"Shape of average = {average_speed.shape}")
+        self._callback(average_speed)
 
     def _calculate_current_period(self):
         if len(self._current_period) < settings.get_encoder_ticks():
@@ -21,8 +34,7 @@ class Corrector:
 
         ts = [i[0] for i in self._current_period]
         ys = [i[1] for i in self._current_period]
-        es = [i[2] for i in self._current_period]
-
+        # es = [i[2] for i in self._current_period]
 
         # Eliminate wrapped time:
         previous_time = 0
@@ -42,11 +54,10 @@ class Corrector:
 
         # smoothing
         smoothed = moving_mean(fs, 4)
-        df = np.diff(fs)
+        df = np.diff(smoothed)
         dt = np.diff(t)
         f_speed = np.pad(np.divide(df, dt), (0, 1), mode='edge')
-
-
+        self._add_new_speed(f_speed)
 
     def add_point(self, p):
         print(f"Added point {p}")

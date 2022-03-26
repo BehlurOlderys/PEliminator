@@ -16,7 +16,8 @@ class OnlineAnalyzer:
 
     def start(self):
         d = filedialog.askdirectory(title="Select directory with images:")
-        a = Corrector(self._encoder_data_provider)
+        f = filedialog.askopenfilename(title='Select file with current data')
+        a = Corrector(self._encoder_data_provider, lambda x: print(x), f)
         c = ImageCalculator(a.add_point)
         self._image_provider = ImageProvider(d, c.new_image)
         onliner_thread = Thread(target=self._image_provider.run)

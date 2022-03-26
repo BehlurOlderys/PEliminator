@@ -64,24 +64,17 @@ class DataAggregator:
         previous_time = 0
         additional_time = 0
         current_period_time = 0
-        for f, d in self._files_with_dates.items():
-            int_dt = int(d)
-            encoder_time, encoder_ticks = self._encoder_data[int_dt]
-
-            if previous_time > encoder_time:
-                print(f"Previous = {previous_time}, current = {encoder_time}")
-                additional_time += 1
-
-            previous_time = encoder_time
-            encoder_time = encoder_time + 4294967 * additional_time
+        for f, timestamp in self._files_with_dates.items():
+            int_dt = int(timestamp)
+            _, encoder_ticks = self._encoder_data[int_dt]
 
             if previous_ticks > encoder_ticks:
-                current_period_time = encoder_time
-                result[encoder_time] = []
+                current_period_time = timestamp
+                result[int_dt] = []
 
             previous_ticks = encoder_ticks
             drift_value = self._drift_data[f][chosen_axis]
-            result[current_period_time].append((encoder_ticks, drift_value, encoder_time))
+            result[current_period_time].append((encoder_ticks, drift_value, timestamp))
 
         lines = {}
 
