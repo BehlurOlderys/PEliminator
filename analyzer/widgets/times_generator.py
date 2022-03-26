@@ -40,7 +40,7 @@ def write_correction_data(times, new_data, new_model):
     new_model_str = ', '.join(map(lambda x: "%.6f" % x, new_model)) + "};\n"
 
     d = date.today().strftime("%Y-%m-%d-%H-%M-%S")
-    with open(d + '_correction_data.txt', 'w') as f:
+    with open(d + '_correction_data.mdl', 'w') as f:
         f.write(new_times_str)
         f.write(new_data_str)
         f.write(new_model_str)

@@ -18,6 +18,7 @@ class GlobalSettings:
         self._worm_teeth = 130
         self._correction_direction = 'positive'
         self._encoder_history_size = 10000
+        self._minimal_full_period_points = 18
 
     def get_encoder_history_size(self):
         return self._encoder_history_size
@@ -30,6 +31,9 @@ class GlobalSettings:
 
     def get_worm_teeth(self):
         return self._worm_teeth
+
+    def get_minimal_full_period_points(self):
+        return self._minimal_full_period_points
 
     def get_encoder_ticks(self):
         return self._encoder_ticks

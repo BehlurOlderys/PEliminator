@@ -147,6 +147,11 @@ onliner = OnlineAnalyzer(encoder_data)
 online_button = tk.Button(online_frame, text="Start online...", command=onliner.start)
 online_button.pack(side=tk.LEFT)
 
+
+onliner_historic = OnlineAnalyzer(None)
+online_history_button = tk.Button(online_frame, text="Start historical analysis...", command=onliner_historic.start)
+online_history_button.pack(side=tk.LEFT)
+
 ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
 
@@ -170,6 +175,7 @@ print("End of main loop!")
 web_server.shutdown()
 event_logger.kill()
 onliner.kill()
+onliner_historic.kill()
 reader.kill()
 logger_thread.join()
 serial_thread.join()

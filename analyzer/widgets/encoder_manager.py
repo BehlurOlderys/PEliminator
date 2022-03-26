@@ -11,10 +11,29 @@ from tkinter import filedialog
 encoder_logs_path_mock = None
 
 
+def read_encoder_line(line):
+    inside_of_braces = re.search(r'{(.*?)}', line).group(1).split(',')
+    values = list(map(lambda x: x.split(':')[1], inside_of_braces))
+    encoder_ticks = int(int(values[0]) / 1000), int(values[2])
+    dt = line.split('ABS')[0].split(',')[0]
+    return int(float(dt)), encoder_ticks
+
+
 def read_encoder_ticks(line):
     inside_of_braces = re.search(r'{(.*?)}', line).group(1).split(',')
     values = list(map(lambda x: x.split(':')[1], inside_of_braces))
     return int(int(values[0]) / 1000), int(values[2])
+
+
+def read_encoder_data_from_file(file_path, line_reader):
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    return dict([line_reader(x) for x in lines])
+
+
+def just_read_encoder(file_path):
+    return read_encoder_data_from_file(file_path, read_encoder_line)
 
 
 class EncoderManager:

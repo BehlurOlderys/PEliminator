@@ -181,9 +181,9 @@ class EncoderData:
         if len(self._latest) > self._max:
             self._latest.pop(0)
 
-    def find_readout_by_timestamp(self, t):
+    def find_readout_by_timestamp(self, ts):
         for t, r in reversed(self._latest):
-            if int(t) == t:
+            if int(t) == ts:
                 return r
 
         return None
@@ -266,7 +266,7 @@ class SerialReader:
 
         if com_port is not None:
             self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
-            self.encoder_log_file = open(datetime.now().strftime('logs/encoder_log_%Y-%m-%d_%H-%M'), "w", buffering=1)
+            self.encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
             self.timing_log_file = open('logs/timing_log', "w", buffering=1)
             self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
             self.logs = [self.log_file, self.encoder_log_file, self.timing_log_file]
