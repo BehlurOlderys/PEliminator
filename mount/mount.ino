@@ -490,13 +490,13 @@ char command_string[COMMAND_MAX_LENGTH];
 char command_name[COMMAND_NAME_LENGTH];
 
 
-
 void MovingRaDone(){
   ClearTopRow();
   DisplayCurrentRa();
   serialize_special_message(SPECIAL_MOVE_DONE_ID, serializer);
   tracking_controller.Reset();
 }
+
 
 void MovingDecDone(){
   ClearTopRow();
@@ -556,6 +556,37 @@ void HaltMachines(){
   slewing_controller.Stop();
 }
 
+/////////////////////////////////////////
+// TODO: new file!
+
+static const uint32_t MAX_CORRECTION_DATA =100;
+
+
+struct CorrectionDataHolder{
+  CorrectionDataHolder():times{0}, intervals{0}, data_length(0) {}
+  uint32_t times[MAX_CORRECTION_DATA];
+  uint32_t intervals[MAX_CORRECTION_DATA];
+  uint8_t data_length;
+};
+
+//////////////////////////////////////////
+CorrectionDataHolder correction_data;
+
+void PrintCorrectionToSerial(){
+  Serial.println("Correction data = ");
+  for (int i=0; i<correction_data.data_length; ++i){
+    Serial.print(correction_data.times[i]);
+    Serial.print(", ");
+  }
+  Serial.println();
+  for (int i=0; i<correction_data.data_length; ++i){
+    Serial.print(correction_data.intervals[i]);
+    Serial.print(", ");
+  }
+  Serial.println();
+}
+
+
 void ReadSerial(){
   if (Serial.available()){
     memset(command_string, 0, COMMAND_MAX_LENGTH);
@@ -568,6 +599,13 @@ void ReadSerial(){
     if (strcmp("HALT" ,command_name) == 0){
       HaltMachines();
     }  
+    else if (strcmp("ENTER_CORR", command_name) == 0){
+      correction_data.data_length = uint8_t(command_argument);
+      size_t NBytes = sizeof(uint32_t)*correction_data.data_length;
+      Serial.readBytes((char*)(correction_data.times), NBytes);
+      Serial.readBytes((char*)(correction_data.intervals), NBytes);
+      PrintCorrectionToSerial();
+    }
     else if (strcmp("SET_DC+" ,command_name) == 0){
       drift_compensator.SetPositiveCompensation(command_argument);
     }  

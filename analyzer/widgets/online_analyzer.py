@@ -1,10 +1,10 @@
-from tkinter import filedialog
 from .image_calculator import ImageCalculator
 from .encoder_manager import just_read_encoder
 from .image_provider import ImageProvider
 from .speedcalculator import SpeedCalculator
-from .times_generator import get_data_from_correction_file, get_new_data_and_model
+from .times_generator import get_data_from_correction_file, get_new_correction_data
 from threading import Thread
+import struct
 
 
 class HistoricalEncoderDataProvider:
@@ -36,13 +36,25 @@ class ModelManager:
         self._file = file_path
         self._callback = callback
 
-    def _get_old_model(self):
+    def _get_old_correction(self):
         return get_data_from_correction_file(self._file)
 
     def handle_new_average_speed(self, speed):
-        t, d, m = self._get_old_model()
-        new_data, new_model = get_new_data_and_model(d, m, speed)
-        self._callback((t, new_data, new_model))
+        t, d = self._get_old_correction()
+        new_data = get_new_correction_data(d, speed)
+        self._callback((t, new_data))
+
+
+class ByteConverter:
+    def __init__(self, callback):
+        self._callback = callback
+
+    def push_new_array(self, a):
+        t, i = (list(map(int, e)) for e in a)
+        f = f"{len(t)}I{len(i)}I"
+        print(f"Size of bytes = {struct.calcsize(f)}")
+        result = struct.pack(f, *t, *i)
+        self._callback(result)
 
 
 class OnlineAnalyzer:
@@ -86,7 +98,8 @@ class OnlineAnalyzer:
             return
         print(f"Using correction model={f}")
 
-        mm = ModelManager(f, lambda x: print(f"{x}"))
+        by = ByteConverter(lambda x: print(f"Packed = {x}"))
+        mm = ModelManager(f, by.push_new_array)
         a = SpeedCalculator(self._encoder_data_provider, lambda x: self._handle_speed(x, mm, self._average_speeds))
         c = ImageCalculator(a.add_point)
         self._image_provider = ImageProvider(d, c.new_image)

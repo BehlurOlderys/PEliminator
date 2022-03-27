@@ -54,6 +54,7 @@ class ImageCalculator:
 
     def _accept_selection(self):
         self._root.destroy()
+        del self._canvas
 
     def _discard_selection(self):
         self._rect = None
