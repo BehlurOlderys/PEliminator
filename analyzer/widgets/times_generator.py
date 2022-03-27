@@ -57,7 +57,7 @@ class TimesGenerator:
         self._old = None
         self._old_path = correction_data_path_mock
 
-    def push_error(self, errors):
+    def push_errors(self, errors):
         self._times, self._data = errors
 
     def save(self):

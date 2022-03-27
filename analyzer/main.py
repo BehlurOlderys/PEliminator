@@ -88,7 +88,7 @@ diff_button.configure(command=periods_list.calculate_speed)
 
 def average_action():
     averaged = periods_list.average_periods()
-    generator.push_error(averaged)
+    generator.push_errors(averaged)
 
 
 average_button.configure(command=average_action)

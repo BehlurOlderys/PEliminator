@@ -87,6 +87,8 @@ class ImageCalculator:
         cancel_button = tk.Button(button_frame, text="Cancel", command=self._discard_selection)
         cancel_button.pack(side=tk.RIGHT)
         self._root.mainloop()
+        del self._root
+
         if self._rect is None:
             return
 

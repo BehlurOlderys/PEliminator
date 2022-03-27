@@ -3,9 +3,8 @@ from common.utils import moving_mean
 import numpy as np
 
 
-class Corrector:
-    def __init__(self, encoder_data_provider, callback, data_file_name):
-        self._file_path = data_file_name
+class SpeedCalculator:
+    def __init__(self, encoder_data_provider, callback):
         self._current_period = []
         self._periods = []
         self._encoder_data_provider = encoder_data_provider
@@ -65,7 +64,7 @@ class Corrector:
         smoothed = moving_mean(fs, 4)
         df = np.diff(smoothed)
         dt = np.diff(t)
-        f_speed = np.pad(np.divide(df, dt))
+        f_speed = np.divide(df, dt)
         self._add_new_speed(f_speed)
 
     def add_point(self, p):
