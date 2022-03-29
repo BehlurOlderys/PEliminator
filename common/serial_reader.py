@@ -4,6 +4,7 @@ from struct import unpack
 import logging
 from datetime import datetime
 import time
+from queue import Queue
 #from ..//..//common.global_settings import settings
 
 
@@ -17,12 +18,13 @@ UNSPECIFIED_TYPE_ID = 255
 STEPPER_TYPE_ID = 2
 ABS_ENCODER_TYPE_ID = 3
 TIMING_CONTROL_TYPE_ID = 15
+GET_CORRECTION_ID = 19
 
 # SPECIAL MESSAGES:
 SPECIAL_MOVE_DONE_ID = 17
 
 special_messages = [SPECIAL_MOVE_DONE_ID]
-special_message_desc = {SPECIAL_MOVE_DONE_ID : "MOVEMENT DONE"}
+special_message_desc = {SPECIAL_MOVE_DONE_ID: "MOVEMENT DONE"}
 
 
 class Callbacker:
@@ -40,13 +42,12 @@ class Callbacker:
 callbacker = Callbacker()
 
 
-def is_special_message(id):
-    return id in special_messages
+def is_special_message(ide):
+    return ide in special_messages
 
 
 IS_TRACKING_RESPONSE_ID = 100
 
-something_to_write = []
 
 serial_mega_info = {
     STEPPER_TYPE_ID: {},
@@ -213,6 +214,26 @@ def deserialize_abs_encoder(raw_payload, timestamp, logs):
     return info_dict
 
 
+class CorrectionDataDeserializer:
+    def __init__(self):
+        self._last_data = None
+        self._queue = Queue(maxsize=1)
+
+    def get_data(self):
+        return self._queue.get(timeout=10)
+
+    def deserialize_correction_data(self, raw_payload, timestamp, logger):
+        (times, intervals, length) = unpack("100I100IB", raw_payload)
+        items_range = range(0, length)
+        times_real = [times[i] for i in items_range]
+        intervals_real = [times[i] for i in items_range]
+        self._queue.put((timestamp, times_real, intervals_real))
+        logger.write(f"{timestamp} GET CORR: {self._last_data}\n")
+
+
+correction_data_provider = CorrectionDataDeserializer()
+
+
 def deserialize_stepper(raw_payload, timestamp, logger):
     (delay, direction, position, desired, is_enabled, is_slewing, raw_name) = unpack("iiH???4s", raw_payload)
     name = raw_name.decode('UTF-8').strip()
@@ -236,6 +257,7 @@ def deserialize_stepper(raw_payload, timestamp, logger):
 
 
 map_of_deserializers = {
+  GET_CORRECTION_ID: correction_data_provider.deserialize_correction_data,
   STEPPER_TYPE_ID: deserialize_stepper,
   ABS_ENCODER_TYPE_ID: deserialize_abs_encoder,
   IS_TRACKING_RESPONSE_ID: deserialize_is_tracking,
@@ -253,6 +275,7 @@ class SerialReader:
         self.ser = None
         self.log_file = None
         self.encoder_log_file = None
+        self._something_to_write = []
         if com_port is not None:
             try:
                 self.ser = serial.Serial(
@@ -281,11 +304,12 @@ class SerialReader:
         global global_thread_killer
         global_thread_killer = True
 
-    @staticmethod
-    def write(something):
+    def write_bytes(self, b):
+        self._something_to_write.append(b)
+
+    def write_string(self, something):
         print(f"SerialReader: writing {something}")
-        global something_to_write
-        something_to_write.append(something)
+        self._something_to_write.append(something.encode())
 
     def __del__(self):
         if self.log_file is not None:
@@ -295,15 +319,14 @@ class SerialReader:
 
     def loop(self):
         print("Starting main loop")
-        global something_to_write
         while not global_thread_killer:
             try:
                 # print(f"Checking length= {something_to_write}")
-                if len(something_to_write) > 0:
-                    element_to_write = something_to_write.pop(0)
+                if len(self._something_to_write) > 0:
+                    element_to_write = self._something_to_write.pop(0)
                     message = f"Written {element_to_write} to serial"
                     if self.ser is not None:
-                        self.ser.write(element_to_write.encode())
+                        self.ser.write(element_to_write)
                     else:
                         message = "[PHONY] " + message
                     # log.info()

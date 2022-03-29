@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include "Timing.h"
+#include "CorrectionDataHolder.h"
 
 static uint32_t const expected_step_interval = Timing::arduino_interval(39972U);
 static uint32_t const feedback_max_interval = 662800000UL;
@@ -62,7 +63,7 @@ size_t find_index(T const (&array)[S], T value){
 }
 
 struct EncoderFeedback{
-  EncoderFeedback(AbsoluteEncoder const& encoder) : _encoder(encoder), _interval_us(0), _expected_encoder(0) {}
+  EncoderFeedback(AbsoluteEncoder const& encoder, CorrectionDataHolder const & holder) : _encoder(encoder), _holder(holder), _interval_us(0), _expected_encoder(0) {}
   void Reset(){
     _encoder.update_position();
     _expected_encoder = _encoder.get_position();
@@ -96,6 +97,7 @@ struct EncoderFeedback{
   }
   
   AbsoluteEncoder const& _encoder;
+  CorrectionDataHolder const & _holder;
   uint32_t _interval_us;
   uint32_t _expected_encoder;
 };

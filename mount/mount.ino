@@ -11,6 +11,7 @@
 #include "Utilities.h"
 
 static integer_id_type const TIMING_CONTROL_TYPE_ID = 15u;
+static integer_id_type const SPECIAL_GET_CORRECTION_ID = 19u;
 
 const uint8_t BACKLIGHT_PWM_PIN = 11;
 const uint8_t ABS_CS_PIN = 32;
@@ -158,7 +159,10 @@ struct Dummy{
 };
 
 
-EncoderFeedback feedback(ra_encoder);
+CorrectionDataHolder correction_data;
+
+
+EncoderFeedback feedback(ra_encoder, correction_data);
 
 
 TrackingController tracking_controller(ra_stepper, feedback);
@@ -556,34 +560,9 @@ void HaltMachines(){
   slewing_controller.Stop();
 }
 
-/////////////////////////////////////////
-// TODO: new file!
-
-static const uint32_t MAX_CORRECTION_DATA =100;
-
-
-struct CorrectionDataHolder{
-  CorrectionDataHolder():times{0}, intervals{0}, data_length(0) {}
-  uint32_t times[MAX_CORRECTION_DATA];
-  uint32_t intervals[MAX_CORRECTION_DATA];
-  uint8_t data_length;
-};
-
-//////////////////////////////////////////
-CorrectionDataHolder correction_data;
-
-void PrintCorrectionToSerial(){
-  Serial.println("Correction data = ");
-  for (int i=0; i<correction_data.data_length; ++i){
-    Serial.print(correction_data.times[i]);
-    Serial.print(", ");
-  }
-  Serial.println();
-  for (int i=0; i<correction_data.data_length; ++i){
-    Serial.print(correction_data.intervals[i]);
-    Serial.print(", ");
-  }
-  Serial.println();
+template <typename Serializer>
+void PrintCorrectionToSerial(Serializer& s){
+  s.PushStructure(SPECIAL_GET_CORRECTION_ID, correction_data);
 }
 
 
@@ -599,12 +578,14 @@ void ReadSerial(){
     if (strcmp("HALT" ,command_name) == 0){
       HaltMachines();
     }  
+    else if (strcmp("GET_CORR", command_name) == 0){
+      PrintCorrectionToSerial(serializer);
+    }
     else if (strcmp("ENTER_CORR", command_name) == 0){
       correction_data.data_length = uint8_t(command_argument);
       size_t NBytes = sizeof(uint32_t)*correction_data.data_length;
       Serial.readBytes((char*)(correction_data.times), NBytes);
       Serial.readBytes((char*)(correction_data.intervals), NBytes);
-      PrintCorrectionToSerial();
     }
     else if (strcmp("SET_DC+" ,command_name) == 0){
       drift_compensator.SetPositiveCompensation(command_argument);

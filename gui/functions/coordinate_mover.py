@@ -1,6 +1,6 @@
-from functions.global_settings import settings, possible_units
+from .global_settings import possible_units
 import tkinter as tk
-from functions.serial_reader import callbacker
+from common.serial_reader import callbacker
 
 
 max_ra_as = 1296000
@@ -46,7 +46,7 @@ class CoordinateMover:
 
     def halt(self):
         self._logger.log_event(f"Sending immediate HALT command!\n")
-        self._reader.write("HALT")
+        self._reader.write_string("HALT")
         self._is_moving = False
 
     def set_ra(self):
@@ -59,7 +59,10 @@ class CoordinateMover:
         s = int(self.vars["ra_seconds"].get())
         self._current_ra = h*3600*15+m*60*15+s*15
         self._logger.log_event(f"Sending ra={h}:{m}:{s} which is {self._current_ra} arceseconds.\n")
-        self._reader.write(f"SET_RA {self._current_ra}")
+        self._reader.write_string(f"SET_RA {self._current_ra}")
+
+    def log_something(self, s):
+        self._logger.log_event(s)
 
     def set_dec(self):
         if self._is_moving:
@@ -71,7 +74,7 @@ class CoordinateMover:
         s = int(self.vars["dec_seconds"].get())
         self._current_dec = calculate_as_from_dec(d, m, s)
         self._logger.log_event(f"Sending dec={d}:{m}:{s} which is {self._current_dec} arceseconds.\n")
-        self._reader.write(f"SET_DEC {self._current_dec}")
+        self._reader.write_string(f"SET_DEC {self._current_dec}")
 
     def _on_ra_movement_end(self, quantity):
         self._logger.log_event(f"RA Movement done!\n")
@@ -92,7 +95,7 @@ class CoordinateMover:
         command = f"{command} {abs(quantity)}"
         self._is_moving = True
         callbacker.set_callback(lambda: self._on_ra_movement_end(quantity))
-        self._reader.write(command)
+        self._reader.write_string(command)
         self._logger.log_event(f"Sending command to serial: {command}\n")
 
     def _on_dec_movement_end(self, quantity):
@@ -112,7 +115,7 @@ class CoordinateMover:
         command = f"{command} {abs(quantity)}"
         self._is_moving = True
         callbacker.set_callback(lambda: self._on_dec_movement_end(quantity))
-        self._reader.write(command)
+        self._reader.write_string(command)
         self._logger.log_event(f"Sending command to serial: {command}\n")
 
     def move_dec(self):
@@ -146,7 +149,7 @@ class CoordinateMover:
 
         self._dec_correction = quantity
         self._logger.log_event(f"Sending command {command} to set dec drift to {quantity} arcsek/100s\n")
-        self._reader.write(command)
+        self._reader.write_string(command)
 
     def get_dec_correction(self):
         return self._dec_correction
@@ -154,12 +157,12 @@ class CoordinateMover:
     def stop_dec_drift(self):
         command = "STOP_DC"
         self._logger.log_event(f"Sending command to stop DEC drift compensation\n")
-        self._reader.write(command)
+        self._reader.write_string(command)
 
     def start_dec_drift(self):
         command = "START_DC"
         self._logger.log_event(f"Sending command to start DEC drift compensation\n")
-        self._reader.write(command)
+        self._reader.write_string(command)
 
     def goto_ra(self):
         if self._current_ra is None:

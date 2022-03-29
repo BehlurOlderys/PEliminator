@@ -6,7 +6,7 @@ from tkinter import ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
-from functions.serial_reader import SerialReader, encoder_data
+from common.serial_reader import SerialReader, encoder_data
 from analyzer.widgets.online_analyzer import OnlineAnalyzer
 from functions.server import get_web_server
 
@@ -143,12 +143,18 @@ ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 online_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
 online_frame.pack(side=tk.TOP)
 
-onliner = OnlineAnalyzer(encoder_data)
+
+def write_correction(correction_bytes):
+    mover.log_something("Entering new correction for mount!\n")
+    reader.write_bytes("ENTER_CORR\n".encode() + correction_bytes)
+
+
+onliner = OnlineAnalyzer(encoder_data, write_correction, reader)
 online_button = tk.Button(online_frame, text="Start online...", command=onliner.start)
 online_button.pack(side=tk.LEFT)
 
 
-onliner_historic = OnlineAnalyzer(None)
+onliner_historic = OnlineAnalyzer(None, write_correction)
 online_history_button = tk.Button(online_frame, text="Start historical analysis...", command=onliner_historic.start)
 online_history_button.pack(side=tk.LEFT)
 
