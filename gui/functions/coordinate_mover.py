@@ -61,9 +61,6 @@ class CoordinateMover:
         self._logger.log_event(f"Sending ra={h}:{m}:{s} which is {self._current_ra} arceseconds.\n")
         self._reader.write_string(f"SET_RA {self._current_ra}")
 
-    def log_something(self, s):
-        self._logger.log_event(s)
-
     def set_dec(self):
         if self._is_moving:
             self._logger.log_event(f"Cannot set new coordinates while moving!\n")

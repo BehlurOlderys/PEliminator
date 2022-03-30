@@ -12,6 +12,7 @@
 
 static integer_id_type const TIMING_CONTROL_TYPE_ID = 15u;
 static integer_id_type const SPECIAL_GET_CORRECTION_ID = 19u;
+static integer_id_type const SPECIAL_WELCOME_ID = 21u;
 
 const uint8_t BACKLIGHT_PWM_PIN = 11;
 const uint8_t ABS_CS_PIN = 32;
@@ -625,6 +626,17 @@ void ReadSerial(){
   }
 }
 
+static const uint8_t WELCOME_MESSAGE_LENGTH = 20;
+
+struct WelcomeMessage{
+  WelcomeMessage():message{0} {
+    strcpy(message, "MOUNT CONNECTED!");
+  }
+  char const message[WELCOME_MESSAGE_LENGTH]; 
+};
+
+static const WelcomeMessage welcome_message;
+
 void setup() {
   Timing::set_fast_adc();
   
@@ -642,14 +654,14 @@ void setup() {
 
   buttons_switch.Setup();
   serializer.Setup();
+  delay(2000);
   select_state_controller.SetState(SELECT_STATE_HELLO);
   
   ra_encoder.setup_encoder();
   correction_data.InitializeWithStaticValues();
 
-  delay(100);
-
-  tracking_controller.Start();
+  serializer.PushStructure(SPECIAL_WELCOME_ID, welcome_message);
+  tracking_controller.Start();  
 }
 
 void UpdateAbsEncoder(){
@@ -706,5 +718,5 @@ void loop() {
   drift_compensator.Run();
 
   UpdateAbsEncoder();
-//  PrintEncoder();
+  PrintEncoder();
 }

@@ -38,6 +38,9 @@ STEPPER_TYPE_ID = 2
 ABS_ENCODER_TYPE_ID = 3
 TIMING_CONTROL_TYPE_ID = 15
 GET_CORRECTION_ID = 19
+WELCOME_MESSAGE_ID = 21
+
+WELCOME_MESSAGE_LENGTH = 20
 
 # SPECIAL MESSAGES:
 SPECIAL_MOVE_DONE_ID = 17
@@ -191,6 +194,25 @@ def deserialize_is_tracking(raw_payload, timestamp, logs):
     return value
 
 
+class WelcomeMessageHandler:
+    def __init__(self):
+        self._queue = queue.Queue(maxsize=1)
+
+    def deserialize_welcome_message(self, raw_payload, timestamp, logs):
+        logger = logs[general_log_index]
+        (message) = unpack(f"{WELCOME_MESSAGE_LENGTH}s", raw_payload)
+        message = message[0].decode('UTF-8').strip(chr(0))
+        logger.write(f"{timestamp} Acquired welcome message: {message}")
+        self._queue.put(message)
+
+    def get_welcome_message(self):
+        try:
+            return self._queue.get(timeout=10)
+        except queue.Empty:
+            print("Connection with mount failed!")
+            return None
+
+
 class EncoderData:
     def __init__(self):
         self._latest = []
@@ -259,6 +281,7 @@ class CorrectionDataDeserializer:
         logger.write(f"{timestamp} GET CORR: {self._last_data}\n")
 
 
+welcome_message_handler = WelcomeMessageHandler()
 correction_data_provider = CorrectionDataDeserializer()
 
 
@@ -289,7 +312,8 @@ map_of_deserializers = {
   STEPPER_TYPE_ID: deserialize_stepper,
   ABS_ENCODER_TYPE_ID: deserialize_abs_encoder,
   IS_TRACKING_RESPONSE_ID: deserialize_is_tracking,
-  TIMING_CONTROL_TYPE_ID: deserialize_timing
+  TIMING_CONTROL_TYPE_ID: deserialize_timing,
+  WELCOME_MESSAGE_ID: welcome_message_handler.deserialize_welcome_message
 }
 
 
@@ -327,17 +351,30 @@ class SerialReader:
         self.current_error = 0
         self._latest_encoder_readouts = []
 
+    def is_connected(self):
+        return self.ser is not None
+
     def connect_to_port(self, port_name):
         self.ser = serial.Serial(
             port=port_name,
             baudrate=115200,
-            timeout=1)
+            timeout=3)
 
+        print(f"Opened serial on {port_name}")
         self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
         self.encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
         self.timing_log_file = open('logs/timing_log', "w", buffering=1)
         self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
         self.logs = [self.log_file, self.encoder_log_file, self.timing_log_file]
+        print(f"Receiving welcome message...")
+        self._receive_new_data_from_serial()  # should be welcome message
+        message = welcome_message_handler.get_welcome_message()
+        if message is None:
+            self.log_file.write("Could not connect to mount!")
+            return "Connection failed!"
+        print(f"Received: {message}")
+        return message
+
 
     @staticmethod
     def kill():
@@ -357,6 +394,22 @@ class SerialReader:
         if self.encoder_log_file is not None:
             self.encoder_log_file.close()
 
+    def _receive_new_data_from_serial(self):
+        message = self.ser.readline().decode('UTF-8').rstrip()
+        if "BHS" == message:
+            header_line = self.ser.read(12)
+            try:
+                (timestamp, type_id, data_size) = unpack("LLL", header_line)
+            except ValueError as ve:
+                log.error(f"Value error {ve} happened when reading header from {header_line}")
+                return
+
+            raw_payload = self.ser.read(data_size)
+            if is_special_message(type_id):
+                handle_special_message(type_id, timestamp, self.logs)
+            else:
+                unpack_type(type_id, timestamp, raw_payload, self.logs)
+
     def loop(self):
         print("Starting main loop")
         while not global_thread_killer:
@@ -375,21 +428,7 @@ class SerialReader:
                 if self.ser is None:
                     time.sleep(1)
                     continue
-                message = self.ser.readline().decode('UTF-8').rstrip()
-                if "BHS" == message:
-                    header_line = self.ser.read(12)
-                    try:
-                        (timestamp, type_id, data_size) = unpack("LLL", header_line)
-                    except ValueError as ve:
-                        log.error(f"Value error {ve} happened when reading header from {header_line}")
-                        continue
-
-                    print(f"Read typeid = {type_id} with size ={data_size}")
-                    raw_payload = self.ser.read(data_size)
-                    if is_special_message(type_id):
-                        handle_special_message(type_id, timestamp, self.logs)
-                    else:
-                        unpack_type(type_id, timestamp, raw_payload, self.logs)
+                self._receive_new_data_from_serial()
 
             except Exception as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"

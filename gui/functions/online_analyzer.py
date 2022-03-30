@@ -33,10 +33,12 @@ class HistoricalEncoderDataProvider:
 
 
 def get_correction_from_mount(reader):
+    if not reader.is_connected():
+        return None
     reader.write_string("GET_CORR\n")
     result = correction_data_provider.get_data()
     if result is None:
-        return None
+        return []
     _, times, intervals = result
     data = (times, intervals)
     print(f"Obtained data from mount: {data}")
@@ -63,7 +65,7 @@ class ByteConverter:
         f = f"{len(t)}I{len(i)}I"
         print(f"Size of bytes = {struct.calcsize(f)}")
         result = struct.pack(f, *t, *i)
-        self._callback(result)
+        self._callback((len(t), result))
 
 
 class OnlineAnalyzer:

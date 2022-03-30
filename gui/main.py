@@ -1,4 +1,4 @@
-
+import time
 from threading import Thread
 import tkinter as tk
 from tkinter import scrolledtext
@@ -11,10 +11,34 @@ from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
 from functions.server import get_web_server
 
 
+class ConnectionManager:
+    def __init__(self, event_logger, r, st, c):
+        self._message = None
+        self._logger = event_logger
+        self._reader = r
+        self._serial_thread = st
+        self._com_port_choice = c
+
+    def _asynch_connection(self, chosen_port):
+        welcome_message = reader.connect_to_port(chosen_port)
+        self._logger.log_event(f"{welcome_message}\n")
+        serial_thread.start()
+
+    def connect_to_chosen_port(self):
+        chosen_port = self._com_port_choice.get()
+        self._logger.log_event(f"Connecting to port: {chosen_port}\n")
+        connection_thread = Thread(target=self._asynch_connection, args=(chosen_port,))
+        connection_thread.start()
+
+
+root = tk.Tk()
 event_logger = EventLogger()
+available_ports = get_available_com_ports()
+com_port_choice = tk.StringVar(value=available_ports[0])
 # reader = SerialReader('COM8')
 reader = SerialReader(None)
-root = tk.Tk()
+serial_thread = Thread(target=reader.loop)
+connection_manager = ConnectionManager(event_logger, reader, serial_thread, com_port_choice)
 root.title("PEliminator GUI")
 mover = CoordinateMover(reader, event_logger)
 web_server = get_web_server(mover)
@@ -24,21 +48,10 @@ root.geometry("800x480")
 connect_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
 connect_frame.pack(side=tk.TOP)
 
-
-available_ports = get_available_com_ports()
-com_port_choice = tk.StringVar(value=available_ports[0])
-
-
-def connect_to_chosen_port():
-    chosen_port = com_port_choice.get()
-    event_logger.log_event(f"Connecting to port: {chosen_port}\n")
-    reader.connect_to_port(chosen_port)
-
-
 combobox = ttk.Combobox(connect_frame, textvariable=com_port_choice, values=available_ports)
 combobox.pack(side=tk.RIGHT)
 
-choose_port_button = tk.Button(connect_frame, text="Connect", command=connect_to_chosen_port)
+choose_port_button = tk.Button(connect_frame, text="Connect", command=connection_manager.connect_to_chosen_port)
 choose_port_button.pack(side=tk.LEFT)
 
 ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
@@ -166,9 +179,14 @@ online_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
 online_frame.pack(side=tk.TOP)
 
 
-def write_correction(correction_bytes):
-    mover.log_something("Entering new correction for mount!\n")
-    reader.write_bytes("ENTER_CORR\n".encode() + correction_bytes)
+def write_correction(correction):
+    arrays_length, correction_bytes = correction
+    if not reader.is_connected():
+        event_logger.log_event("Mount is not connected!\n")
+        return
+    event_logger.log_event("Entering new correction for mount!\n")
+    reader.write_bytes(f"ENTER_CORR {arrays_length}\n".encode() + correction_bytes)
+    time.sleep(2)
 
 
 onliner = OnlineAnalyzer(encoder_data, write_correction, reader)
@@ -184,6 +202,8 @@ online_history_button.pack(side=tk.LEFT)
 def get_and_log_correction():
     data = get_correction_from_mount(reader)
     if data is None:
+        event_logger.log_event(f"Mount is not connected!\n")
+    elif not data:
         event_logger.log_event(f"Getting correction data timed out!\n")
     else:
         event_logger.log_event(f"Obtained recent correction data from mount:\n{data}\n")
@@ -207,8 +227,6 @@ logger_thread.start()
 
 web_thread = Thread(target=web_server.serve_forever)
 web_thread.start()
-serial_thread = Thread(target=reader.loop)
-serial_thread.start()
 
 root.mainloop()
 print("End of main loop!")
@@ -218,6 +236,7 @@ onliner.kill()
 onliner_historic.kill()
 reader.kill()
 logger_thread.join()
-serial_thread.join()
+if reader.is_connected():
+    serial_thread.join()
 web_thread.join()
 web_server.server_close()
