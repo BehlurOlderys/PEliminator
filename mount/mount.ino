@@ -582,10 +582,11 @@ void ReadSerial(){
       PrintCorrectionToSerial(serializer);
     }
     else if (strcmp("ENTER_CORR", command_name) == 0){
-      correction_data.data_length = uint8_t(command_argument);
-      size_t NBytes = sizeof(uint32_t)*correction_data.data_length;
-      Serial.readBytes((char*)(correction_data.times), NBytes);
-      Serial.readBytes((char*)(correction_data.intervals), NBytes);
+      correction_data.data_length = uint32_t(command_argument);
+      size_t NBytes = sizeof(uint32_t)*(correction_data.data_length);
+      Serial.readBytes((char*)(correction_data.encoder_ticks), NBytes);
+      Serial.readBytes((char*)(correction_data.time_intervals), NBytes);
+      correction_data.TranformToArduinoTime();
     }
     else if (strcmp("SET_DC+" ,command_name) == 0){
       drift_compensator.SetPositiveCompensation(command_argument);
@@ -644,6 +645,7 @@ void setup() {
   select_state_controller.SetState(SELECT_STATE_HELLO);
   
   ra_encoder.setup_encoder();
+  correction_data.InitializeWithStaticValues();
 
   delay(100);
 
@@ -704,5 +706,5 @@ void loop() {
   drift_compensator.Run();
 
   UpdateAbsEncoder();
-  PrintEncoder();
+//  PrintEncoder();
 }

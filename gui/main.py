@@ -6,8 +6,8 @@ from tkinter import ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
-from common.serial_reader import SerialReader, encoder_data
-from analyzer.widgets.online_analyzer import OnlineAnalyzer
+from common.serial_reader import SerialReader, encoder_data, get_available_com_ports
+from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
 from functions.server import get_web_server
 
 
@@ -20,6 +20,28 @@ mover = CoordinateMover(reader, event_logger)
 web_server = get_web_server(mover)
 
 root.geometry("800x480")
+
+connect_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+connect_frame.pack(side=tk.TOP)
+
+
+available_ports = get_available_com_ports()
+com_port_choice = tk.StringVar(value=available_ports[0])
+
+
+def connect_to_chosen_port():
+    chosen_port = com_port_choice.get()
+    event_logger.log_event(f"Connecting to port: {chosen_port}\n")
+    reader.connect_to_port(chosen_port)
+
+
+combobox = ttk.Combobox(connect_frame, textvariable=com_port_choice, values=available_ports)
+combobox.pack(side=tk.RIGHT)
+
+choose_port_button = tk.Button(connect_frame, text="Connect", command=connect_to_chosen_port)
+choose_port_button.pack(side=tk.LEFT)
+
+ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
 settings_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
 settings_frame.pack(side=tk.TOP)
@@ -157,6 +179,18 @@ online_button.pack(side=tk.LEFT)
 onliner_historic = OnlineAnalyzer(None, write_correction)
 online_history_button = tk.Button(online_frame, text="Start historical analysis...", command=onliner_historic.start)
 online_history_button.pack(side=tk.LEFT)
+
+
+def get_and_log_correction():
+    data = get_correction_from_mount(reader)
+    if data is None:
+        event_logger.log_event(f"Getting correction data timed out!\n")
+    else:
+        event_logger.log_event(f"Obtained recent correction data from mount:\n{data}\n")
+
+
+check_current_correction_button = tk. Button(online_frame, text="Get currect correction", command=get_and_log_correction)
+check_current_correction_button.pack(side=tk.RIGHT)
 
 ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 

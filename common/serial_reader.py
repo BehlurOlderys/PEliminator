@@ -1,11 +1,30 @@
+import queue
+
 import serial
 from serial import SerialException
 from struct import unpack
 import logging
 from datetime import datetime
 import time
+import sys
 from queue import Queue
-#from ..//..//common.global_settings import settings
+
+
+def get_available_com_ports():
+    if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+    else:
+        return []
+
+    result = []
+    for p in ports:
+        try:
+            s = serial.Serial(p)
+            s.close()
+            result.append(p)
+        except (OSError, serial.SerialException):
+            pass
+    return result
 
 
 log = logging.getLogger(__name__)
@@ -220,13 +239,22 @@ class CorrectionDataDeserializer:
         self._queue = Queue(maxsize=1)
 
     def get_data(self):
-        return self._queue.get(timeout=10)
+        try:
+            return self._queue.get(timeout=10)
+        except queue.Empty:
+            print("Getting correction data from mount timed out!")
+            return None
 
-    def deserialize_correction_data(self, raw_payload, timestamp, logger):
-        (times, intervals, length) = unpack("100I100IB", raw_payload)
+    def deserialize_correction_data(self, raw_payload, timestamp, logs):
+        logger = logs[general_log_index]
+        print(f"Raw payload from correction data=\n{raw_payload}")
+        data = unpack("129I", raw_payload)
+        times = data[:64]
+        intervals = data[64:128]
+        length = data[-1]
         items_range = range(0, length)
         times_real = [times[i] for i in items_range]
-        intervals_real = [times[i] for i in items_range]
+        intervals_real = [intervals[i] for i in items_range]
         self._queue.put((timestamp, times_real, intervals_real))
         logger.write(f"{timestamp} GET CORR: {self._last_data}\n")
 
@@ -299,6 +327,18 @@ class SerialReader:
         self.current_error = 0
         self._latest_encoder_readouts = []
 
+    def connect_to_port(self, port_name):
+        self.ser = serial.Serial(
+            port=port_name,
+            baudrate=115200,
+            timeout=1)
+
+        self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
+        self.encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
+        self.timing_log_file = open('logs/timing_log', "w", buffering=1)
+        self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
+        self.logs = [self.log_file, self.encoder_log_file, self.timing_log_file]
+
     @staticmethod
     def kill():
         global global_thread_killer
@@ -344,6 +384,7 @@ class SerialReader:
                         log.error(f"Value error {ve} happened when reading header from {header_line}")
                         continue
 
+                    print(f"Read typeid = {type_id} with size ={data_size}")
                     raw_payload = self.ser.read(data_size)
                     if is_special_message(type_id):
                         handle_special_message(type_id, timestamp, self.logs)

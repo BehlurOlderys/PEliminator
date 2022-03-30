@@ -3,7 +3,7 @@
 #include "Arduino.h"
 
 #define UNIQUE_BHS_TOKEN "BHS"
-static const uint16_t SERIALIZE_MAX_SIZE = 256;
+static const uint16_t SERIALIZE_MAX_SIZE = 1024;
 
 typedef uint32_t integer_id_type;
 

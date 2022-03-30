@@ -1,8 +1,8 @@
-from .image_calculator import ImageCalculator
-from .encoder_manager import just_read_encoder
-from .image_provider import ImageProvider
-from .speedcalculator import SpeedCalculator
-from .times_generator import get_data_from_correction_file, get_new_correction_data
+from analyzer.widgets.image_calculator import ImageCalculator
+from analyzer.widgets.encoder_manager import just_read_encoder
+from analyzer.widgets.image_provider import ImageProvider
+from analyzer.widgets.speedcalculator import SpeedCalculator
+from analyzer.widgets.times_generator import get_data_from_correction_file, get_new_correction_data
 from common.serial_reader import correction_data_provider
 from threading import Thread
 import struct
@@ -34,7 +34,10 @@ class HistoricalEncoderDataProvider:
 
 def get_correction_from_mount(reader):
     reader.write_string("GET_CORR\n")
-    _, times, intervals = correction_data_provider.get_data()
+    result = correction_data_provider.get_data()
+    if result is None:
+        return None
+    _, times, intervals = result
     data = (times, intervals)
     print(f"Obtained data from mount: {data}")
     return data
