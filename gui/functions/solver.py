@@ -3,7 +3,7 @@ import platform
 import itertools
 import tkinter as tk
 from tkinter import ttk
-from common import global_settings
+from functions.global_settings import settings
 from solver_impls import ASPSSolver
 
 
@@ -83,7 +83,7 @@ def get_solver_instance(solver_choice):
     solver_name, solver_path = solver_choice
     if not (solver_name in solver_instances):
         ctor = solver_ctors[solver_name]
-        solver_instances[solver_name] = ctor(global_settings.settings, solver_path)
+        solver_instances[solver_name] = ctor(settings, solver_path)
 
     return solver_instances[solver_name]
 

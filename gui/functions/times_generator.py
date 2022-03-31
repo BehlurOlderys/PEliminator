@@ -1,5 +1,5 @@
 import numpy as np
-from common.global_settings import settings, us_in_1_second
+from functions.global_settings import settings, us_in_1_second
 from tkinter import filedialog
 from datetime import date
 

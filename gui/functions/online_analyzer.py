@@ -1,9 +1,9 @@
-from analyzer.widgets.image_calculator import ImageCalculator
-from analyzer.widgets.encoder_manager import just_read_encoder
-from analyzer.widgets.image_provider import ImageProvider
-from analyzer.widgets.speedcalculator import SpeedCalculator
-from analyzer.widgets.times_generator import get_data_from_correction_file, get_new_correction_data
-from common.serial_reader import correction_data_provider
+from functions.image_calculator import ImageCalculator
+from functions.encoder_manager import just_read_encoder
+from functions.image_provider import ImageProvider
+from functions.speedcalculator import SpeedCalculator
+from functions.times_generator import get_data_from_correction_file, get_new_correction_data
+from functions.serial_reader import correction_data_provider
 from threading import Thread
 import struct
 

@@ -1,6 +1,4 @@
 import numpy as np
-import os
-from datetime import datetime
 
 
 def is_acceptable_file(s):

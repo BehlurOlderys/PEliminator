@@ -1,25 +1,25 @@
-import time
-from threading import Thread
-import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import ttk
+from tkinter import scrolledtext, ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
-from common.serial_reader import SerialReader, encoder_data, get_available_com_ports
+from functions.serial_reader import SerialReader, encoder_data, get_available_com_ports
 from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
 from functions.server import get_web_server
 
+import time
+from threading import Thread
+import tkinter as tk
+
 
 class ConnectionManager:
-    def __init__(self, event_logger, r, st, c):
+    def __init__(self, event_log, r, st, c):
         self._message = None
-        self._logger = event_logger
+        self._logger = event_log
         self._reader = r
         self._serial_thread = st
         self._com_port_choice = c
 
-    def _asynch_connection(self, chosen_port):
+    def _async_connection(self, chosen_port):
         welcome_message = reader.connect_to_port(chosen_port)
         self._logger.log_event(f"{welcome_message}\n")
         serial_thread.start()
@@ -27,7 +27,7 @@ class ConnectionManager:
     def connect_to_chosen_port(self):
         chosen_port = self._com_port_choice.get()
         self._logger.log_event(f"Connecting to port: {chosen_port}\n")
-        connection_thread = Thread(target=self._asynch_connection, args=(chosen_port,))
+        connection_thread = Thread(target=self._async_connection, args=(chosen_port,))
         connection_thread.start()
 
 
@@ -35,8 +35,7 @@ root = tk.Tk()
 event_logger = EventLogger()
 available_ports = get_available_com_ports()
 com_port_choice = tk.StringVar(value=available_ports[0])
-# reader = SerialReader('COM8')
-reader = SerialReader(None)
+reader = SerialReader()
 serial_thread = Thread(target=reader.loop)
 connection_manager = ConnectionManager(event_logger, reader, serial_thread, com_port_choice)
 root.title("PEliminator GUI")
@@ -92,7 +91,8 @@ precise_dec_spin = ttk.Spinbox(precise_frame, from_=-9999, to=9999, width=5, tex
 precise_dec_spin.pack(side=tk.LEFT)
 precise_dec_units_label = tk.Label(precise_frame, text='Units:', font=('calibre', 10, 'bold'))
 precise_dec_units_label.pack(side=tk.LEFT)
-precise_dec_combo = ttk.Combobox(precise_frame, values=possible_units, width=7, textvariable=mover.vars["dec_precise_units"])
+precise_dec_combo = ttk.Combobox(precise_frame, values=possible_units, width=7,
+                                 textvariable=mover.vars["dec_precise_units"])
 precise_dec_combo.pack(side=tk.LEFT)
 precise_dec_button = tk.Button(precise_frame, text='<MOVE', command=mover.move_dec)
 precise_dec_button.pack(side=tk.LEFT)
@@ -104,17 +104,20 @@ set_coordinates_frame.pack(side=tk.TOP)
 
 ra_hours_label = tk.Label(set_coordinates_frame, text='RA coordinates: H', font=('calibre', 10, 'bold'))
 ra_hours_label.pack(side=tk.LEFT)
-ra_hours_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=23, width=3, textvariable=mover.vars["ra_hours"], wrap=True)
+ra_hours_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=23, width=3,
+                            textvariable=mover.vars["ra_hours"], wrap=True)
 ra_hours_spin.pack(side=tk.LEFT)
 
 ra_minutes_label = tk.Label(set_coordinates_frame, text='M', font=('calibre', 10, 'bold'))
 ra_minutes_label.pack(side=tk.LEFT)
-ra_minutes_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3, textvariable=mover.vars["ra_minutes"], wrap=True)
+ra_minutes_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3,
+                              textvariable=mover.vars["ra_minutes"], wrap=True)
 ra_minutes_spin.pack(side=tk.LEFT)
 
 ra_seconds_label = tk.Label(set_coordinates_frame, text='S', font=('calibre', 10, 'bold'))
 ra_seconds_label.pack(side=tk.LEFT)
-ra_seconds_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3, textvariable=mover.vars["ra_seconds"], wrap=True)
+ra_seconds_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3,
+                              textvariable=mover.vars["ra_seconds"], wrap=True)
 ra_seconds_spin.pack(side=tk.LEFT)
 
 set_ra_button = tk.Button(set_coordinates_frame, text='SET', command=mover.set_ra)
@@ -134,12 +137,14 @@ dec_degrees_spin.pack(side=tk.LEFT)
 
 dec_minutes_label = tk.Label(set_coordinates_frame, text='M', font=('calibre', 10, 'bold'))
 dec_minutes_label.pack(side=tk.LEFT)
-dec_minutes_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3, textvariable=mover.vars["dec_minutes"], wrap=True)
+dec_minutes_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3,
+                               textvariable=mover.vars["dec_minutes"], wrap=True)
 dec_minutes_spin.pack(side=tk.LEFT)
 
 dec_seconds_label = tk.Label(set_coordinates_frame, text='S', font=('calibre', 10, 'bold'))
 dec_seconds_label.pack(side=tk.LEFT)
-dec_seconds_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3, textvariable=mover.vars["dec_seconds"], wrap=True)
+dec_seconds_spin = ttk.Spinbox(set_coordinates_frame, from_=0, to=59, width=3,
+                               textvariable=mover.vars["dec_seconds"], wrap=True)
 dec_seconds_spin.pack(side=tk.LEFT)
 
 set_dec_button = tk.Button(set_coordinates_frame, text='SET', command=mover.set_dec)
@@ -209,7 +214,8 @@ def get_and_log_correction():
         event_logger.log_event(f"Obtained recent correction data from mount:\n{data}\n")
 
 
-check_current_correction_button = tk. Button(online_frame, text="Get currect correction", command=get_and_log_correction)
+check_current_correction_button = tk. Button(online_frame, text="Get currect correction",
+                                             command=get_and_log_correction)
 check_current_correction_button.pack(side=tk.RIGHT)
 
 ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)

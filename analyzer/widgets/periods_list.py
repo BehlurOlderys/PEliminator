@@ -1,7 +1,7 @@
 import tkinter as tk
 import numpy as np
 from common.global_settings import settings
-from common.utils import moving_mean
+from gui.functions.utils import moving_mean
 
 
 class PeriodsList:

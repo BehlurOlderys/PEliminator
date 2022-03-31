@@ -1,9 +1,9 @@
+import tkinter as tk
+from tkinter import filedialog
+from tkinter.messagebox import showinfo
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter.messagebox import showinfo
-import tkinter as tk
 import re
-from tkinter import filedialog
 
 
 # encoder_logs_path_mock = "C:/Users/Florek/Desktop/_STEROWANIE/PEliminator/result.txt"

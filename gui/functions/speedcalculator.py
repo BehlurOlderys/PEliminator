@@ -1,5 +1,5 @@
-from common.global_settings import settings
-from common.utils import moving_mean
+from functions.global_settings import settings
+from functions.utils import moving_mean
 import numpy as np
 
 

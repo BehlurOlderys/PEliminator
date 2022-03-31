@@ -1,11 +1,12 @@
 from astropy.io import fits
-from common.global_settings import settings
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import os
 import numpy as np
 import matplotlib.patches as mpatches
+
+from functions.global_settings import settings
 
 # TODO!
 # class StarChooser(tk.Toplevel):

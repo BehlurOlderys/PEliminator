@@ -1,6 +1,7 @@
-from .global_settings import possible_units
+from functions.global_settings import possible_units
+from functions.serial_reader import callbacker
+
 import tkinter as tk
-from common.serial_reader import callbacker
 
 
 max_ra_as = 1296000

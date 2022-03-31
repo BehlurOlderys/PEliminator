@@ -1,29 +1,28 @@
-import queue
-
-import serial
-from serial import SerialException
+from serial import Serial, SerialException
 from struct import unpack
 import logging
 from datetime import datetime
 import time
 import sys
-from queue import Queue
+from queue import Queue, Empty
 
 
 def get_available_com_ports():
-    if sys.platform.startswith('win'):
+    if sys.platform.startswith('win'):  # TODO: other platforms?
         ports = ['COM%s' % (i + 1) for i in range(256)]
     else:
-        return []
+        return ["<NONE>"]
 
     result = []
     for p in ports:
         try:
-            s = serial.Serial(p)
+            s = Serial(p)
             s.close()
             result.append(p)
-        except (OSError, serial.SerialException):
+        except (OSError, SerialException):
             pass
+    if not result:
+        return ["<NONE>"]
     return result
 
 
@@ -77,8 +76,6 @@ serial_mega_info = {
     IS_TRACKING_RESPONSE_ID: [],
     UNSPECIFIED_TYPE_ID: []
 }
-
-global_thread_killer = False
 
 
 def get_is_tracking_response():
@@ -196,7 +193,7 @@ def deserialize_is_tracking(raw_payload, timestamp, logs):
 
 class WelcomeMessageHandler:
     def __init__(self):
-        self._queue = queue.Queue(maxsize=1)
+        self._queue = Queue(maxsize=1)
 
     def deserialize_welcome_message(self, raw_payload, timestamp, logs):
         logger = logs[general_log_index]
@@ -208,7 +205,7 @@ class WelcomeMessageHandler:
     def get_welcome_message(self):
         try:
             return self._queue.get(timeout=10)
-        except queue.Empty:
+        except Empty:
             print("Connection with mount failed!")
             return None
 
@@ -216,7 +213,7 @@ class WelcomeMessageHandler:
 class EncoderData:
     def __init__(self):
         self._latest = []
-        self._max = 10000 #settings.get_encoder_history_size()
+        self._max = 10000  # settings.get_encoder_history_size()
 
     def add_readout(self, r):
         self._latest.append(r)
@@ -263,7 +260,7 @@ class CorrectionDataDeserializer:
     def get_data(self):
         try:
             return self._queue.get(timeout=10)
-        except queue.Empty:
+        except Empty:
             print("Getting correction data from mount timed out!")
             return None
 
@@ -285,7 +282,8 @@ welcome_message_handler = WelcomeMessageHandler()
 correction_data_provider = CorrectionDataDeserializer()
 
 
-def deserialize_stepper(raw_payload, timestamp, logger):
+def deserialize_stepper(raw_payload, timestamp, logs):
+    logger = logs[general_log_index]
     (delay, direction, position, desired, is_enabled, is_slewing, raw_name) = unpack("iiH???4s", raw_payload)
     name = raw_name.decode('UTF-8').strip()
 
@@ -323,63 +321,51 @@ def unpack_type(type_id, timestamp, raw_payload, logs):
 
 
 class SerialReader:
-    def __init__(self, com_port):
-        self.ser = None
-        self.log_file = None
-        self.encoder_log_file = None
+    def __init__(self):
+        self._ser = None
+        self._log_file = None
+        self._encoder_log_file = None
+        self._timing_log_file = None
+        self._logs = [self._log_file, self._encoder_log_file, self._timing_log_file]
         self._something_to_write = []
-        if com_port is not None:
-            try:
-                self.ser = serial.Serial(
-                    port=com_port,
-                    baudrate=115200,
-                    timeout=1
-                )
-            except SerialException as se:
-                print(f"Could not open serial port {com_port}, exiting...")
-                exit(-1)
-
-        if com_port is not None:
-            self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
-            self.encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
-            self.timing_log_file = open('logs/timing_log', "w", buffering=1)
-            self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
-            self.logs = [self.log_file, self.encoder_log_file, self.timing_log_file]
-        self.current_position = 0
-        self.current_time = 0
-        self.previous_signals = None
-        self.current_error = 0
+        self._current_position = 0
+        self._current_time = 0
+        self._previous_signals = None
+        self._current_error = 0
         self._latest_encoder_readouts = []
+        self._killme = False
 
     def is_connected(self):
-        return self.ser is not None
+        return self._ser is not None
 
     def connect_to_port(self, port_name):
-        self.ser = serial.Serial(
-            port=port_name,
-            baudrate=115200,
-            timeout=3)
+        try:
+            self._ser = Serial(
+                port=port_name,
+                baudrate=115200,
+                timeout=3)
+        except SerialException:
+            message = f"Failed to open serial on port {port_name}"
+            print(message)
+            return message
 
         print(f"Opened serial on {port_name}")
-        self.log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
-        self.encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
-        self.timing_log_file = open('logs/timing_log', "w", buffering=1)
-        self.timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
-        self.logs = [self.log_file, self.encoder_log_file, self.timing_log_file]
+        self._log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
+        self._encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
+        self._timing_log_file = open('logs/timing_log', "w", buffering=1)
+        self._timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
+
         print(f"Receiving welcome message...")
         self._receive_new_data_from_serial()  # should be welcome message
         message = welcome_message_handler.get_welcome_message()
         if message is None:
-            self.log_file.write("Could not connect to mount!")
+            self._log_file.write("Could not connect to mount!")
             return "Connection failed!"
         print(f"Received: {message}")
         return message
 
-
-    @staticmethod
-    def kill():
-        global global_thread_killer
-        global_thread_killer = True
+    def kill(self):
+        self._killme = True
 
     def write_bytes(self, b):
         self._something_to_write.append(b)
@@ -389,54 +375,53 @@ class SerialReader:
         self._something_to_write.append(something.encode())
 
     def __del__(self):
-        if self.log_file is not None:
-            self.log_file.close()
-        if self.encoder_log_file is not None:
-            self.encoder_log_file.close()
+        if self._log_file is not None:
+            self._log_file.close()
+        if self._encoder_log_file is not None:
+            self._encoder_log_file.close()
 
     def _receive_new_data_from_serial(self):
-        message = self.ser.readline().decode('UTF-8').rstrip()
+        message = self._ser.readline().decode('UTF-8').rstrip()
         if "BHS" == message:
-            header_line = self.ser.read(12)
+            header_line = self._ser.read(12)
             try:
                 (timestamp, type_id, data_size) = unpack("LLL", header_line)
             except ValueError as ve:
                 log.error(f"Value error {ve} happened when reading header from {header_line}")
                 return
 
-            raw_payload = self.ser.read(data_size)
+            raw_payload = self._ser.read(data_size)
             if is_special_message(type_id):
-                handle_special_message(type_id, timestamp, self.logs)
+                handle_special_message(type_id, timestamp, self._logs)
             else:
-                unpack_type(type_id, timestamp, raw_payload, self.logs)
+                unpack_type(type_id, timestamp, raw_payload, self._logs)
+
+    def _is_there_something_to_write(self):
+        return len(self._something_to_write) > 0
+
+    def _write_data_to_serial(self):
+        element_to_write = self._something_to_write.pop(0)
+        message = f"Written {element_to_write} to serial"
+        if self._ser is not None:
+            self._ser.write(element_to_write)
+        else:
+            message = "[PHONY] " + message
+        print(message)
 
     def loop(self):
         print("Starting main loop")
-        while not global_thread_killer:
+        while not self._killme:
+            if self._ser is None:
+                time.sleep(1)
+                continue
             try:
-                # print(f"Checking length= {something_to_write}")
-                if len(self._something_to_write) > 0:
-                    element_to_write = self._something_to_write.pop(0)
-                    message = f"Written {element_to_write} to serial"
-                    if self.ser is not None:
-                        self.ser.write(element_to_write)
-                    else:
-                        message = "[PHONY] " + message
-                    # log.info()
-                    print(message)
-
-                if self.ser is None:
-                    time.sleep(1)
-                    continue
-                self._receive_new_data_from_serial()
+                if self._is_there_something_to_write():
+                    self._write_data_to_serial()
+                else:
+                    self._receive_new_data_from_serial()
 
             except Exception as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
                 log.error("SerialReader::loop Exception: " + message)
                 continue
-
-
-if __name__ == "__main__":
-    reader = SerialReader('COM8')
-    reader.loop()

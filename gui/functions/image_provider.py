@@ -1,6 +1,6 @@
 import os
 import time
-from common.utils import is_acceptable_file
+from functions.utils import is_acceptable_file
 
 
 class ImageProvider:

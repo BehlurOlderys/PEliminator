@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from common.utils import is_acceptable_file
+from functions.utils import is_acceptable_file
 
 
 def get_latest_sharpcap_capture_dir():

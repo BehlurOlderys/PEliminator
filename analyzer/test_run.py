@@ -1,7 +1,7 @@
 import os
 
-from widgets.image_provider import ImageProvider
-from widgets.image_calculator import ImageCalculator
+from gui.functions.image_provider import ImageProvider
+from gui.functions.image_calculator import ImageCalculator
 from threading import Thread
 
 
