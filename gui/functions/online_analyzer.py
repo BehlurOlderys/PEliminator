@@ -1,11 +1,12 @@
-from functions.image_calculator import ImageCalculator
-from functions.encoder_manager import just_read_encoder
-from functions.image_provider import ImageProvider
-from functions.speedcalculator import SpeedCalculator
-from functions.times_generator import get_data_from_correction_file, get_new_correction_data
-from functions.serial_reader import correction_data_provider
 from threading import Thread
 import struct
+
+from .image_calculator import ImageCalculator
+from .encoder_manager import just_read_encoder
+from .image_provider import ImageProvider
+from .speedcalculator import SpeedCalculator
+from .times_generator import get_data_from_correction_file, get_new_correction_data
+from .serial_handlers.all_handlers import correction_data_provider
 
 
 class HistoricalEncoderDataProvider:
@@ -77,7 +78,8 @@ class OnlineAnalyzer:
     it should be reading ***CURRENT*** worm model by getting it from mount by serial
     """
 
-    def _handle_speed(self, speed, mm, lf):
+    @staticmethod
+    def _handle_speed(speed, mm, lf):
         speed_str = ", ".join(map(str, speed))
         lf.write(f"{speed_str}\n")
         mm.handle_new_average_speed(speed)

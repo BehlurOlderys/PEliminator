@@ -1,5 +1,5 @@
-from functions.global_settings import settings
-from functions.utils import moving_mean
+from .global_settings import settings
+from .utils import moving_mean
 import numpy as np
 
 
@@ -54,7 +54,7 @@ class SpeedCalculator:
             previous_time = t
             ts[i] += 4294967 * additional_time
 
-        #interpolation:
+        # interpolation:
 
         ts = np.subtract(ts, ts[0])
         t = np.linspace(0, ts[-1], num=settings.get_correction_bins() + 1)
@@ -87,7 +87,3 @@ class SpeedCalculator:
         self._current_period.append((t, y, e))  # TODO: should be x or y depending on orientation
         print(f"Added point {p} to current period of length: {len(self._current_period)}")
         # seek for t in reader encoder
-
-
-
-

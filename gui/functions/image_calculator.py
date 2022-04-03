@@ -6,7 +6,7 @@ import os
 import numpy as np
 import matplotlib.patches as mpatches
 
-from functions.global_settings import settings
+from .global_settings import settings
 
 # TODO!
 # class StarChooser(tk.Toplevel):

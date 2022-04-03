@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from functions.utils import is_acceptable_file
+from .utils import is_acceptable_file
 
 
 def get_latest_sharpcap_capture_dir():
@@ -19,7 +19,8 @@ def get_latest_sharpcap_images_dir():
 
 def get_latest_sharpcap_image():
     newest_images_dir = get_latest_sharpcap_images_dir()
-    images = [(os.path.getctime(os.path.join(newest_images_dir, f)), f) for f in os.listdir(newest_images_dir) if is_acceptable_file(f)]
+    images = [(os.path.getctime(os.path.join(newest_images_dir, f)), f)
+              for f in os.listdir(newest_images_dir) if is_acceptable_file(f)]
     latest_image = max(images, key=lambda x: x[0])
     newest_image_path = os.path.join(newest_images_dir, latest_image[1])
     return newest_image_path
@@ -27,7 +28,8 @@ def get_latest_sharpcap_image():
 
 def get_second_latest_sharpcap_image():
     newest_images_dir = get_latest_sharpcap_images_dir()
-    images = [(os.path.getctime(os.path.join(newest_images_dir, f)), f) for f in os.listdir(newest_images_dir) if is_acceptable_file(f)]
+    images = [(os.path.getctime(os.path.join(newest_images_dir, f)), f)
+              for f in os.listdir(newest_images_dir) if is_acceptable_file(f)]
     latest_image = max(images, key=lambda x: x[0])
     images.remove(latest_image)
     second_latest_image = max(images, key=lambda x: x[0])

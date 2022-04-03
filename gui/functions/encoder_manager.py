@@ -51,7 +51,6 @@ class EncoderManager:
 
     def _read_datetime_from_encoder(self, line):
         dt = line.split('ABS')[0].split(',')[0]
-        a = self._progress["value"]
         self._progress['value'] += self._step_size
         if self._counter > 100:
             self._root.update_idletasks()

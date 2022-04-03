@@ -3,8 +3,8 @@ import numpy as np
 from PIL import Image
 from astropy.io import fits
 import os
-from functions.coordinate_mover import CoordinateMover
-from functions.sharpcap_capture import get_latest_sharpcap_image, get_second_latest_sharpcap_image
+from .coordinate_mover import CoordinateMover
+from .sharpcap_capture import get_latest_sharpcap_image, get_second_latest_sharpcap_image
 
 hostName = "192.168.0.45"
 serverPort = 8080
@@ -54,10 +54,11 @@ index_html_text = ""
 
 
 class DefaultRequestHandler(BaseHTTPRequestHandler):
+
     def _replace_in_index(self):
         new_html = self.server._index_html_text
         for k, v in html_replacements.items():
-            replacement = v(self)
+            replacement = v()
             new_html = new_html.replace(k, str(replacement))
 
         return new_html
@@ -154,7 +155,6 @@ class PEliminatorServer(HTTPServer):
 
     def go_back_ra(self):
         self._mover.go_back_ra()
-
 
 
 def get_web_server(mover=None):

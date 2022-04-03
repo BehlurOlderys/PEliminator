@@ -2,7 +2,8 @@ from tkinter import scrolledtext, ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
-from functions.serial_reader import SerialReader, encoder_data, get_available_com_ports
+from functions.serial_reader import SerialReader, get_available_com_ports
+from functions.serial_handlers.all_handlers import encoder_data
 from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
 from functions.server import get_web_server
 
@@ -43,8 +44,26 @@ mover = CoordinateMover(reader, event_logger)
 web_server = get_web_server(mover)
 
 root.geometry("800x480")
+tabs = ttk.Notebook(root)
+tabs.pack(expand=True)
 
-connect_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+mount_tab = tk.Frame(tabs)
+mount_tab.pack(fill='both', expand=True)
+tabs.add(mount_tab, text="Mount control")
+
+correction_tab = tk.Frame(tabs)
+correction_tab.pack(fill='both', expand=True)
+tabs.add(correction_tab, text="Corrections")
+
+settings_tab = tk.Frame(tabs)
+settings_tab.pack(fill='both', expand=True)
+tabs.add(settings_tab, text="Settings")
+
+log_tab = tk.Frame(tabs)
+log_tab.pack(fill='both', expand=True)
+tabs.add(log_tab, text="Command log")
+
+connect_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
 connect_frame.pack(side=tk.TOP)
 
 combobox = ttk.Combobox(connect_frame, textvariable=com_port_choice, values=available_ports)
@@ -53,9 +72,9 @@ combobox.pack(side=tk.RIGHT)
 choose_port_button = tk.Button(connect_frame, text="Connect", command=connection_manager.connect_to_chosen_port)
 choose_port_button.pack(side=tk.LEFT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-settings_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+settings_frame = tk.Frame(settings_tab, highlightbackground="black", highlightthickness=1)
 settings_frame.pack(side=tk.TOP)
 
 optics_label = tk.Label(settings_frame, text='Image scale: f[mm]=', font=('calibre', 10, 'bold'))
@@ -68,9 +87,9 @@ optics_pixel_spin = ttk.Spinbox(settings_frame, from_=0, to=99, width=5,
                                 textvariable=mover.vars["optics_pixel"], format='%.2f', increment=0.1)
 optics_pixel_spin.pack(side=tk.LEFT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-precise_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+precise_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
 precise_frame.pack(side=tk.TOP)
 
 precise_ra_desc_label = tk.Label(precise_frame, text='Precise move: RA', font=('calibre', 10, 'bold'))
@@ -97,9 +116,9 @@ precise_dec_combo.pack(side=tk.LEFT)
 precise_dec_button = tk.Button(precise_frame, text='<MOVE', command=mover.move_dec)
 precise_dec_button.pack(side=tk.LEFT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-set_coordinates_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+set_coordinates_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
 set_coordinates_frame.pack(side=tk.TOP)
 
 ra_hours_label = tk.Label(set_coordinates_frame, text='RA coordinates: H', font=('calibre', 10, 'bold'))
@@ -156,9 +175,9 @@ goto_dec_button.pack(side=tk.LEFT)
 halt_dec_button = tk.Button(set_coordinates_frame, text='HALT!', command=mover.halt)
 halt_dec_button.pack(side=tk.LEFT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-drift_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+drift_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
 drift_frame.pack(side=tk.TOP)
 dec_drift_label = tk.Label(drift_frame, text='DEC drift value: ', font=('calibre', 10, 'bold'))
 dec_drift_label.pack(side=tk.LEFT)
@@ -178,9 +197,9 @@ dec_drift_button_start.pack(side=tk.LEFT)
 dec_drift_button_stop = tk.Button(drift_frame, text='STOP', command=mover.stop_dec_drift)
 dec_drift_button_stop.pack(side=tk.LEFT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-online_frame = tk.Frame(root, highlightbackground="black", highlightthickness=1)
+online_frame = tk.Frame(correction_tab, highlightbackground="black", highlightthickness=1)
 online_frame.pack(side=tk.TOP)
 
 
@@ -218,10 +237,10 @@ check_current_correction_button = tk. Button(online_frame, text="Get currect cor
                                              command=get_and_log_correction)
 check_current_correction_button.pack(side=tk.RIGHT)
 
-ttk.Separator(root, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
 
-serial_log = scrolledtext.ScrolledText(root,
+serial_log = scrolledtext.ScrolledText(log_tab,
                                        font=('calibre', 10, 'normal'),
                                        background='black',
                                        foreground="red")

@@ -3,7 +3,7 @@ import platform
 import itertools
 import tkinter as tk
 from tkinter import ttk
-from functions.global_settings import settings
+from .global_settings import settings
 from solver_impls import ASPSSolver
 
 
