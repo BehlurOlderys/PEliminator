@@ -1,0 +1,7 @@
+CMAKE_MINIMUM_REQUIRED ( VERSION 2.8.12) 
+project(ReadEncoder)
+set(OpenCV_DIR "C:/opencv/opencv_build/install")
+find_package( OpenCV REQUIRED )
+include_directories("C:/opencv/opencv_build/install/include")
+add_executable(read_encoder read_encoder.cpp) 
+target_link_libraries( read_encoder ${OpenCV_LIBS})
