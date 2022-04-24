@@ -360,6 +360,7 @@ esp_err_t cam_config(const camera_config_t *config, framesize_t frame_size, uint
 #else
     cam_obj->psram_mode = (config->xclk_freq_hz == 16000000);
 #endif
+    ESP_CAMERA_ETS_PRINTF(DRAM_STR("PSRAM Mode = %s\r\n"), (cam_obj->psram_mode  ? DRAM_STR("YES") : DRAM_STR("NO")));
     cam_obj->frame_cnt = config->fb_count;
     cam_obj->width = resolution[frame_size].width;
     cam_obj->height = resolution[frame_size].height;

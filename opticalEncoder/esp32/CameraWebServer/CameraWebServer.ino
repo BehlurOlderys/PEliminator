@@ -1,7 +1,9 @@
 #include "esp_camera.h"
+#include "Arduino.h"
 #include <WiFi.h>
 
 #define CAMERA_MODEL_AI_THINKER // Has PSRAM
+#define CONFIG_LOG_DEFAULT_LEVEL 1
 
 #include "camera_pins.h"
 
@@ -35,9 +37,9 @@ void setup() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000;
-  config.pixel_format = PIXFORMAT_JPEG;
+  config.pixel_format = PIXFORMAT_GRAYSCALE;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-  
+
   // There is PSRAM 4MB here!
   config.frame_size = FRAMESIZE_QVGA;
   config.jpeg_quality = 10;

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "soc/i2s_struct.h"
+#include "rom/ets_sys.h"
 #include "esp_idf_version.h"
 #if (ESP_IDF_VERSION_MAJOR >= 4) && (ESP_IDF_VERSION_MINOR > 1)
 #include "hal/gpio_ll.h"
@@ -481,23 +482,29 @@ size_t IRAM_ATTR ll_cam_memcpy(cam_obj_t *cam, uint8_t *out, const uint8_t *in, 
 
 esp_err_t ll_cam_set_sample_mode(cam_obj_t *cam, pixformat_t pix_format, uint32_t xclk_freq_hz, uint16_t sensor_pid)
 {
+  ets_printf("SETTING SAMPLE MODE\r\n");
     if (pix_format == PIXFORMAT_GRAYSCALE) {
+        ets_printf("GRAYSCALE!\r\n");
         if (sensor_pid == OV3660_PID || sensor_pid == OV5640_PID || sensor_pid == NT99141_PID) {
             if (xclk_freq_hz > 10000000) {
                 sampling_mode = SM_0A00_0B00;
                 dma_filter = ll_cam_dma_filter_yuyv_highspeed;
+                ets_printf("Chosen yuyv filter highspeed!\r\n");
             } else {
                 sampling_mode = SM_0A0B_0C0D;
                 dma_filter = ll_cam_dma_filter_yuyv;
+                ets_printf("Chosen yuyv filter regular!\r\n");
             }
             cam->in_bytes_per_pixel = 1;       // camera sends Y8
         } else {
             if (xclk_freq_hz > 10000000 && sensor_pid != OV7725_PID) {
                 sampling_mode = SM_0A00_0B00;
                 dma_filter = ll_cam_dma_filter_grayscale_highspeed;
+                ets_printf("Chosen grayscale filter highspeed!\r\n");
             } else {
                 sampling_mode = SM_0A0B_0C0D;
                 dma_filter = ll_cam_dma_filter_grayscale;
+                ets_printf("Chosen grayscale filter regular!\r\n");
             }
             cam->in_bytes_per_pixel = 2;       // camera sends YU/YV
         }

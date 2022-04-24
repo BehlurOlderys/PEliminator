@@ -17,17 +17,7 @@
 #include <stdint.h>
 #include "sdkconfig.h"
 #include "esp_idf_version.h"
-#if CONFIG_IDF_TARGET_ESP32
-#if ESP_IDF_VERSION_MAJOR >= 4
-#include "esp32/rom/lldesc.h"
-#else
 #include "rom/lldesc.h"
-#endif
-#elif CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/rom/lldesc.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#include "esp32s3/rom/lldesc.h"
-#endif
 #include "esp_log.h"
 #include "esp_camera.h"
 #include "freertos/FreeRTOS.h"
