@@ -175,6 +175,7 @@ static int set_window(sensor_t *sensor, ov2640_sensor_mode_t mode, int offset_x,
 #else
         c.clk_2x = 1;
 #endif
+        c.clk_2x = 1; // added!
         c.clk_div = 7;
         c.pclk_auto = 1;
         c.pclk_div = 8;
@@ -184,7 +185,10 @@ static int set_window(sensor_t *sensor, ov2640_sensor_mode_t mode, int offset_x,
             c.pclk_div = 12;
         }
     }
-    ESP_LOGI(TAG, "Set PLL: clk_2x: %u, clk_div: %u, pclk_auto: %u, pclk_div: %u", c.clk_2x, c.clk_div, c.pclk_auto, c.pclk_div);
+
+    c.clk_2x = 1;
+    c.clk_div = 0;
+    ets_printf("Set PLL: clk_2x: %u, clk_div: %u, pclk_auto: %u, pclk_div: %u", c.clk_2x, c.clk_div, c.pclk_auto, c.pclk_div);
 
     if (mode == OV2640_MODE_CIF) {
         regs = ov2640_settings_to_cif;

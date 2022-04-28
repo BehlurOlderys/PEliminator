@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068" moduleId="org.eclipse.cdt.core.settings" name="Build (GNU)">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.Cygwin_PE" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.PE" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.linuxtools.cdt.autotools.core.buildArtefactType.autotools" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.linuxtools.cdt.autotools.core.buildArtefactType.autotools,org.eclipse.cdt.build.core.buildType=org.eclipse.linuxtools.cdt.autotools.core.buildType.default" cleanCommand="rm -rf" description="" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068" name="Build (GNU)" optionalBuildProperties="" parent="org.eclipse.linuxtools.cdt.autotools.core.configuration.build">
+					<folderInfo id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068." name="/" resourcePath="">
+						<toolChain id="org.eclipse.linuxtools.cdt.autotools.core.toolChain.1351922608" name="GNU Autotools Toolchain" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolChain">
+							<targetPlatform id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.targetPlatform.1444334168" isAbstract="false" name="GNU Autotools Target Platform" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.targetPlatform"/>
+							<builder id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder.1329833345" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Autotools Makefile Generator" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder"/>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure.389176424" name="configure" superClass="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure">
+								<option id="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name.1466322517" name="Name" superClass="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name" value="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068" valueType="string"/>
+							</tool>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen.375985869" name="autogen.sh" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen"/>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.1939323109" name="GCC C Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.compiler.option.include.paths.476884034" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\freertos&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nvs_flash&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\log&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\heap&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp_http_server&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\fb_gfx&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\cores\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nghttp&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\libraries\WiFi\src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\soc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp-face&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.compiler.option.preprocessor.def.symbols.2122418915" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CONFIG_LOG_DEFAULT_LEVEL=1"/>
+									<listOptionValue builtIn="false" value="CONFIG_FREERTOS_HZ=0"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.393688114" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+							</tool>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp.1371141266" name="GCC C++ Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.cpp.compiler.option.include.paths.492597252" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\freertos&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nvs_flash&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\log&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\heap&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp_http_server&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\fb_gfx&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\cores\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nghttp&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\libraries\WiFi\src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\soc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp-face&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.cpp.compiler.option.preprocessor.def.327816896" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CONFIG_LOG_DEFAULT_LEVEL=ESP_LOG_WARN"/>
+									<listOptionValue builtIn="false" value="CONFIG_FREERTOS_HZ=0"/>
+									<listOptionValue builtIn="false" value="CONFIG_IDF_TARGET_ESP32=TRUE"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.750182409" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+		<cconfiguration id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853" moduleId="org.eclipse.cdt.core.settings" name="Debug (GNU)">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.Cygwin_PE" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.PE" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.linuxtools.cdt.autotools.core.buildArtefactType.autotools" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.linuxtools.cdt.autotools.core.buildArtefactType.autotools,org.eclipse.cdt.build.core.buildType=org.eclipse.linuxtools.cdt.autotools.core.buildType.debug" cleanCommand="rm -rf" description="" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853" name="Debug (GNU)" optionalBuildProperties="" parent="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug">
+					<folderInfo id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853." name="/" resourcePath="">
+						<toolChain id="org.eclipse.linuxtools.cdt.autotools.core.toolChain.debug.1845482378" name="GNU Autotools Toolchain" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolChain.debug">
+							<targetPlatform id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.targetPlatform.debug.1127783909" isAbstract="false" name="GNU Autotools Target Platform" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.targetPlatform.debug"/>
+							<builder id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder.debug.285719594" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Autotools Makefile Generator" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder.debug"/>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure.debug.1453497307" name="configure" superClass="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure.debug">
+								<option defaultValue="CFLAGS=-g -O0" id="org.eclipse.linuxtools.cdt.autotools.core.option.configure.user.690584441" name="User-specified configuration options" superClass="org.eclipse.linuxtools.cdt.autotools.core.option.configure.user" valueType="string"/>
+								<option id="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name.845983339" name="Name" superClass="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name" value="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853" valueType="string"/>
+							</tool>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen.debug.1079801328" name="autogen.sh" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen.debug"/>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.debug.1855629721" name="GCC C Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.debug">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.compiler.option.include.paths.492607577" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\freertos&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nvs_flash&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\log&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\heap&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp_http_server&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\fb_gfx&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\cores\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nghttp&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\libraries\WiFi\src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\soc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp-face&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.compiler.option.preprocessor.def.symbols.1653457664" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CONFIG_LOG_DEFAULT_LEVEL=1"/>
+									<listOptionValue builtIn="false" value="CONFIG_FREERTOS_HZ=0"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1884445594" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+							</tool>
+							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp.debug.652728830" name="GCC C++ Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp.debug">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.cpp.compiler.option.include.paths.1343056201" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\driver&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\freertos&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nvs_flash&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\log&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\heap&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp_http_server&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\fb_gfx&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\cores\esp32&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\nghttp&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\libraries\WiFi\src&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\soc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Users\Florek\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.6\tools\sdk\include\esp-face&quot;"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.cpp.compiler.option.preprocessor.def.1339633594" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CONFIG_LOG_DEFAULT_LEVEL=1"/>
+									<listOptionValue builtIn="false" value="CONFIG_FREERTOS_HZ=0"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1893493443" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="CameraWebServer.org.eclipse.linuxtools.cdt.autotools.core.projectType.1824443240" name="GNU Autotools" projectType="org.eclipse.linuxtools.cdt.autotools.core.projectType"/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug (GNU)">
+			<resource resourceType="PROJECT" workspacePath="/CameraWebServer"/>
+		</configuration>
+		<configuration configurationName="Build (GNU)">
+			<resource resourceType="PROJECT" workspacePath="/CameraWebServer"/>
+		</configuration>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		<scannerConfigBuildInfo instanceId="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068;org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068.;org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.1939323109;cdt.managedbuild.tool.gnu.c.compiler.input.393688114">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068;org.eclipse.linuxtools.cdt.autotools.core.configuration.build.725037068.;org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp.1371141266;cdt.managedbuild.tool.gnu.cpp.compiler.input.750182409">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853;org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853.;org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.debug.1855629721;cdt.managedbuild.tool.gnu.c.compiler.input.1884445594">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853;org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1448455853.;org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gpp.debug.652728830;cdt.managedbuild.tool.gnu.cpp.compiler.input.1893493443">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+	</storageModule>
+</cproject>

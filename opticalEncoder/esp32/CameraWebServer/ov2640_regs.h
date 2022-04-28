@@ -206,7 +206,7 @@ typedef enum {
 
 #define REG32_UXGA          0x36
 #define REG32_SVGA          0x09
-#define REG32_CIF           0x89
+#define REG32_CIF           0x09
 
 #define CLKRC_2X            0x80
 #define CLKRC_2X_UXGA       (0x01 | CLKRC_2X)

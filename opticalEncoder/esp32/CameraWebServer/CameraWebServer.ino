@@ -1,6 +1,7 @@
 #include "esp_camera.h"
 #include "Arduino.h"
-#include <WiFi.h>
+#include "main_loop.h"
+//#include <WiFi.h>
 
 #define CAMERA_MODEL_AI_THINKER // Has PSRAM
 #define CONFIG_LOG_DEFAULT_LEVEL 1
@@ -37,13 +38,11 @@ void setup() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000;
-  config.pixel_format = PIXFORMAT_GRAYSCALE;
+  config.pixel_format = PIXFORMAT_JPEG;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-
-  // There is PSRAM 4MB here!
-  config.frame_size = FRAMESIZE_QVGA;
+  config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 1;
+  config.fb_count = 2;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -51,24 +50,25 @@ void setup() {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
+  xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 0);
 
-  sensor_t * s = esp_camera_sensor_get();
-  s->set_framesize(s, FRAMESIZE_QVGA);
+//  sensor_t * s = esp_camera_sensor_get();
+//  s->set_framesize(s, FRAMESIZE_CIF);
 
-  WiFi.begin(ssid, password);
+//  WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-
-  startCameraServer();
-
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("' to connect");
+//  while (WiFi.status() != WL_CONNECTED) {
+//    delay(500);
+//    Serial.print(".");
+//  }
+//  Serial.println("");
+//  Serial.println("WiFi connected");
+//
+//  startCameraServer();
+//
+//  Serial.print("Camera Ready! Use 'http://");
+//  Serial.print(WiFi.localIP());
+//  Serial.println("' to connect");
 }
 
 void loop() {
