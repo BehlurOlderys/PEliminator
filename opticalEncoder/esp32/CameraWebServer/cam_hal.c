@@ -397,11 +397,14 @@ esp_err_t cam_config(const camera_config_t *config, framesize_t frame_size, uint
 
     
 #if CONFIG_CAMERA_CORE0
-    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 0);
+    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle, 0);
+    ets_printf("task on core 0\r\n");
 #elif CONFIG_CAMERA_CORE1
-    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 1);
+    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle, 1);
+    ets_printf("task on core 1\r\n");
 #else
-    xTaskCreate(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle);
+    xTaskCreate(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle);
+    ets_printf("task without preferred core\r\n");
 #endif
 
     ESP_LOGI(TAG, "cam config ok");

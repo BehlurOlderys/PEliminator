@@ -191,6 +191,7 @@ static int set_window(sensor_t *sensor, ov2640_sensor_mode_t mode, int offset_x,
     c.pclk_div = 2;
     c.clk_2x = 1;
     c.clk_div = 2;
+
     ets_printf("Set PLL: clk_2x: %u, clk_div: %u, pclk_auto: %u, pclk_div: %u\r\n",
                c.clk_2x, c.clk_div, c.pclk_auto, c.pclk_div);
 

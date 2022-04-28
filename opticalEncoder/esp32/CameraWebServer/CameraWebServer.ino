@@ -44,7 +44,7 @@ void setup() {
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 1;
+  config.fb_count = 4;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -53,7 +53,7 @@ void setup() {
       return;
   }
   BaseType_t const task_creation = xTaskCreatePinnedToCore(
-      main_loop, "process_task", 4096, NULL, configMAX_PRIORITIES - 2, &process_task_handle, 1);
+      main_loop, "process_task", 4096, NULL, configMAX_PRIORITIES - 2, &process_task_handle, 0);
   if (pdPASS != task_creation ){
       Serial.printf("Task creation failed!\r\n");
       return;
