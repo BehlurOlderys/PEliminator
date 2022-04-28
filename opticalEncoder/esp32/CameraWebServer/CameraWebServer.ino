@@ -7,11 +7,13 @@
 #define CONFIG_LOG_DEFAULT_LEVEL 1
 
 #include "camera_pins.h"
+//
+//const char* ssid = "UPC7FE6112";
+//const char* password = "a7mcrfdwuctJ";
+//
+//void startCameraServer();
 
-const char* ssid = "UPC7FE6112";
-const char* password = "a7mcrfdwuctJ";
-
-void startCameraServer();
+TaskHandle_t process_task_handle;
 
 void setup() {
   Serial.begin(115200);
@@ -38,19 +40,24 @@ void setup() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000;
-  config.pixel_format = PIXFORMAT_JPEG;
+  config.pixel_format = PIXFORMAT_RGB565;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 2;
+  config.fb_count = 1;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
+      Serial.printf("Camera init failed with error 0x%x", err);
+      return;
   }
-  xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 0);
+  BaseType_t const task_creation = xTaskCreatePinnedToCore(
+      main_loop, "process_task", 4096, NULL, configMAX_PRIORITIES - 2, &process_task_handle, 1);
+  if (pdPASS != task_creation ){
+      Serial.printf("Task creation failed!\r\n");
+      return;
+  }
 
 //  sensor_t * s = esp_camera_sensor_get();
 //  s->set_framesize(s, FRAMESIZE_CIF);
