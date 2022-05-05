@@ -110,6 +110,102 @@ void IRAM_ATTR ll_cam_send_event(cam_obj_t *cam, cam_event_t cam_event, BaseType
     }
 }
 
+static void cam_task_simple(void *arg)
+{
+    int cnt = 0;
+    int frame_pos = 0;
+    cam_obj->state = CAM_STATE_IDLE;
+    cam_event_t cam_event = 0;
+    int64_t start_frame = 0;
+    uint32_t busy_time_ms = 0;
+
+    xQueueReset(cam_obj->event_queue);
+
+    while (1) {
+        xQueueReceive(cam_obj->event_queue, (void *)&cam_event, portMAX_DELAY);
+        DBG_PIN_SET(1);
+        switch (cam_obj->state) {
+            case CAM_STATE_IDLE: {
+                if (cam_event == CAM_VSYNC_EVENT) {
+                    if(cam_start_frame(&frame_pos)){
+                        cam_obj->frames[frame_pos].fb.len = 0;
+                        cam_obj->state = CAM_STATE_READ_BUF;
+                    }
+                    cnt = 0;
+                    start_frame = esp_timer_get_time();
+                }
+            }
+            break;
+
+            case CAM_STATE_READ_BUF: {
+                int64_t const start_busy = esp_timer_get_time();
+                camera_fb_t * frame_buffer_event = &cam_obj->frames[frame_pos].fb;
+                size_t const pixels_per_dma = (cam_obj->dma_half_buffer_size * cam_obj->fb_bytes_per_pixel)
+                    / (cam_obj->dma_bytes_per_item * cam_obj->in_bytes_per_pixel);
+
+                if (cam_event == CAM_IN_SUC_EOF_EVENT) {
+                    if (cam_obj->fb_size < (frame_buffer_event->len + pixels_per_dma)) {
+                        ESP_LOGW(TAG, "FB-OVF");
+                        ll_cam_stop(cam_obj);
+                        DBG_PIN_SET(0);
+                        continue;
+                    }
+                    frame_buffer_event->len += cam_obj->dma_half_buffer_size;
+                    // Should copy from dma elsewhere
+                    cnt++;
+                    busy_time_ms += (uint32_t)(esp_timer_get_time() - start_busy);
+                } else if (cam_event == CAM_VSYNC_EVENT) {
+                    //DBG_PIN_SET(1);
+                    ll_cam_stop(cam_obj);
+
+                    if (cnt) {
+                        if (frame_buffer_event->len != cam_obj->fb_size) {
+                            static bool doOnce = true;
+                            if (!doOnce){
+                                cam_obj->frames[frame_pos].en = 1;
+                            }
+                            doOnce = false;
+                            ESP_LOGE(TAG, "FB-SIZE: %u != %u", frame_buffer_event->len, cam_obj->fb_size);
+                        }
+                        //send frame
+                        ets_printf("total time = %ums, busy time = %ums",
+                                   uint32_t(((esp_timer_get_time() - start_frame) / 1000)),
+                                   busy_time_ms);
+                        if(!cam_obj->frames[frame_pos].en &&
+                            xQueueSend(cam_obj->frame_buffer_queue, (void *)&frame_buffer_event, 0) != pdTRUE) {
+                            //pop frame buffer from the queue
+                            camera_fb_t * fb2 = NULL;
+                            if(xQueueReceive(cam_obj->frame_buffer_queue, &fb2, 0) == pdTRUE) {
+                                //push the new frame to the end of the queue
+                                if (xQueueSend(cam_obj->frame_buffer_queue, (void *)&frame_buffer_event, 0) != pdTRUE) {
+                                    cam_obj->frames[frame_pos].en = 1;
+                                    ESP_LOGE(TAG, "FBQ-SND");
+                                }
+                                //free the popped buffer
+                                cam_give(fb2);
+                            } else {
+                                //queue is full and we could not pop a frame from it
+                                cam_obj->frames[frame_pos].en = 1;
+                                ESP_LOGE(TAG, "FBQ-RCV");
+                            }
+                        }
+                    }
+
+                    if(!cam_start_frame(&frame_pos)){
+                        cam_obj->state = CAM_STATE_IDLE;
+                    } else {
+                        cam_obj->frames[frame_pos].fb.len = 0;
+                    }
+                    cnt = 0;
+                }
+            }
+            break;
+        }
+        DBG_PIN_SET(0);
+    }
+}
+
+
 //Copy fram from DMA dma_buffer to fram dma_buffer
 static void cam_task(void *arg)
 {
