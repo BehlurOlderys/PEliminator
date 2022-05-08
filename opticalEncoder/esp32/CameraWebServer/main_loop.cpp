@@ -18,6 +18,8 @@
 #include "fd_forward.h"
 #include "fr_forward.h"
 
+#define HALF_FRAME_BUFFER_SIZE 400*296
+
 
 void main_loop(void *arg){
   camera_fb_t * fb = NULL;
@@ -25,6 +27,7 @@ void main_loop(void *arg){
   uint8_t * _jpg_buf = NULL;
 
   int64_t fr_acq = 0;
+  int64_t fr_frame = 0;
   int64_t fr_jpeg = 0;
   int64_t fr_start = 0;
   int64_t fr_ready = 0;
@@ -32,53 +35,128 @@ void main_loop(void *arg){
   dl_matrix3du_t *image_matrix = NULL;
 //  image_matrix =  dl_matrix3du_alloc(1, 400, 296, 3);
 
-  uint8_t* array = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  uint8_t* entire_frame = (uint8_t *)heap_caps_malloc(2*400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  uint8_t* first_half = (uint8_t *)heap_caps_malloc(HALF_FRAME_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  uint8_t* second_half = (uint8_t *)heap_caps_malloc(HALF_FRAME_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
 
 //
   size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
   size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  Serial.printf("Free bytes = %d (RAM), %d(PSRAM)\r\n", free_bytes_ram, free_bytes_spi);
+  size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+
+  Serial.printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
+                free_bytes_ram, free_bytes_spi, largest_free);
 //
+
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_aec2(s, false);
+  s->set_aec_value(s, 20);
+  s->set_exposure_ctrl(s, false);
+
   static int64_t last_frame = 0;
   if(!last_frame) {
       last_frame = esp_timer_get_time();
   }
 
+
   while(true){
     fr_start = esp_timer_get_time();
     fb = esp_camera_fb_get();
-    if (!fb) {
-      Serial.println("Camera capture failed!\r\n");
-      vTaskDelay(10000 / portTICK_PERIOD_MS);
-      continue;
+    fr_frame = esp_timer_get_time();
+
+    static uint16_t counter = 0;
+//    memcpy(first_half, &fb->buf[0], HALF_FRAME_BUFFER_SIZE);
+//    memcpy(second_half, &fb->buf[HALF_FRAME_BUFFER_SIZE], HALF_FRAME_BUFFER_SIZE);
+//    fb->buf
+//    if (!fb) {
+//      Serial.println("Camera capture failed!\r\n");
+//      vTaskDelay(10000 / portTICK_PERIOD_MS);
+//      continue;
+//    }
+//    Serial.printf("Tick!\n");
+//    uint32_t const frame_size = fb->len;
+    size_t size_of_image = 2*400*296;
+    if (counter > 20){
+        memcpy(entire_frame, fb->buf, size_of_image);
     }
 
-    uint32_t const frame_size = fb->len;
-    fr_acq = esp_timer_get_time();
-
-    for (uint32_t i=2; i < (fb->len-1)/2; i += 2){
-        array[i] = fb->buf[i] + fb->buf[i-2];
-        array[i] += fb->buf[i] * fb->buf[i+2];
-    }
     esp_camera_fb_return(fb);
-    fr_jpeg = esp_timer_get_time();
+    size_t max_y = 296;
+    size_t max_x = 400;
+    uint8_t b1 = 0;
+    uint8_t b2 = 0;
+    size_t len = 400;
+    uint8_t r, g=0, b;
 
-    static uint8_t counter = 0;
-    if (counter >= 20){
-        counter = 0;
+    if (counter > 20){
+      Serial.println("IMG");
+      Serial.println(size_of_image/2);
+      for (size_t i = 0; i < max_y; ++i){
+          size_t index = i*800;
+          for (size_t j=0; j < max_x; ++j){
+              b1 = entire_frame[index+(2*j)];
+              b1 = entire_frame[index+(2*j)+1];
+
+              r = (b1 & 0x1f);
+              g = (((b1 & 0x07) >> 1) | ((b2 & 0xe0) >> 3));
+              b = (b2 & 0xf8) >> 3;
+              entire_frame[index+j] = (r+g+b);
+          }
+
+          Serial.write(&entire_frame[index], len);
+          vTaskDelay(1 / portTICK_PERIOD_MS);
+      }
+      counter = 0;
+
+      char text_buffer[16] = {0};
+      Serial.readBytesUntil('\n', text_buffer, 15);
+      Serial.print("RECEIVED <<");
+      Serial.print(text_buffer);
+      Serial.println(">> END OF TRANSMISSION");
     }
     counter++;
 
-    fb = NULL;
-    _jpg_buf = NULL;
+    fr_acq = esp_timer_get_time();
+
+
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        first_half[i] = first_half[i-1] + first_half[i+1];
+//    }
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        second_half[i] = second_half[i-1] + second_half[i+1];
+//    }
+//
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        first_half[i] = first_half[i-1] + first_half[i+1];
+//    }
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        second_half[i] = second_half[i-1] + second_half[i+1];
+//    }
+//
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        first_half[i] = first_half[i-1] + first_half[i+1];
+//    }
+//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
+//        second_half[i] = second_half[i-1] + second_half[i+1];
+//    }
+//    fr_jpeg = esp_timer_get_time();
+//
+//    static uint8_t counter = 0;
+//    if (counter >= 20){
+//        counter = 0;
+//    }
+//    counter++;
+//
+//    fb = NULL;
+//    _jpg_buf = NULL;
     int64_t fr_end = esp_timer_get_time();
 
-    uint32_t jpeg_time = (fr_jpeg - fr_acq) / 1000;
-    uint32_t acq_time = (fr_acq - fr_start) / 1000;
+    uint32_t process_time = (fr_end - fr_frame) / 1000;
+    uint32_t acq_time = (fr_frame - fr_start) / 1000;
     int64_t frame_time = (fr_end - last_frame) / 1000;
     last_frame = fr_end;
-    Serial.printf("Total: %ums (%.1ffps), JPEG: %ums, ACQ: %ums\n",
-      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, jpeg_time, acq_time
+    Serial.printf("Total: %ums (%.1ffps), processing: %ums, ACQ: %ums\n",
+      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, process_time, acq_time
     );
   }
 

@@ -33,7 +33,6 @@
 
 static const char *TAG = "cam_hal";
 static cam_obj_t *cam_obj = NULL;
-static uint32_t all_us = 0;
 
 static const uint32_t JPEG_SOI_MARKER = 0xFFD8FF;  // written in little-endian for esp32
 static const uint16_t JPEG_EOI_MARKER = 0xD9FF;  // written in little-endian for esp32
@@ -109,102 +108,6 @@ void IRAM_ATTR ll_cam_send_event(cam_obj_t *cam, cam_event_t cam_event, BaseType
         ESP_CAMERA_ETS_PRINTF(DRAM_STR("cam_hal: EV-%s-OVF\r\n"), cam_event==CAM_IN_SUC_EOF_EVENT ? DRAM_STR("EOF") : DRAM_STR("VSYNC"));
     }
 }
-
-static void cam_task_simple(void *arg)
-{
-    int cnt = 0;
-    int frame_pos = 0;
-    cam_obj->state = CAM_STATE_IDLE;
-    cam_event_t cam_event = 0;
-    int64_t start_frame = 0;
-    uint32_t busy_time_ms = 0;
-
-    xQueueReset(cam_obj->event_queue);
-
-    while (1) {
-        xQueueReceive(cam_obj->event_queue, (void *)&cam_event, portMAX_DELAY);
-        DBG_PIN_SET(1);
-        switch (cam_obj->state) {
-            case CAM_STATE_IDLE: {
-                if (cam_event == CAM_VSYNC_EVENT) {
-                    if(cam_start_frame(&frame_pos)){
-                        cam_obj->frames[frame_pos].fb.len = 0;
-                        cam_obj->state = CAM_STATE_READ_BUF;
-                    }
-                    cnt = 0;
-                    start_frame = esp_timer_get_time();
-                }
-            }
-            break;
-
-            case CAM_STATE_READ_BUF: {
-                int64_t const start_busy = esp_timer_get_time();
-                camera_fb_t * frame_buffer_event = &cam_obj->frames[frame_pos].fb;
-                size_t const pixels_per_dma = (cam_obj->dma_half_buffer_size * cam_obj->fb_bytes_per_pixel)
-                    / (cam_obj->dma_bytes_per_item * cam_obj->in_bytes_per_pixel);
-
-                if (cam_event == CAM_IN_SUC_EOF_EVENT) {
-                    if (cam_obj->fb_size < (frame_buffer_event->len + pixels_per_dma)) {
-                        ESP_LOGW(TAG, "FB-OVF");
-                        ll_cam_stop(cam_obj);
-                        DBG_PIN_SET(0);
-                        continue;
-                    }
-                    frame_buffer_event->len += cam_obj->dma_half_buffer_size;
-                    // Should copy from dma elsewhere
-                    cnt++;
-                    busy_time_ms += (uint32_t)(esp_timer_get_time() - start_busy);
-                } else if (cam_event == CAM_VSYNC_EVENT) {
-                    //DBG_PIN_SET(1);
-                    ll_cam_stop(cam_obj);
-
-                    if (cnt) {
-                        if (frame_buffer_event->len != cam_obj->fb_size) {
-                            static bool doOnce = true;
-                            if (!doOnce){
-                                cam_obj->frames[frame_pos].en = 1;
-                            }
-                            doOnce = false;
-                            ESP_LOGE(TAG, "FB-SIZE: %u != %u", frame_buffer_event->len, cam_obj->fb_size);
-                        }
-                        //send frame
-                        ets_printf("total time = %ums, busy time = %ums",
-                                   uint32_t(((esp_timer_get_time() - start_frame) / 1000)),
-                                   busy_time_ms);
-                        if(!cam_obj->frames[frame_pos].en &&
-                            xQueueSend(cam_obj->frame_buffer_queue, (void *)&frame_buffer_event, 0) != pdTRUE) {
-                            //pop frame buffer from the queue
-                            camera_fb_t * fb2 = NULL;
-                            if(xQueueReceive(cam_obj->frame_buffer_queue, &fb2, 0) == pdTRUE) {
-                                //push the new frame to the end of the queue
-                                if (xQueueSend(cam_obj->frame_buffer_queue, (void *)&frame_buffer_event, 0) != pdTRUE) {
-                                    cam_obj->frames[frame_pos].en = 1;
-                                    ESP_LOGE(TAG, "FBQ-SND");
-                                }
-                                //free the popped buffer
-                                cam_give(fb2);
-                            } else {
-                                //queue is full and we could not pop a frame from it
-                                cam_obj->frames[frame_pos].en = 1;
-                                ESP_LOGE(TAG, "FBQ-RCV");
-                            }
-                        }
-                    }
-
-                    if(!cam_start_frame(&frame_pos)){
-                        cam_obj->state = CAM_STATE_IDLE;
-                    } else {
-                        cam_obj->frames[frame_pos].fb.len = 0;
-                    }
-                    cnt = 0;
-                }
-            }
-            break;
-        }
-        DBG_PIN_SET(0);
-    }
-}
-
 
 //Copy fram from DMA dma_buffer to fram dma_buffer
 static void cam_task(void *arg)
@@ -287,11 +190,7 @@ static void cam_task(void *arg)
                             }
                         } else if (!cam_obj->jpeg_mode) {
                             if (frame_buffer_event->len != cam_obj->fb_size) {
-                                static bool doOnce = true;
-                                if (!doOnce){
-                                    cam_obj->frames[frame_pos].en = 1;
-                                }
-                                doOnce = false;
+                                cam_obj->frames[frame_pos].en = 1;
                                 ESP_LOGE(TAG, "FB-SIZE: %u != %u", frame_buffer_event->len, cam_obj->fb_size);
                             }
                         }
@@ -358,7 +257,7 @@ static esp_err_t cam_dma_config(const camera_config_t *config)
     cam_obj->dma_node_cnt = (cam_obj->dma_buffer_size) / cam_obj->dma_node_buffer_size; // Number of DMA nodes
     cam_obj->frame_copy_cnt = cam_obj->recv_size / cam_obj->dma_half_buffer_size; // Number of interrupted copies, ping-pong copy
 
-    ESP_LOGI(TAG, "buffer_size: %d, half_buffer_size: %d, node_buffer_size: %d, node_cnt: %d, total_cnt: %d", 
+    ESP_LOGI(TAG, "buffer_size: %d, half_buffer_size: %d, node_buffer_size: %d, node_cnt: %d, total_cnt: %d",
              cam_obj->dma_buffer_size, cam_obj->dma_half_buffer_size, cam_obj->dma_node_buffer_size, cam_obj->dma_node_cnt, cam_obj->frame_copy_cnt);
 
     cam_obj->dma_buffer = NULL;
@@ -388,7 +287,7 @@ static esp_err_t cam_dma_config(const camera_config_t *config)
         cam_obj->frames[x].dma = NULL;
         cam_obj->frames[x].fb_offset = 0;
         cam_obj->frames[x].en = 0;
-        ets_printf("Allocating %d Byte frame buffer in %s\r\n", alloc_size, _caps & MALLOC_CAP_SPIRAM ? "PSRAM" : "OnBoard RAM");
+        ESP_LOGI(TAG, "Allocating %d Byte frame buffer in %s", alloc_size, _caps & MALLOC_CAP_SPIRAM ? "PSRAM" : "OnBoard RAM");
         cam_obj->frames[x].fb.buf = (uint8_t *)heap_caps_malloc(alloc_size, _caps);
         CAM_CHECK(cam_obj->frames[x].fb.buf != NULL, "frame buffer malloc failed", ESP_FAIL);
         if (cam_obj->psram_mode) {
@@ -422,7 +321,6 @@ esp_err_t cam_init(const camera_config_t *config)
     CAM_CHECK(NULL != config, "config pointer is invalid", ESP_ERR_INVALID_ARG);
 
     esp_err_t ret = ESP_OK;
-    ets_printf("DMA size of cam obj = %u\r\n", sizeof(cam_obj_t));
     cam_obj = (cam_obj_t *)heap_caps_calloc(1, sizeof(cam_obj_t), MALLOC_CAP_DMA);
     CAM_CHECK(NULL != cam_obj, "lcd_cam object malloc error", ESP_ERR_NO_MEM);
 
@@ -462,7 +360,6 @@ esp_err_t cam_config(const camera_config_t *config, framesize_t frame_size, uint
 #else
     cam_obj->psram_mode = (config->xclk_freq_hz == 16000000);
 #endif
-    ESP_CAMERA_ETS_PRINTF(DRAM_STR("PSRAM Mode = %s\r\n"), (cam_obj->psram_mode  ? DRAM_STR("YES") : DRAM_STR("NO")));
     cam_obj->frame_cnt = config->fb_count;
     cam_obj->width = resolution[frame_size].width;
     cam_obj->height = resolution[frame_size].height;
@@ -493,14 +390,11 @@ esp_err_t cam_config(const camera_config_t *config, framesize_t frame_size, uint
 
     
 #if CONFIG_CAMERA_CORE0
-    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle, 0);
-    ets_printf("task on core 0\r\n");
+    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 0);
 #elif CONFIG_CAMERA_CORE1
-    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle, 1);
-    ets_printf("task on core 1\r\n");
+    xTaskCreatePinnedToCore(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle, 1);
 #else
-    xTaskCreate(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 1, &cam_obj->task_handle);
-    ets_printf("task without preferred core\r\n");
+    xTaskCreate(cam_task, "cam_task", 2048, NULL, configMAX_PRIORITIES - 2, &cam_obj->task_handle);
 #endif
 
     ESP_LOGI(TAG, "cam config ok");

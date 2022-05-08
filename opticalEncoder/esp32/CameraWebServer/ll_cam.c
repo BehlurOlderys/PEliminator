@@ -510,17 +510,17 @@ esp_err_t ll_cam_set_sample_mode(cam_obj_t *cam, pixformat_t pix_format, uint32_
         }
         cam->fb_bytes_per_pixel = 1;       // frame buffer stores Y8
     } else if (pix_format == PIXFORMAT_YUV422 || pix_format == PIXFORMAT_RGB565) {
-            if (xclk_freq_hz > 10000000 && sensor_pid != OV7725_PID) {
-                if (sensor_pid == OV7670_PID) {
-                    sampling_mode = SM_0A0B_0B0C;
-                } else {
-                    sampling_mode = SM_0A00_0B00;
-                }
-                dma_filter = ll_cam_dma_filter_yuyv_highspeed;
-            } else {
+//            if (xclk_freq_hz > 10000000 && sensor_pid != OV7725_PID) {
+//                if (sensor_pid == OV7670_PID) {
+//                    sampling_mode = SM_0A0B_0B0C;
+//                } else {
+//                    sampling_mode = SM_0A00_0B00;
+//                }
+//                dma_filter = ll_cam_dma_filter_yuyv_highspeed;
+//            } else {
                 sampling_mode = SM_0A0B_0C0D;
                 dma_filter = ll_cam_dma_filter_yuyv;
-            }
+//            }
             cam->in_bytes_per_pixel = 2;       // camera sends YU/YV
             cam->fb_bytes_per_pixel = 2;       // frame buffer stores YU/YV/RGB565
     } else if (pix_format == PIXFORMAT_JPEG) {

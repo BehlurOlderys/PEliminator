@@ -16,7 +16,7 @@
 TaskHandle_t process_task_handle;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(1000000);
   Serial.setDebugOutput(true);
   Serial.println();
 
@@ -39,12 +39,12 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000;
+  config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_RGB565;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 4;
+  config.fb_count = 2;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -59,8 +59,7 @@ void setup() {
       return;
   }
 
-//  sensor_t * s = esp_camera_sensor_get();
-//  s->set_framesize(s, FRAMESIZE_CIF);
+
 
 //  WiFi.begin(ssid, password);
 
