@@ -26,11 +26,11 @@ while True:
     if text_message == 'IMG':
         image_size = int(ser.readline().decode('UTF-8').rstrip())
         print(f"Image size = {image_size}")
-        bytes = ser.read(800)
+        bytes = ser.read(400)
         bytes = bytearray(bytes)
         i=0
         while len(bytes) < image_size:
-            bytes += ser.read(800)
+            bytes += ser.read(400)
             print(f"read {i}, len = {len(bytes)}")
             i+=1
         print(len(bytes))

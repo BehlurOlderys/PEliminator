@@ -81,12 +81,12 @@ void main_loop(void *arg){
 //    Serial.printf("Tick!\n");
 //    uint32_t const frame_size = fb->len;
     size_t half_buffer = 200*296;
-//    if (counter > 20){
-//        memcpy(entire_frame, &fb->buf1[0], half_buffer);
-//        memcpy(&entire_frame[half_buffer], &fb->buf2[0], half_buffer);
-////        memcpy(half_frame_b, &fb->buf[half_buffer], half_buffer);
-////        memcpy(entire_frame, fb->buf, size_of_gray_image);
-//    }
+    if (counter > 20){
+        memcpy(entire_frame, &fb->buf1[0], half_buffer);
+        memcpy(&entire_frame[half_buffer], &fb->buf2[0], half_buffer);
+//        memcpy(half_frame_b, &fb->buf[half_buffer], half_buffer);
+//        memcpy(entire_frame, fb->buf, size_of_gray_image);
+    }
 
     esp_camera_fb_return(fb);
 
@@ -95,38 +95,38 @@ void main_loop(void *arg){
 //    size_t len = 400;
 //    uint8_t r, g=0, b;
 
-//    if (counter > 20){
-//      Serial.println("IMG");
-//      Serial.println(size_of_gray_image);
-//      size_t half_height = 296/2;
-//      for (size_t i = 0; i < number_of_lines; ++i){
-//          size_t index = i*line_width;
+    if (counter > 20){
+      Serial.println("IMG");
+      Serial.println(size_of_gray_image);
+      size_t half_height = 296/2;
+      for (size_t i = 0; i < number_of_lines; ++i){
+          size_t index = i*line_width;
+
+            Serial.write(&entire_frame[index], line_width);
+
+//          for (size_t j=0; j < line_width; ++j){
 //
-//            Serial.write(&entire_frame[index], line_width);
+//          }
+//              b1 = entire_frame[index+(2*j)];
+//              b1 = entire_frame[index+(2*j)+1];
 //
-////          for (size_t j=0; j < line_width; ++j){
-////
-////          }
-////              b1 = entire_frame[index+(2*j)];
-////              b1 = entire_frame[index+(2*j)+1];
-////
-////              r = (b1 & 0x1f);
-////              g = (((b1 & 0x07) >> 1) | ((b2 & 0xe0) >> 3));
-////              b = (b2 & 0xf8) >> 3;
-////              entire_frame[index+j] = (r+g+b);
-////          }
-////
-////          Serial.write(&entire_frame[index], len);
-//          vTaskDelay(1 / portTICK_PERIOD_MS);
-//      }
-//      counter = 0;
+//              r = (b1 & 0x1f);
+//              g = (((b1 & 0x07) >> 1) | ((b2 & 0xe0) >> 3));
+//              b = (b2 & 0xf8) >> 3;
+//              entire_frame[index+j] = (r+g+b);
+//          }
 //
-//      char text_buffer[16] = {0};
-//      Serial.readBytesUntil('\n', text_buffer, 15);
-//      Serial.print("RECEIVED <<");
-//      Serial.print(text_buffer);
-//      Serial.println(">> END OF TRANSMISSION");
-//    }
+//          Serial.write(&entire_frame[index], len);
+          vTaskDelay(1 / portTICK_PERIOD_MS);
+      }
+      counter = 0;
+
+      char text_buffer[16] = {0};
+      Serial.readBytesUntil('\n', text_buffer, 15);
+      Serial.print("RECEIVED <<");
+      Serial.print(text_buffer);
+      Serial.println(">> END OF TRANSMISSION");
+    }
     counter++;
 
     fr_acq = esp_timer_get_time();
