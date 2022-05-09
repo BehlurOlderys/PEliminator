@@ -1,7 +1,6 @@
 #include "esp_camera.h"
 #include "Arduino.h"
 #include "main_loop.h"
-//#include <WiFi.h>
 
 #define CAMERA_MODEL_AI_THINKER // Has PSRAM
 #define CONFIG_LOG_DEFAULT_LEVEL 1
@@ -39,12 +38,12 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_RGB565;
-  config.fb_location = CAMERA_FB_IN_PSRAM;
+  config.xclk_freq_hz = 10000000;
+  config.pixel_format = PIXFORMAT_GRAYSCALE;
+  config.fb_location = CAMERA_FB_IN_DRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 2;
+  config.fb_count = 1;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);

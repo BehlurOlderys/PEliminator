@@ -34,24 +34,29 @@ void main_loop(void *arg){
   uint64_t result = 0;
   dl_matrix3du_t *image_matrix = NULL;
 //  image_matrix =  dl_matrix3du_alloc(1, 400, 296, 3);
-
-  uint8_t* entire_frame = (uint8_t *)heap_caps_malloc(2*400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  uint8_t* first_half = (uint8_t *)heap_caps_malloc(HALF_FRAME_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  uint8_t* second_half = (uint8_t *)heap_caps_malloc(HALF_FRAME_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-
-//
-  size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-  size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-
-  Serial.printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
-                free_bytes_ram, free_bytes_spi, largest_free);
-//
+  //
+  size_t size_of_rgb_image = 2*400*296;
+  size_t size_of_gray_image = 400*296;
+  size_t number_of_lines = 296;
+  size_t line_width = 400;
 
   sensor_t *s = esp_camera_sensor_get();
   s->set_aec2(s, false);
   s->set_aec_value(s, 20);
   s->set_exposure_ctrl(s, false);
+
+  uint8_t* entire_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+//  uint8_t* half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+//  uint8_t* half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+
+////
+  size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+  size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+////
+//  Serial.printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
+//                free_bytes_ram, free_bytes_spi, largest_free);
+
 
   static int64_t last_frame = 0;
   if(!last_frame) {
@@ -75,45 +80,53 @@ void main_loop(void *arg){
 //    }
 //    Serial.printf("Tick!\n");
 //    uint32_t const frame_size = fb->len;
-    size_t size_of_image = 2*400*296;
-    if (counter > 20){
-        memcpy(entire_frame, fb->buf, size_of_image);
-    }
+    size_t half_buffer = 200*296;
+//    if (counter > 20){
+//        memcpy(entire_frame, &fb->buf1[0], half_buffer);
+//        memcpy(&entire_frame[half_buffer], &fb->buf2[0], half_buffer);
+////        memcpy(half_frame_b, &fb->buf[half_buffer], half_buffer);
+////        memcpy(entire_frame, fb->buf, size_of_gray_image);
+//    }
 
     esp_camera_fb_return(fb);
-    size_t max_y = 296;
-    size_t max_x = 400;
-    uint8_t b1 = 0;
-    uint8_t b2 = 0;
-    size_t len = 400;
-    uint8_t r, g=0, b;
 
-    if (counter > 20){
-      Serial.println("IMG");
-      Serial.println(size_of_image/2);
-      for (size_t i = 0; i < max_y; ++i){
-          size_t index = i*800;
-          for (size_t j=0; j < max_x; ++j){
-              b1 = entire_frame[index+(2*j)];
-              b1 = entire_frame[index+(2*j)+1];
+//    uint8_t b1 = 0;
+//    uint8_t b2 = 0;
+//    size_t len = 400;
+//    uint8_t r, g=0, b;
 
-              r = (b1 & 0x1f);
-              g = (((b1 & 0x07) >> 1) | ((b2 & 0xe0) >> 3));
-              b = (b2 & 0xf8) >> 3;
-              entire_frame[index+j] = (r+g+b);
-          }
-
-          Serial.write(&entire_frame[index], len);
-          vTaskDelay(1 / portTICK_PERIOD_MS);
-      }
-      counter = 0;
-
-      char text_buffer[16] = {0};
-      Serial.readBytesUntil('\n', text_buffer, 15);
-      Serial.print("RECEIVED <<");
-      Serial.print(text_buffer);
-      Serial.println(">> END OF TRANSMISSION");
-    }
+//    if (counter > 20){
+//      Serial.println("IMG");
+//      Serial.println(size_of_gray_image);
+//      size_t half_height = 296/2;
+//      for (size_t i = 0; i < number_of_lines; ++i){
+//          size_t index = i*line_width;
+//
+//            Serial.write(&entire_frame[index], line_width);
+//
+////          for (size_t j=0; j < line_width; ++j){
+////
+////          }
+////              b1 = entire_frame[index+(2*j)];
+////              b1 = entire_frame[index+(2*j)+1];
+////
+////              r = (b1 & 0x1f);
+////              g = (((b1 & 0x07) >> 1) | ((b2 & 0xe0) >> 3));
+////              b = (b2 & 0xf8) >> 3;
+////              entire_frame[index+j] = (r+g+b);
+////          }
+////
+////          Serial.write(&entire_frame[index], len);
+//          vTaskDelay(1 / portTICK_PERIOD_MS);
+//      }
+//      counter = 0;
+//
+//      char text_buffer[16] = {0};
+//      Serial.readBytesUntil('\n', text_buffer, 15);
+//      Serial.print("RECEIVED <<");
+//      Serial.print(text_buffer);
+//      Serial.println(">> END OF TRANSMISSION");
+//    }
     counter++;
 
     fr_acq = esp_timer_get_time();

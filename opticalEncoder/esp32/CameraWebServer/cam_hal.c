@@ -137,7 +137,10 @@ static void cam_task(void *arg)
             break;
 
             case CAM_STATE_READ_BUF: {
+                uint32_t const length_offset = cam_obj->fb_size/2;
+                size_t current_offset = 0;
                 camera_fb_t * frame_buffer_event = &cam_obj->frames[frame_pos].fb;
+                uint8_t* buffer = frame_buffer_event->buf1;
                 size_t pixels_per_dma = (cam_obj->dma_half_buffer_size * cam_obj->fb_bytes_per_pixel) / (cam_obj->dma_bytes_per_item * cam_obj->in_bytes_per_pixel);
 
                 if (cam_event == CAM_IN_SUC_EOF_EVENT) {
@@ -148,16 +151,20 @@ static void cam_task(void *arg)
                             DBG_PIN_SET(0);
                             continue;
                         }
+                        if (frame_buffer_event->len + pixels_per_dma > length_offset){
+                            buffer = frame_buffer_event->buf2;
+                            current_offset = length_offset;
+                        }
                         frame_buffer_event->len += ll_cam_memcpy(cam_obj,
-                            &frame_buffer_event->buf[frame_buffer_event->len], 
+                            &buffer[frame_buffer_event->len-current_offset],
                             &cam_obj->dma_buffer[(cnt % cam_obj->dma_half_buffer_cnt) * cam_obj->dma_half_buffer_size], 
                             cam_obj->dma_half_buffer_size);
                     }
                     //Check for JPEG SOI in the first buffer. stop if not found
-                    if (cam_obj->jpeg_mode && cnt == 0 && cam_verify_jpeg_soi(frame_buffer_event->buf, frame_buffer_event->len) != 0) {
-                        ll_cam_stop(cam_obj);
-                        cam_obj->state = CAM_STATE_IDLE;
-                    }
+//                    if (cam_obj->jpeg_mode && cnt == 0 && cam_verify_jpeg_soi(frame_buffer_event->buf1, frame_buffer_event->len) != 0) {
+//                        ll_cam_stop(cam_obj);
+//                        cam_obj->state = CAM_STATE_IDLE;
+//                    }
                     cnt++;
 
                 } else if (cam_event == CAM_VSYNC_EVENT) {
@@ -165,21 +172,22 @@ static void cam_task(void *arg)
                     ll_cam_stop(cam_obj);
 
                     if (cnt || !cam_obj->jpeg_mode || cam_obj->psram_mode) {
-                        if (cam_obj->jpeg_mode) {
-                            if (!cam_obj->psram_mode) {
-                                if (cam_obj->fb_size < (frame_buffer_event->len + pixels_per_dma)) {
-                                    ESP_LOGW(TAG, "FB-OVF");
-                                    cnt--;
-                                } else {
-                                    frame_buffer_event->len += ll_cam_memcpy(cam_obj,
-                                        &frame_buffer_event->buf[frame_buffer_event->len], 
-                                        &cam_obj->dma_buffer[(cnt % cam_obj->dma_half_buffer_cnt) * cam_obj->dma_half_buffer_size], 
-                                        cam_obj->dma_half_buffer_size);
-                                }
-                            }
-                            cnt++;
-                        }
+//                        if (cam_obj->jpeg_mode) {
+//                            if (!cam_obj->psram_mode) {
+//                                if (cam_obj->fb_size < (frame_buffer_event->len + pixels_per_dma)) {
+//                                    ESP_LOGW(TAG, "FB-OVF");
+//                                    cnt--;
+//                                } else {
+//                                    frame_buffer_event->len += ll_cam_memcpy(cam_obj,
+//                                        &frame_buffer_event->buf1[frame_buffer_event->len],
+//                                        &cam_obj->dma_buffer[(cnt % cam_obj->dma_half_buffer_cnt) * cam_obj->dma_half_buffer_size],
+//                                        cam_obj->dma_half_buffer_size);
+//                                }
+//                            }
+//                            cnt++;
+//                        }
 
+                        ets_printf("Frame size = %d\n", cam_obj->fb_size);
                         cam_obj->frames[frame_pos].en = 0;
 
                         if (cam_obj->psram_mode) {
@@ -287,17 +295,34 @@ static esp_err_t cam_dma_config(const camera_config_t *config)
         cam_obj->frames[x].dma = NULL;
         cam_obj->frames[x].fb_offset = 0;
         cam_obj->frames[x].en = 0;
+
+        size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+        size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+        size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+      //
+        ets_printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
+                      free_bytes_ram, free_bytes_spi, largest_free);
+
         ESP_LOGI(TAG, "Allocating %d Byte frame buffer in %s", alloc_size, _caps & MALLOC_CAP_SPIRAM ? "PSRAM" : "OnBoard RAM");
-        cam_obj->frames[x].fb.buf = (uint8_t *)heap_caps_malloc(alloc_size, _caps);
-        CAM_CHECK(cam_obj->frames[x].fb.buf != NULL, "frame buffer malloc failed", ESP_FAIL);
-        if (cam_obj->psram_mode) {
-            //align PSRAM buffer. TODO: save the offset so proper address can be freed later
-            cam_obj->frames[x].fb_offset = dma_align - ((uint32_t)cam_obj->frames[x].fb.buf & (dma_align - 1));
-            cam_obj->frames[x].fb.buf += cam_obj->frames[x].fb_offset;
-            ESP_LOGI(TAG, "Frame[%d]: Offset: %u, Addr: 0x%08X", x, cam_obj->frames[x].fb_offset, (uint32_t)cam_obj->frames[x].fb.buf);
-            cam_obj->frames[x].dma = allocate_dma_descriptors(cam_obj->dma_node_cnt, cam_obj->dma_node_buffer_size, cam_obj->frames[x].fb.buf);
-            CAM_CHECK(cam_obj->frames[x].dma != NULL, "frame dma malloc failed", ESP_FAIL);
-        }
+        cam_obj->frames[x].fb.buf1 = (uint8_t *)heap_caps_malloc(alloc_size/2, _caps);
+
+        free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+        free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+        largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+      //
+        ets_printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
+                      free_bytes_ram, free_bytes_spi, largest_free);
+        cam_obj->frames[x].fb.buf2 = (uint8_t *)heap_caps_malloc(alloc_size/2, _caps);
+        CAM_CHECK(cam_obj->frames[x].fb.buf1 != NULL, "frame buffer malloc failed", ESP_FAIL);
+        CAM_CHECK(cam_obj->frames[x].fb.buf2 != NULL, "frame buffer malloc failed", ESP_FAIL);
+//        if (cam_obj->psram_mode) {
+//            //align PSRAM buffer. TODO: save the offset so proper address can be freed later
+//            cam_obj->frames[x].fb_offset = dma_align - ((uint32_t)cam_obj->frames[x].fb.buf1 & (dma_align - 1));
+//            cam_obj->frames[x].fb.buf1 += cam_obj->frames[x].fb_offset;
+//            ESP_LOGI(TAG, "Frame[%d]: Offset: %u, Addr: 0x%08X", x, cam_obj->frames[x].fb_offset, (uint32_t)cam_obj->frames[x].fb.buf1);
+//            cam_obj->frames[x].dma = allocate_dma_descriptors(cam_obj->dma_node_cnt, cam_obj->dma_node_buffer_size, cam_obj->frames[x].fb.buf1);
+//            CAM_CHECK(cam_obj->frames[x].dma != NULL, "frame dma malloc failed", ESP_FAIL);
+//        }
         cam_obj->frames[x].en = 1;
     }
 
@@ -429,7 +454,8 @@ esp_err_t cam_deinit(void)
     }
     if (cam_obj->frames) {
         for (int x = 0; x < cam_obj->frame_cnt; x++) {
-            free(cam_obj->frames[x].fb.buf - cam_obj->frames[x].fb_offset);
+            free(cam_obj->frames[x].fb.buf1 - cam_obj->frames[x].fb_offset);
+            free(cam_obj->frames[x].fb.buf2 - cam_obj->frames[x].fb_offset);
             if (cam_obj->frames[x].dma) {
                 free(cam_obj->frames[x].dma);
             }
@@ -461,22 +487,22 @@ camera_fb_t *cam_take(TickType_t timeout)
     TickType_t start = xTaskGetTickCount();
     xQueueReceive(cam_obj->frame_buffer_queue, (void *)&dma_buffer, timeout);
     if (dma_buffer) {
-        if(cam_obj->jpeg_mode){
-            // find the end marker for JPEG. Data after that can be discarded
-            int offset_e = cam_verify_jpeg_eoi(dma_buffer->buf, dma_buffer->len);
-            if (offset_e >= 0) {
-                // adjust buffer length
-                dma_buffer->len = offset_e + sizeof(JPEG_EOI_MARKER);
-                return dma_buffer;
-            } else {
-                ESP_LOGW(TAG, "NO-EOI");
-                cam_give(dma_buffer);
-                return cam_take(timeout - (xTaskGetTickCount() - start));//recurse!!!!
-            }
-        } else if(cam_obj->psram_mode && cam_obj->in_bytes_per_pixel != cam_obj->fb_bytes_per_pixel){
-            //currently this is used only for YUV to GRAYSCALE
-            dma_buffer->len = ll_cam_memcpy(cam_obj, dma_buffer->buf, dma_buffer->buf, dma_buffer->len);
-        }
+//        if(cam_obj->jpeg_mode){
+//            // find the end marker for JPEG. Data after that can be discarded
+//            int offset_e = cam_verify_jpeg_eoi(dma_buffer->buf1, dma_buffer->len);
+//            if (offset_e >= 0) {
+//                // adjust buffer length
+//                dma_buffer->len = offset_e + sizeof(JPEG_EOI_MARKER);
+//                return dma_buffer;
+//            } else {
+//                ESP_LOGW(TAG, "NO-EOI");
+//                cam_give(dma_buffer);
+//                return cam_take(timeout - (xTaskGetTickCount() - start));//recurse!!!!
+//            }
+//        } else if(cam_obj->psram_mode && cam_obj->in_bytes_per_pixel != cam_obj->fb_bytes_per_pixel){
+//            //currently this is used only for YUV to GRAYSCALE
+//            dma_buffer->len = ll_cam_memcpy(cam_obj, dma_buffer->buf1, dma_buffer->buf1, dma_buffer->len);
+//        }
         return dma_buffer;
     } else {
         ESP_LOGW(TAG, "Failed to get the frame on time!");
