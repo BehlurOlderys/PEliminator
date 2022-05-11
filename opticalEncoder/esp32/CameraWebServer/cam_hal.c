@@ -137,8 +137,6 @@ static void cam_task(void *arg)
             break;
 
             case CAM_STATE_READ_BUF: {
-                uint32_t const length_offset = cam_obj->fb_size/2;
-                size_t current_offset = 0;
                 camera_fb_t * frame_buffer_event = &cam_obj->frames[frame_pos].fb;
                 uint8_t* buffer = frame_buffer_event->buf1;
                 size_t pixels_per_dma = (cam_obj->dma_half_buffer_size * cam_obj->fb_bytes_per_pixel) / (cam_obj->dma_bytes_per_item * cam_obj->in_bytes_per_pixel);
@@ -151,12 +149,8 @@ static void cam_task(void *arg)
                             DBG_PIN_SET(0);
                             continue;
                         }
-                        if (frame_buffer_event->len + pixels_per_dma > length_offset){
-                            buffer = frame_buffer_event->buf2;
-                            current_offset = length_offset;
-                        }
                         frame_buffer_event->len += ll_cam_memcpy(cam_obj,
-                            &buffer[frame_buffer_event->len-current_offset],
+                            &buffer[frame_buffer_event->len],
                             &cam_obj->dma_buffer[(cnt % cam_obj->dma_half_buffer_cnt) * cam_obj->dma_half_buffer_size], 
                             cam_obj->dma_half_buffer_size);
                     }
@@ -296,25 +290,25 @@ static esp_err_t cam_dma_config(const camera_config_t *config)
         cam_obj->frames[x].fb_offset = 0;
         cam_obj->frames[x].en = 0;
 
+//        size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+//        size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+//        size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+//      //
+//        ets_printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
+//                      free_bytes_ram, free_bytes_spi, largest_free);
+
+        ESP_LOGI(TAG, "Allocating %d Byte frame buffer in %s", alloc_size, _caps & MALLOC_CAP_SPIRAM ? "PSRAM" : "OnBoard RAM");
+        cam_obj->frames[x].fb.buf1 = (uint8_t *)heap_caps_malloc(alloc_size, _caps);
+
         size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
         size_t free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
         size_t largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
       //
         ets_printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
                       free_bytes_ram, free_bytes_spi, largest_free);
-
-        ESP_LOGI(TAG, "Allocating %d Byte frame buffer in %s", alloc_size, _caps & MALLOC_CAP_SPIRAM ? "PSRAM" : "OnBoard RAM");
-        cam_obj->frames[x].fb.buf1 = (uint8_t *)heap_caps_malloc(alloc_size/2, _caps);
-
-        free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-        free_bytes_spi = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-        largest_free = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-      //
-        ets_printf("Free bytes = %d (RAM), %d(PSRAM), largest block = %d\r\n",
-                      free_bytes_ram, free_bytes_spi, largest_free);
-        cam_obj->frames[x].fb.buf2 = (uint8_t *)heap_caps_malloc(alloc_size/2, _caps);
+//        cam_obj->frames[x].fb.buf2 = (uint8_t *)heap_caps_malloc(alloc_size/2, _caps);
         CAM_CHECK(cam_obj->frames[x].fb.buf1 != NULL, "frame buffer malloc failed", ESP_FAIL);
-        CAM_CHECK(cam_obj->frames[x].fb.buf2 != NULL, "frame buffer malloc failed", ESP_FAIL);
+//        CAM_CHECK(cam_obj->frames[x].fb.buf2 != NULL, "frame buffer malloc failed", ESP_FAIL);
 //        if (cam_obj->psram_mode) {
 //            //align PSRAM buffer. TODO: save the offset so proper address can be freed later
 //            cam_obj->frames[x].fb_offset = dma_align - ((uint32_t)cam_obj->frames[x].fb.buf1 & (dma_align - 1));
@@ -455,7 +449,7 @@ esp_err_t cam_deinit(void)
     if (cam_obj->frames) {
         for (int x = 0; x < cam_obj->frame_cnt; x++) {
             free(cam_obj->frames[x].fb.buf1 - cam_obj->frames[x].fb_offset);
-            free(cam_obj->frames[x].fb.buf2 - cam_obj->frames[x].fb_offset);
+//            free(cam_obj->frames[x].fb.buf2 - cam_obj->frames[x].fb_offset);
             if (cam_obj->frames[x].dma) {
                 free(cam_obj->frames[x].dma);
             }

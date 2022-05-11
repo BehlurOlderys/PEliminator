@@ -185,12 +185,12 @@ static int set_window(sensor_t *sensor, ov2640_sensor_mode_t mode, int offset_x,
             c.pclk_div = 12;
         }
     }
-
-    // ADDITIONAL STUFF
-    c.pclk_auto = 0;
-    c.pclk_div = 2;  // working 1 for 100 000hz
-    c.clk_2x = 1;
-    c.clk_div = 2;   // working 0 for 100 000hz
+//
+//    // ADDITIONAL STUFF
+//    c.pclk_auto = 0;
+//    c.pclk_div = 2;  // working 1 for 100 000hz
+//    c.clk_2x = 1;
+//    c.clk_div = 2;   // working 0 for 100 000hz
 
     ets_printf("Set PLL: clk_2x: %u, clk_div: %u, pclk_auto: %u, pclk_div: %u\r\n",
                c.clk_2x, c.clk_div, c.pclk_auto, c.pclk_div);
