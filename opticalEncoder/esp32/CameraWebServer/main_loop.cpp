@@ -20,6 +20,147 @@
 
 #define HALF_FRAME_BUFFER_SIZE 400*296
 
+static size_t const number_of_lines = 296;
+static size_t const line_width = 400;
+
+uint8_t* entire_frame = NULL;
+uint8_t* aux_frame = NULL;
+uint8_t* half_frame_a = NULL;
+uint8_t* half_frame_b = NULL;
+uint8_t* half_frames[2] = {half_frame_a, half_frame_b};
+
+
+
+
+
+void box_filter_horizontal(uint8_t* input, uint8_t* result){
+  size_t accumulator = 0;
+  for (size_t i=0; i < number_of_lines; ++i){
+      size_t first_pixel_in_line_index =  i*line_width;
+      size_t last_pixel_in_line_index =  first_pixel_in_line_index + line_width - 1;
+
+      size_t acc_in = first_pixel_in_line_index;
+
+      accumulator = (input[acc_in] +
+                     input[acc_in+1] );
+
+      result[first_pixel_in_line_index] = accumulator / 2;
+
+      for (size_t j=1;j < line_width-1; ++j){
+          size_t p_index = first_pixel_in_line_index + j;
+          accumulator += input[p_index + 1];
+          result[p_index] = accumulator / 3;
+          accumulator -= input[p_index - 1];
+      }
+      result[last_pixel_in_line_index] = accumulator / 2;
+  }
+}
+
+void box_filter_vertical_fast(uint8_t* input, uint8_t* result){
+  size_t accumulators[line_width] = {0};
+  size_t const bottom_right_index = (number_of_lines - 1)*line_width + 1;
+
+  /*
+   * 0  1  2  3  4  5
+   * 6  7  8  9  10 11
+   * 12 13 14 15 16 17
+   * 18 19 20 21 22 23
+   * 24 25 26 27 28 29
+   *
+   * a = 0 1 2 3 4 5
+   *
+   * a += 6 7 8 9 10 11
+   * r[0-5] = a
+   *
+   *
+   */
+
+  for (size_t i=0; i < line_width; ++i){
+      accumulators[i] = input[i];
+  }
+  for (size_t i=0; i < line_width; ++i){
+      accumulators[i] += input[line_width+i];
+      result[i] = accumulators[i] / 2;
+  }
+
+  for (size_t j=1; j<number_of_lines -1;++j){
+      // j = 1
+      // previous = 0
+      // current = 400
+      // next = 800
+      // i = 0-400:
+      //   acc[0] += input[800]
+      //   r[400] = acc[0]
+      //   acc[0] -= input[0]
+      size_t const previous = (j-1)*line_width;
+      size_t const current = j*line_width;
+      size_t const next = (j+1)*line_width;
+
+
+
+      for (size_t i=0; i < line_width; ++i){
+          accumulators[i] += input[next+i];
+          result[current+i] = accumulators[i] / 3;
+          accumulators[i] -= input[previous+i];
+      }
+  }
+  for (size_t i=0; i < line_width; ++i){
+      result[bottom_right_index+i] = accumulators[i];
+  }
+}
+
+void threshold_image(uint8_t* image, uint8_t threshold){
+  for (size_t i=0; i < line_width*number_of_lines; ++i){
+      image[i] = image[i] > threshold ? 255 : 0;
+  }
+}
+
+void box_filter_vertical(uint8_t* input, uint8_t* result){
+  size_t accumulator = 0;
+
+
+  /*
+   * 0  1  2  3  4  5
+   * 6  7  8  9  10 11
+   * 12 13 14 15 16 17
+   * 18 19 20 21 22 23
+   * 24 25 26 27 28 29
+   *
+   * line_width = 6
+   * number_of_lines = 5
+   *
+   * 0-24
+   * 1-25
+   * 2-26
+   * 3-27
+   * 4-28
+   * 5-29
+   */
+
+  size_t const bottom_right_index = (number_of_lines - 1)*line_width + 1;
+  size_t const y_increment = line_width;
+
+  for (size_t i=0; i < line_width; ++i){
+      size_t first_pixel_in_column_index =  i;
+      size_t last_pixel_in_column_index =  bottom_right_index + i;
+
+      size_t acc_in = first_pixel_in_column_index;
+
+      accumulator = (input[acc_in] +
+                     input[acc_in + y_increment] );
+
+      result[first_pixel_in_column_index] = accumulator / 2;
+
+      for (size_t j=1;j < number_of_lines-1; ++j){
+          size_t p_index = first_pixel_in_column_index + j*y_increment;
+          accumulator += input[p_index + y_increment];
+          result[p_index] = accumulator / 3;
+          accumulator -= input[p_index - y_increment];
+      }
+      result[last_pixel_in_column_index] = accumulator / 2;
+  }
+}
+
 
 void main_loop(void *arg){
   camera_fb_t * fb = NULL;
@@ -37,18 +178,19 @@ void main_loop(void *arg){
   //
   size_t size_of_rgb_image = 2*400*296;
   size_t size_of_gray_image = 400*296;
-  size_t number_of_lines = 296;
-  size_t line_width = 400;
 
   sensor_t *s = esp_camera_sensor_get();
   s->set_aec2(s, false);
   s->set_aec_value(s, 20);
   s->set_exposure_ctrl(s, false);
 
-  uint8_t* entire_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  uint8_t* half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-  uint8_t* half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-  uint8_t* half_frames[2] = {half_frame_a, half_frame_b};
+  entire_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  aux_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  uint8_t* final_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+  half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+  half_frames[0] = half_frame_a;
+  half_frames[1] = half_frame_b;
 
 ////
   size_t free_bytes_ram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
@@ -85,91 +227,59 @@ void main_loop(void *arg){
 //    if (counter > 20){
 //        memcpy(&entire_frame[0], &fb->buf1[0], half_buffer);
 //        memcpy(&entire_frame[half_buffer], &fb->buf2[0], half_buffer);
-    memcpy(half_frame_a, &fb->buf1[0],           half_buffer);
-    memcpy(half_frame_b, &fb->buf1[half_buffer], half_buffer);
-    size_t accumulator = 0;
-
-    size_t const half_of_lines = number_of_lines / 2;
-    for (size_t i=0; i < number_of_lines; ++i){
-        size_t half_index = i / half_of_lines;
-//        Serial.print("i = ");
-//        Serial.print(i);
-        size_t offset = half_index*line_width*number_of_lines;
-//        Serial.print(", offset = ");
-//        Serial.print(offset);
-        size_t first_pixel_in_line_index =  i*line_width;
-        size_t last_pixel_in_line_index =  ((i+1)*line_width)-1;
-        uint8_t* in_buffer = half_frames[half_index];
+//    memcpy(half_frame_a, &fb->buf1[0],           half_buffer);
+//    memcpy(half_frame_b, &fb->buf1[half_buffer], half_buffer);
 
 
-        accumulator = (in_buffer[first_pixel_in_line_index-offset] +
-                       in_buffer[first_pixel_in_line_index-offset+1] );
-
-//        Serial.print(", first = ");
-//        Serial.print(first_pixel_in_line_index);
-//        Serial.print(", last = ");
-//        Serial.print(last_pixel_in_line_index);
-//        Serial.print(", acc = ");
-//        Serial.print(accumulator);
-//        Serial.print(", half index = ");
-//        Serial.println(half_index);
-
-//        entire_frame[first_pixel_in_line_index] = accumulator / 2;
-//
-        for (size_t j=1;j < line_width-1; ++j){
-            size_t p_index = first_pixel_in_line_index + j;
-            accumulator += in_buffer[p_index - offset + 1];
-            entire_frame[p_index] = accumulator / 3;
-            accumulator -= in_buffer[p_index - offset - 1];
-        }
-//        entire_frame[last_pixel_in_line_index] = accumulator / 2;
-    }
-//    memcpy(&entire_frame[0], fb->buf1, 2*half_buffer);
-//    memcpy(&entire_frame[half_buffer], fb->buf2, half_buffer);
-//    }
-
-//    for (size_t y=1; y<number_of_lines*line_width-1; ++y){
-//            entire_frame[y] -= entire_frame[y-1];
-//            entire_frame[y] += entire_frame[y+1];
-//    }
-//
-//    for (size_t y=1; y<number_of_lines*line_width-1; ++y){
-//            entire_frame[y] -= entire_frame[y-1];
-//            entire_frame[y] += entire_frame[y+1];
-//    }
-//
-//    for (size_t y=1; y<number_of_lines*line_width-1; ++y){
-//            entire_frame[y] -= entire_frame[y-1];
-//            entire_frame[y] += entire_frame[y+1];
-//    }
+    memcpy(&entire_frame[0],           &fb->buf1[0], 2*half_buffer);
+//    memcpy(&entire_frame[half_buffer], half_frame_b, half_buffer);
 
 
+//    box_filter_vertical_fast(entire_frame, aux_frame);
+//    box_filter_vertical_fast(aux_frame, entire_frame);
+//    box_filter_vertical_fast(entire_frame, aux_frame);
+////
+//    box_filter_horizontal(aux_frame, entire_frame);
+//    box_filter_horizontal(entire_frame, aux_frame);
+//    box_filter_horizontal(aux_frame, entire_frame);
 
-//    uint8_t b1 = 0;
-//    uint8_t b2 = 0;
-//    size_t len = 400;
-//    uint8_t r, g=0, b;
+//    esp_camera_fb_return(fb);
 
-    if (counter > 20){
-//        memcpy(&entire_frame[0],           half_frame_a, half_buffer);
-//        memcpy(&entire_frame[half_buffer], half_frame_b, half_buffer);
+    box_filter_horizontal(entire_frame, aux_frame);
+    box_filter_vertical_fast(aux_frame, entire_frame);
+    box_filter_horizontal(entire_frame, aux_frame);
+    box_filter_vertical_fast(aux_frame, entire_frame);
+    box_filter_horizontal(entire_frame, aux_frame);
+    box_filter_vertical_fast(aux_frame, entire_frame);
+    threshold_image(entire_frame, 35);
+
+    if (counter == 10){
 
       Serial.println("IMG");
       Serial.println(size_of_gray_image);
       size_t half_height = 296/2;
-      size_t offset = 0;
-      uint8_t* buffer = half_frame_a;
-      buffer = entire_frame;
       for (size_t i = 0; i < number_of_lines; ++i){
-//          if (i >= half_height){
-//              buffer = half_frame_b;
-//              offset = half_height*line_width;
-//          }
           size_t index = i*line_width;
-          Serial.write(&buffer[index-offset], line_width);
+          Serial.write(&fb->buf1[index], line_width);
           vTaskDelay(1 / portTICK_PERIOD_MS);
       }
-//      esp_camera_fb_return(fb);
+
+      char text_buffer[16] = {0};
+      Serial.readBytesUntil('\n', text_buffer, 15);
+      Serial.print("RECEIVED <<");
+      Serial.print(text_buffer);
+      Serial.println(">> END OF TRANSMISSION");
+    }
+    if (counter > 20){
+
+      Serial.println("IMG");
+      Serial.println(size_of_gray_image);
+      size_t half_height = 296/2;
+      for (size_t i = 0; i < number_of_lines; ++i){
+          size_t index = i*line_width;
+          Serial.write(&entire_frame[index], line_width);
+          vTaskDelay(1 / portTICK_PERIOD_MS);
+      }
       counter = 0;
 
       char text_buffer[16] = {0};
