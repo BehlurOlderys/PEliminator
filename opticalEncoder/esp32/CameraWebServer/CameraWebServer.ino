@@ -14,6 +14,8 @@
 
 TaskHandle_t process_task_handle;
 
+main_params main_parameters;
+
 void setup() {
   Serial.begin(1000000);
   Serial.setDebugOutput(true);
@@ -52,8 +54,23 @@ void setup() {
       Serial.printf("Camera init failed with error 0x%x", err);
       return;
   }
+  
+  BaseType_t const image_half_a = xTaskCreatePinnedToCore(
+      half_a_processor, "image_processor_a", 4096, &process_task_handle, configMAX_PRIORITIES - 2, &main_parameters.handle_a, 0);
+  if (pdPASS != image_half_a ){
+      Serial.printf("Task image_half_a creation failed!\r\n");
+      return;
+  }
+  
+  BaseType_t const image_half_b = xTaskCreatePinnedToCore(
+      half_b_processor, "image_processor_b", 4096, &process_task_handle, configMAX_PRIORITIES - 2, &main_parameters.handle_b, 1);
+  if (pdPASS != image_half_b ){
+      Serial.printf("Task image_half_b creation failed!\r\n");
+      return;
+  }
+
   BaseType_t const task_creation = xTaskCreatePinnedToCore(
-      main_loop, "process_task", 4096, NULL, configMAX_PRIORITIES - 2, &process_task_handle, 0);
+      main_loop, "process_task", 4096, (void*)(&main_parameters), configMAX_PRIORITIES - 2, &process_task_handle, 0);
   if (pdPASS != task_creation ){
       Serial.printf("Task creation failed!\r\n");
       return;

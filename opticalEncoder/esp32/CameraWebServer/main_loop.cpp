@@ -29,8 +29,119 @@ uint8_t* half_frame_a = NULL;
 uint8_t* half_frame_b = NULL;
 uint8_t* half_frames[2] = {half_frame_a, half_frame_b};
 
+typedef uint32_t TypeOfProcessing;
+typedef bool ImageHalfFlag;
+
+static ImageHalfFlag const FIRST_HALF = false;
+static ImageHalfFlag const SECOND_HALF = true;
 
 
+static TypeOfProcessing const HORIZONTAL_BLUR = 1;
+static TypeOfProcessing const VERTICAL_BLUR = 2;
+
+void box_filter_horizontal_half(uint8_t* input, uint8_t* result, ImageHalfFlag second_half);
+
+void box_filter_vertical_half(uint8_t* input, uint8_t* result, ImageHalfFlag second_half);
+
+void half_a_processor(void *arg){
+  TaskHandle_t* main_handle = (TaskHandle_t*)(arg);
+  uint32_t notification_value = 0;
+  while(true){
+      notification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+      if (HORIZONTAL_BLUR == notification_value){
+          box_filter_horizontal_half(entire_frame, aux_frame, FIRST_HALF);
+      }
+      else if (VERTICAL_BLUR == notification_value){
+          box_filter_vertical_half(aux_frame, entire_frame, FIRST_HALF);
+      }
+      xTaskNotifyGive(*main_handle);
+  }
+}
+
+void half_b_processor(void *arg){
+  TaskHandle_t* main_handle = (TaskHandle_t*)(arg);
+  uint32_t notification_value = 0;
+  while(true){
+      notification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+      if (HORIZONTAL_BLUR == notification_value){
+          box_filter_horizontal_half(entire_frame, aux_frame, SECOND_HALF);
+      }
+      else if (VERTICAL_BLUR == notification_value){
+          box_filter_vertical_half(aux_frame, entire_frame, SECOND_HALF);
+      }
+      xTaskNotifyGive(*main_handle);
+  }
+}
+
+
+void box_filter_horizontal_half(uint8_t* input, uint8_t* result, ImageHalfFlag second_half){
+  size_t accumulator = 0;
+  size_t start_index = second_half ? (number_of_lines/2) : 0;
+  for (size_t i=start_index; i < start_index+(number_of_lines/2); ++i){
+      size_t first_pixel_in_line_index =  i*line_width;
+      size_t last_pixel_in_line_index =  first_pixel_in_line_index + line_width - 1;
+
+      size_t acc_in = first_pixel_in_line_index;
+
+      accumulator = (input[acc_in] +
+                     input[acc_in+1] );
+
+      result[first_pixel_in_line_index] = accumulator / 2;
+
+      for (size_t j=1;j < line_width-1; ++j){
+          size_t p_index = first_pixel_in_line_index + j;
+          accumulator += input[p_index + 1];
+          result[p_index] = accumulator / 3;
+          accumulator -= input[p_index - 1];
+      }
+      result[last_pixel_in_line_index] = accumulator / 2;
+  }
+}
+
+
+void box_filter_vertical_half(uint8_t* input, uint8_t* result, ImageHalfFlag second_half){
+  size_t accumulators[line_width] = {0};
+
+
+  /*
+   * 0 1 2 3
+   * 4 5 6 7
+   * 8 9 10 11
+   * 12 13 14 15
+   * 0 + 4
+   * 8 + 4
+   */
+
+  size_t const start_line = second_half ? (number_of_lines)/2 : 0;
+  size_t const start_index = start_line*line_width;
+  size_t const bottom_right_index = start_index + (number_of_lines/2 - 1)*line_width + 1;
+
+  for (size_t i=0; i < line_width; ++i){
+      accumulators[i] = input[start_index + i];
+  }
+  for (size_t i=0; i < line_width; ++i){
+      accumulators[i] += input[start_index + line_width + i];
+      result[start_index+i] = accumulators[i] / 2;
+  }
+
+  for (size_t j=1+start_line; j<start_line+(number_of_lines/2) -1;++j){
+
+      size_t const previous = (j-1)*line_width;
+      size_t const current = j*line_width;
+      size_t const next = (j+1)*line_width;
+
+
+
+      for (size_t i=0; i < line_width; ++i){
+          accumulators[i] += input[next+i];
+          result[current+i] = accumulators[i] / 3;
+          accumulators[i] -= input[previous+i];
+      }
+  }
+  for (size_t i=0; i < line_width; ++i){
+      result[bottom_right_index+i] = accumulators[i] / 2;
+  }
+}
 
 
 void box_filter_horizontal(uint8_t* input, uint8_t* result){
@@ -60,21 +171,6 @@ void box_filter_vertical_fast(uint8_t* input, uint8_t* result){
   size_t accumulators[line_width] = {0};
   size_t const bottom_right_index = (number_of_lines - 1)*line_width + 1;
 
-  /*
-   * 0  1  2  3  4  5
-   * 6  7  8  9  10 11
-   * 12 13 14 15 16 17
-   * 18 19 20 21 22 23
-   * 24 25 26 27 28 29
-   *
-   * a = 0 1 2 3 4 5
-   *
-   * a += 6 7 8 9 10 11
-   * r[0-5] = a
-   *
-   *
-   */
-
   for (size_t i=0; i < line_width; ++i){
       accumulators[i] = input[i];
   }
@@ -84,14 +180,7 @@ void box_filter_vertical_fast(uint8_t* input, uint8_t* result){
   }
 
   for (size_t j=1; j<number_of_lines -1;++j){
-      // j = 1
-      // previous = 0
-      // current = 400
-      // next = 800
-      // i = 0-400:
-      //   acc[0] += input[800]
-      //   r[400] = acc[0]
-      //   acc[0] -= input[0]
+
       size_t const previous = (j-1)*line_width;
       size_t const current = j*line_width;
       size_t const next = (j+1)*line_width;
@@ -163,6 +252,9 @@ void box_filter_vertical(uint8_t* input, uint8_t* result){
 
 
 void main_loop(void *arg){
+  main_params* params = (main_params*)(arg);
+
+
   camera_fb_t * fb = NULL;
   size_t _jpg_buf_len = 0;
   uint8_t * _jpg_buf = NULL;
@@ -245,13 +337,43 @@ void main_loop(void *arg){
 
 //    esp_camera_fb_return(fb);
 
-    box_filter_horizontal(entire_frame, aux_frame);
-    box_filter_vertical_fast(aux_frame, entire_frame);
-    box_filter_horizontal(entire_frame, aux_frame);
-    box_filter_vertical_fast(aux_frame, entire_frame);
-    box_filter_horizontal(entire_frame, aux_frame);
-    box_filter_vertical_fast(aux_frame, entire_frame);
-    threshold_image(entire_frame, 35);
+    uint32_t nofification_value = 0;
+    // HORIZONTAL 1
+    xTaskNotify(params->handle_a, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // VERTICAL 1
+    xTaskNotify(params->handle_a, VERTICAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, VERTICAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // HORIZONTAL 2
+    xTaskNotify(params->handle_a, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // VERTICAL 2
+    xTaskNotify(params->handle_a, VERTICAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, VERTICAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // HORIZONTAL 3
+    xTaskNotify(params->handle_a, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, HORIZONTAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // VERTICAL 3
+    xTaskNotify(params->handle_a, VERTICAL_BLUR, eSetValueWithOverwrite );
+    xTaskNotify(params->handle_b, VERTICAL_BLUR, eSetValueWithOverwrite );
+    nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+//    threshold_image(entire_frame, 35);
 
     if (counter == 10){
 
