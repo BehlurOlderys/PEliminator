@@ -279,8 +279,8 @@ void main_loop(void *arg){
   entire_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
   aux_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
   uint8_t* final_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-  half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+//  half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+//  half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
   half_frames[0] = half_frame_a;
   half_frames[1] = half_frame_b;
 

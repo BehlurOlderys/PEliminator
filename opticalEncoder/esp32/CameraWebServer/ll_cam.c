@@ -497,15 +497,15 @@ esp_err_t ll_cam_set_sample_mode(cam_obj_t *cam, pixformat_t pix_format, uint32_
             }
             cam->in_bytes_per_pixel = 1;       // camera sends Y8
         } else {
-            if (xclk_freq_hz > 10000000 && sensor_pid != OV7725_PID) {
+//            if (xclk_freq_hz > 10000000 && sensor_pid != OV7725_PID) {
                 sampling_mode = SM_0A00_0B00;
                 dma_filter = ll_cam_dma_filter_grayscale_highspeed;
                 ets_printf("Chosen grayscale filter highspeed!\r\n");
-            } else {
-                sampling_mode = SM_0A0B_0C0D;
-                dma_filter = ll_cam_dma_filter_grayscale;
-                ets_printf("Chosen grayscale filter regular!\r\n");
-            }
+//            } else {
+//                sampling_mode = SM_0A0B_0C0D;
+//                dma_filter = ll_cam_dma_filter_grayscale;
+//                ets_printf("Chosen grayscale filter regular!\r\n");
+//            }
             cam->in_bytes_per_pixel = 2;       // camera sends YU/YV
         }
         cam->fb_bytes_per_pixel = 1;       // frame buffer stores Y8

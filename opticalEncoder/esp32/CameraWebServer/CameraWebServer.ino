@@ -40,9 +40,9 @@ void setup() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000;
+  config.xclk_freq_hz = 12000000;
   config.pixel_format = PIXFORMAT_GRAYSCALE;
-  config.fb_location = CAMERA_FB_IN_PSRAM;
+  config.fb_location = CAMERA_FB_IN_DRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
   config.fb_count = 1;
