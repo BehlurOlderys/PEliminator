@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import label, median_filter
+from scipy.ndimage import label, gaussian_filter
 from PIL import Image
 import os
 
@@ -68,7 +68,6 @@ class RegionRegularLine:
 def normalize(p):
     a = np.percentile(p, 5)
     b = np.percentile(p, 95)
-    print(f"a = {a}, b = {b}")
     return (p - a) / (b-a)
 
 
@@ -139,9 +138,15 @@ def get_np_data_from_image_file(file_path):
     return raw_data
 
 
-def prepare_one_image(raw_data):
-    prepared = median_filter(threshold_half(normalize(raw_data)), size=5)
-    return prepared
+class ImagePreparator:
+    def __init__(self):
+        self.__number = 0
+
+    def prepare_one_image(self, raw_data):
+        self.__number += 1
+        # print(f"Preparing image no {self.__number}")
+        prepared = threshold_half(gaussian_filter(normalize(raw_data), 3))
+        return prepared
 
 
 def calculate_pixels_inside_rect(p, rect: MyRectangle):
@@ -195,7 +200,6 @@ rectangle = MyRectangle((100, 240), width=1100, height=100, angle_deg=0)
 def get_mean_slope(p):
     mid_lines = np.array(get_lines_centered_on_stripes(p))
     mean_slope = np.mean(mid_lines, axis=0)[0]
-    print(f"mid_lines = {mid_lines}")
     return mean_slope
 
 
@@ -267,30 +271,38 @@ def get_pixel_scale_as_function_of_x(p):
 def get_stripes_starts_positions(p):
     """
     :param p: prepared image: binary with only full length stripes
-    :return: array of positions of strip starts for each x coordinate of image
+    :return: array of positions of strip starts for each y coordinate of image
     """
     h, w = p.shape
     raw_starts = [
             np.where(
-                np.diff(p[:, i]) > 0
+                np.diff(p[i, :]) > 0
             )[0]
-        for i in range(0, w)
+        for i in range(0, h)
     ]
-    median_number_of_starts = int(np.median(np.array([len(x) for x in raw_starts])))
-    valid_starts = np.array(
-        [np.array(s) if len(s) == median_number_of_starts else
-         np.zeros(median_number_of_starts) for s in raw_starts]
-    )
-
-    print(f"Valid starts = {valid_starts.shape}")
-    return valid_starts
+    first_starts = [x[0] for x in raw_starts]
+    return np.array(first_starts)
 
 
-def subtract_starts(s1, s2):
-    mask_1 = s1 > 0
-    mask_2 = s2 > 0
-    total_mask = 1.0*np.logical_and(mask_1, mask_2)
-    return total_mask*(s2-s1)
+def get_mean_diff(s1, s2):
+    initial = s2-s1
+    m = np.average(initial)
+    counter = 0
+    r = []
+    for (a, b) in zip(s1, s2):
+        d = b - a
+        if abs(d) < abs(3.0*m):
+            r.append(d)
+
+    return np.average(r)
+
+
+
+    # mask_1 = s1 > 0
+    # mask_2 = s2 > 0
+    # total_mask = 1.0*np.logical_and(mask_1, mask_2)
+    # return total_mask*(s2-s1)
+    return s2-s1
 
 
 def measure_image_on_rect(f, rect: MyRectangle):
@@ -314,88 +326,48 @@ def measure_image_on_rect(f, rect: MyRectangle):
     plt.show()
 
 
-# f = filedialog.askopenfilename(title="Open png file")
-# print(f"Opening file: {f}")
+d = filedialog.askdirectory(title="Open dir with images")
+files = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith("png")]
 
-files = [file1, file2, file3]
+print(f"Opening {len(files)} files!")
 
-prepared_files = [prepare_one_image(get_np_data_from_image_file(f)) for f in files]
-mean_slope = get_mean_slope(prepared_files[0])
-only_full_stripes = [get_full_stripes(p, mean_slope) for p in prepared_files]
-scale = get_pixel_scale_as_function_of_x(only_full_stripes[0])
-sp = [get_stripes_starts_positions(p) for p in only_full_stripes]
+pre = ImagePreparator()
 
+first_file = files[0]
+first_prepared = pre.prepare_one_image(get_np_data_from_image_file(first_file))
+# mean_slope = get_mean_slope(first_prepared)
+# print(f"Mean slope = {mean_slope}")
+# only_full_stripes = get_full_stripes(first_prepared, mean_slope)
+# print(f"Only full stripes = \n{only_full_stripes}")
+# scale = get_pixel_scale_as_function_of_x(only_full_stripes)
+# print(f"Scale = {scale}")
+previous = get_stripes_starts_positions(first_prepared)
 
-def calculate_shift(a, b):
-    di = subtract_starts(a, b)
-    print(f"Shape of di = {di.shape}")
-    k = [np.mean(scale*di[:, i]) for i in range(0, di.shape[1])]
-    return np.array(k)
+log_file = open("result.log", 'w')
 
+for f in files[1:]:
+    p = pre.prepare_one_image(get_np_data_from_image_file(f))
+    sp = get_stripes_starts_positions(p)
+    # print(f"Positions = {sp}")
+    # plt.imshow(p)
+    # plt.show()
+    result = get_mean_diff(sp, previous)
+    print(f"Result = {result}")
+    if result > 0:
+        log_file.write(f"{result}\n")
+    previous = sp
 
-d1 = calculate_shift(sp[0], sp[1])
-d2 = calculate_shift(sp[1], sp[2])
-d3 = calculate_shift(sp[0], sp[2])
-
-print(f"d1 + d2 = {d1+d2}, d3= {d3}, diff = {d3-(d1+d2)}")
-
-
-
-# scale2 = get_pixel_scale_as_function_of_x(prepared_files[1])
-plt.plot(scale, 'r')
-# plt.plot(scale2, 'g')
-plt.show()
-
-
-
-measure_image_on_rect(file1, rectangle)
-measure_image_on_rect(file2, rectangle)
-
-
-
+log_file.close()
 #
 #
-# image_test_path = "C:\\Users\\Florek\\Desktop\\SharpCap Captures\\2022-04-04\Capture\\22_11_07"
-# # image_test_name = "test_image.png"
-# image_test_name = "test_stripes.png"
 #
-# im_frame = Image.open(os.path.join(image_test_path, image_test_name))
-# np_frame = np.array(im_frame)
-# print(np_frame[:10, :10])
-# print(f"Type = {np_frame.dtype}, Max = {np.max(np_frame)}, shape = {np_frame.shape}")
-# max_y, max_x = np_frame.shape
-# structure = np.ones((3, 3), dtype=np.uint8)  # this defines the connection filter
-# labeled, ncomponents = label(np_frame, structure)
+# def calculate_shift(a, b):
+#     di = subtract_starts(a, b)
+#     print(f"Shape of di = {di.shape}")
+#     k = [np.mean(scale*di[:, i]) for i in range(0, di.shape[1])]
+#     return np.array(k)
 #
-# print(f"Shape = {labeled.shape}, number = {ncomponents}")
-# useful_x = max_x-1
 #
-# coeffs = []
-# r = list(range(1, ncomponents+1))
-# r[:3] = list(reversed(r[:3]))
-#
-# for i in r:
-#     labels = (labeled == i).astype(np.uint8)
-#     one_label = np.multiply(np_frame, labels).astype(np.uint8)
-#     im = Image.fromarray(one_label)
-#     (x, y) = labels.nonzero()
-#     [a, b] = np.polyfit(y, x, 1)
-#     coeffs.append(np.array([a, b]))
-#     print(f"Result = {(a, b)}")
-#     # im.save(os.path.join(image_test_path, "result_"+str(i)+".png"))
-#
-#     p1 = list(map(int, [0, b]))
-#     p2 = list(map(int, [useful_x, useful_x*a + b]))
-#     print(f"A = {p1}, B = {p2}")
-#     # to draw a line from (200,300) to (500,100)
-#     # if b > 0:
-#     # plt.plot(y, x, color="red", linewidth=6, alpha=0.3)
-#     # plt.imshow(one_label)
-#     # plt.show()
-#
-# a = np.array(coeffs)
-# print(a)
-# plt.plot(np.diff(a[:, 1]), color="red", linewidth=2)
-# # plt.imshow(one_label)
-# plt.show()
-
+# d1 = calculate_shift(sp[0], sp[1])
+# d2 = calculate_shift(sp[1], sp[2])
+# d3 = calculate_shift(sp[0], sp[2])

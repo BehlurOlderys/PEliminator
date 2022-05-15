@@ -23,6 +23,9 @@
 static size_t const number_of_lines = 296;
 static size_t const line_width = 400;
 
+static size_t last_line[296] = {0};
+static size_t previous_line[296] = {0};
+
 uint8_t* entire_frame = NULL;
 uint8_t* aux_frame = NULL;
 uint8_t* half_frame_a = NULL;
@@ -373,48 +376,76 @@ void main_loop(void *arg){
     xTaskNotify(params->handle_b, VERTICAL_BLUR, eSetValueWithOverwrite );
     nofification_value = ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
     nofification_value = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-//    threshold_image(entire_frame, 35);
 
-    if (counter == 10){
+    threshold_image(entire_frame, 35);
 
-      Serial.println("IMG");
-      Serial.println(size_of_gray_image);
-      size_t half_height = 296/2;
-      for (size_t i = 0; i < number_of_lines; ++i){
-          size_t index = i*line_width;
-          Serial.write(&fb->buf1[index], line_width);
-          vTaskDelay(1 / portTICK_PERIOD_MS);
-      }
 
-      char text_buffer[16] = {0};
-      Serial.readBytesUntil('\n', text_buffer, 15);
-      Serial.print("RECEIVED <<");
-      Serial.print(text_buffer);
-      Serial.println(">> END OF TRANSMISSION");
+    for (size_t line_index = 0; line_index < number_of_lines; ++line_index){
+        size_t const first_pixel_index = line_index*line_width;
+
+        for (size_t column_index = 0; column_index < line_width; ++column_index){
+            if (last_line[line_index] > 0){
+                continue;
+            }
+            size_t const pixel_index = first_pixel_index + column_index;
+            if (entire_frame[pixel_index] == 0){
+                last_line[line_index] = column_index;
+            }
+        }
     }
-    if (counter > 20){
 
-      Serial.println("IMG");
-      Serial.println(size_of_gray_image);
-      size_t half_height = 296/2;
-      for (size_t i = 0; i < number_of_lines; ++i){
-          size_t index = i*line_width;
-          Serial.write(&entire_frame[index], line_width);
-          vTaskDelay(1 / portTICK_PERIOD_MS);
-      }
-      counter = 0;
-
-      char text_buffer[16] = {0};
-      Serial.readBytesUntil('\n', text_buffer, 15);
-      Serial.print("RECEIVED <<");
-      Serial.print(text_buffer);
-      Serial.println(">> END OF TRANSMISSION");
+    int32_t acc = 0;
+    for (int i=0; i<296; ++i){
+        int32_t diff = (int32_t)(previous_line[i]) - (int32_t)(last_line[i]);
+        Serial.printf("%d ", diff);
+        acc += diff;
+        previous_line[i] = last_line[i];
+        last_line[i] = 0;
     }
-    counter++;
+    acc /= number_of_lines;
+    Serial.printf("\nmean=%d\n");
+
+
+//    if (counter == 10){
+//
+//      Serial.println("IMG");
+//      Serial.println(size_of_gray_image);
+//      size_t half_height = 296/2;
+//      for (size_t i = 0; i < number_of_lines; ++i){
+//          size_t index = i*line_width;
+//          Serial.write(&fb->buf1[index], line_width);
+//          vTaskDelay(1 / portTICK_PERIOD_MS);
+//      }
+//
+//      char text_buffer[16] = {0};
+//      Serial.readBytesUntil('\n', text_buffer, 15);
+//      Serial.print("RECEIVED <<");
+//      Serial.print(text_buffer);
+//      Serial.println(">> END OF TRANSMISSION");
+//    }
+//    if (counter > 20){
+//
+//      Serial.println("IMG");
+//      Serial.println(size_of_gray_image);
+//      size_t half_height = 296/2;
+//      for (size_t i = 0; i < number_of_lines; ++i){
+//          size_t index = i*line_width;
+//          Serial.write(&entire_frame[index], line_width);
+//          vTaskDelay(1 / portTICK_PERIOD_MS);
+//      }
+//      counter = 0;
+//
+//      char text_buffer[16] = {0};
+//      Serial.readBytesUntil('\n', text_buffer, 15);
+//      Serial.print("RECEIVED <<");
+//      Serial.print(text_buffer);
+//      Serial.println(">> END OF TRANSMISSION");
+//    }
+//    counter++;
 
     esp_camera_fb_return(fb);
 
-    fr_acq = esp_timer_get_time();
+//    fr_acq = esp_timer_get_time();
 
 
 //    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
@@ -447,15 +478,15 @@ void main_loop(void *arg){
 //
 //    fb = NULL;
 //    _jpg_buf = NULL;
-    int64_t fr_end = esp_timer_get_time();
-
-    uint32_t process_time = (fr_end - fr_frame) / 1000;
-    uint32_t acq_time = (fr_frame - fr_start) / 1000;
-    int64_t frame_time = (fr_end - last_frame) / 1000;
-    last_frame = fr_end;
-    Serial.printf("Total: %ums (%.1ffps), processing: %ums, ACQ: %ums\n",
-      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, process_time, acq_time
-    );
+//    int64_t fr_end = esp_timer_get_time();
+//
+//    uint32_t process_time = (fr_end - fr_frame) / 1000;
+//    uint32_t acq_time = (fr_frame - fr_start) / 1000;
+//    int64_t frame_time = (fr_end - last_frame) / 1000;
+//    last_frame = fr_end;
+//    Serial.printf("Total: %ums (%.1ffps), processing: %ums, ACQ: %ums\n",
+//      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, process_time, acq_time
+//    );
   }
 
   if (image_matrix) dl_matrix3du_free(image_matrix);

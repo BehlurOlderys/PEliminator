@@ -181,7 +181,7 @@ static void cam_task(void *arg)
 //                            cnt++;
 //                        }
 
-                        ets_printf("Frame size = %d\n", cam_obj->fb_size);
+//                        ets_printf("Frame size = %d\n", cam_obj->fb_size);
                         cam_obj->frames[frame_pos].en = 0;
 
                         if (cam_obj->psram_mode) {
