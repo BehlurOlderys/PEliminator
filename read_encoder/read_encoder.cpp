@@ -6,7 +6,7 @@
 #include <chrono>
 
 int main(int argc, char* argv[]){
-	cv::Mat src = cv::imread("plik.png" ,1 );
+	cv::Mat src = cv::imread(argv[1] ,1 );
 	if (src.empty())
     {
         std::cout << "Cannot open image!" << std::endl;

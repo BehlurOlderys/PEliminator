@@ -50,7 +50,7 @@ typedef struct {
 
 static const DRAM_ATTR ov2640_ratio_settings_t ratio_table[] = {
     // ox,  oy,   mx,   my
-    {   0,   0, 1600, 1200 }, //4x3
+    {   600,   0, 1000, 1200 }, //4x3
     {   8,  72, 1584, 1056 }, //3x2
     {   0, 100, 1600, 1000 }, //16x10
     {   0, 120, 1600,  960 }, //5x3

@@ -18,13 +18,12 @@
 #include "fd_forward.h"
 #include "fr_forward.h"
 
-#define HALF_FRAME_BUFFER_SIZE 400*296
-
 static size_t const number_of_lines = 296;
-static size_t const line_width = 400;
+static size_t const line_width = 100;
+static size_t size_of_gray_image = line_width*number_of_lines;
 
-static size_t last_line[296] = {0};
-static size_t previous_line[296] = {0};
+static size_t last_line[number_of_lines] = {0};
+static size_t previous_line[number_of_lines] = {0};
 
 uint8_t* entire_frame = NULL;
 uint8_t* aux_frame = NULL;
@@ -268,22 +267,15 @@ void main_loop(void *arg){
   int64_t fr_start = 0;
   int64_t fr_ready = 0;
   uint64_t result = 0;
-  dl_matrix3du_t *image_matrix = NULL;
-//  image_matrix =  dl_matrix3du_alloc(1, 400, 296, 3);
-  //
-  size_t size_of_rgb_image = 2*400*296;
-  size_t size_of_gray_image = 400*296;
+
 
   sensor_t *s = esp_camera_sensor_get();
   s->set_aec2(s, false);
   s->set_aec_value(s, 20);
   s->set_exposure_ctrl(s, false);
 
-  entire_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  aux_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-  uint8_t* final_frame = (uint8_t *)heap_caps_malloc(400*296, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-//  half_frame_a = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-//  half_frame_b = (uint8_t *)heap_caps_malloc(200*296, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+  entire_frame = (uint8_t *)heap_caps_malloc(size_of_gray_image, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+  aux_frame = (uint8_t *)heap_caps_malloc(size_of_gray_image, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
   half_frames[0] = half_frame_a;
   half_frames[1] = half_frame_b;
 
@@ -318,7 +310,6 @@ void main_loop(void *arg){
 //    }
 //    Serial.printf("Tick!\n");
 //    uint32_t const frame_size = fb->len;
-    size_t half_buffer = 200*296;
 //    if (counter > 20){
 //        memcpy(&entire_frame[0], &fb->buf1[0], half_buffer);
 //        memcpy(&entire_frame[half_buffer], &fb->buf2[0], half_buffer);
@@ -326,8 +317,10 @@ void main_loop(void *arg){
 //    memcpy(half_frame_b, &fb->buf1[half_buffer], half_buffer);
 
 
-    memcpy(&entire_frame[0],           &fb->buf1[0], 2*half_buffer);
+    memcpy(&entire_frame[0],           &fb->buf1[0], size_of_gray_image);
 //    memcpy(&entire_frame[half_buffer], half_frame_b, half_buffer);
+
+//    esp_camera_fb_return(fb);
 
 
 //    box_filter_vertical_fast(entire_frame, aux_frame);
@@ -395,7 +388,7 @@ void main_loop(void *arg){
     }
 
     int32_t acc = 0;
-    for (int i=0; i<296; ++i){
+    for (int i=0; i<number_of_lines; ++i){
         int32_t diff = (int32_t)(previous_line[i]) - (int32_t)(last_line[i]);
         Serial.printf("%d ", diff);
         acc += diff;
@@ -406,28 +399,29 @@ void main_loop(void *arg){
     Serial.printf("\nmean=%d\n");
 
 
-//    if (counter == 10){
-//
-//      Serial.println("IMG");
-//      Serial.println(size_of_gray_image);
-//      size_t half_height = 296/2;
-//      for (size_t i = 0; i < number_of_lines; ++i){
-//          size_t index = i*line_width;
-//          Serial.write(&fb->buf1[index], line_width);
-//          vTaskDelay(1 / portTICK_PERIOD_MS);
-//      }
-//
-//      char text_buffer[16] = {0};
-//      Serial.readBytesUntil('\n', text_buffer, 15);
-//      Serial.print("RECEIVED <<");
-//      Serial.print(text_buffer);
-//      Serial.println(">> END OF TRANSMISSION");
-//    }
+    if (counter == 10){
+
+      Serial.println("IMG");
+      Serial.println(size_of_gray_image);
+      size_t half_height = number_of_lines/2;
+      for (size_t i = 0; i < number_of_lines; ++i){
+          size_t index = i*line_width;
+          Serial.write(&fb->buf1[index], line_width);
+          vTaskDelay(1 / portTICK_PERIOD_MS);
+      }
+
+      char text_buffer[16] = {0};
+      Serial.readBytesUntil('\n', text_buffer, 15);
+      Serial.print("RECEIVED <<");
+      Serial.print(text_buffer);
+      Serial.println(">> END OF TRANSMISSION");
+      counter = 0;
+    }
 //    if (counter > 20){
 //
 //      Serial.println("IMG");
 //      Serial.println(size_of_gray_image);
-//      size_t half_height = 296/2;
+//      size_t half_height = number_of_lines/2;
 //      for (size_t i = 0; i < number_of_lines; ++i){
 //          size_t index = i*line_width;
 //          Serial.write(&entire_frame[index], line_width);
@@ -441,55 +435,20 @@ void main_loop(void *arg){
 //      Serial.print(text_buffer);
 //      Serial.println(">> END OF TRANSMISSION");
 //    }
-//    counter++;
-
+    counter++;
+//
     esp_camera_fb_return(fb);
 
-//    fr_acq = esp_timer_get_time();
+    int64_t fr_end = esp_timer_get_time();
 
-
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        first_half[i] = first_half[i-1] + first_half[i+1];
-//    }
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        second_half[i] = second_half[i-1] + second_half[i+1];
-//    }
-//
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        first_half[i] = first_half[i-1] + first_half[i+1];
-//    }
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        second_half[i] = second_half[i-1] + second_half[i+1];
-//    }
-//
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        first_half[i] = first_half[i-1] + first_half[i+1];
-//    }
-//    for (uint32_t i=2; i < HALF_FRAME_BUFFER_SIZE-1; i ++){
-//        second_half[i] = second_half[i-1] + second_half[i+1];
-//    }
-//    fr_jpeg = esp_timer_get_time();
-//
-//    static uint8_t counter = 0;
-//    if (counter >= 20){
-//        counter = 0;
-//    }
-//    counter++;
-//
-//    fb = NULL;
-//    _jpg_buf = NULL;
-//    int64_t fr_end = esp_timer_get_time();
-//
-//    uint32_t process_time = (fr_end - fr_frame) / 1000;
-//    uint32_t acq_time = (fr_frame - fr_start) / 1000;
-//    int64_t frame_time = (fr_end - last_frame) / 1000;
-//    last_frame = fr_end;
-//    Serial.printf("Total: %ums (%.1ffps), processing: %ums, ACQ: %ums\n",
-//      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, process_time, acq_time
-//    );
+    uint32_t process_time = (fr_end - fr_frame) / 1000;
+    uint32_t acq_time = (fr_frame - fr_start) / 1000;
+    int64_t frame_time = (fr_end - last_frame) / 1000;
+    last_frame = fr_end;
+    Serial.printf("Total: %ums (%.1ffps), processing: %ums, ACQ: %ums\n",
+      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time, process_time, acq_time
+    );
   }
-
-  if (image_matrix) dl_matrix3du_free(image_matrix);
 
   while (true){
     Serial.printf("Tick!\r\n");

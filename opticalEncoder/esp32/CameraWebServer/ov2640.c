@@ -220,13 +220,13 @@ static int set_window(sensor_t *sensor, ov2640_sensor_mode_t mode, int offset_x,
 static int set_framesize(sensor_t *sensor, framesize_t framesize)
 {
     int ret = 0;
-    uint16_t w = resolution[framesize].width;
-    uint16_t h = resolution[framesize].height;
-    aspect_ratio_t ratio = resolution[framesize].aspect_ratio;
-    uint16_t max_x = ratio_table[ratio].max_x;
-    uint16_t max_y = ratio_table[ratio].max_y;
-    uint16_t offset_x = ratio_table[ratio].offset_x;
-    uint16_t offset_y = ratio_table[ratio].offset_y;
+    uint16_t w = resolution[framesize].width; // 400
+    uint16_t h = resolution[framesize].height;   // 296
+    aspect_ratio_t ratio = resolution[framesize].aspect_ratio; // = 4/3
+    uint16_t max_x = ratio_table[ratio].max_x; // 1600
+    uint16_t max_y = ratio_table[ratio].max_y; // 1200
+    uint16_t offset_x = ratio_table[ratio].offset_x; //0
+    uint16_t offset_y = ratio_table[ratio].offset_y; //0
     ov2640_sensor_mode_t mode = OV2640_MODE_UXGA;
 
     sensor->status.framesize = framesize;

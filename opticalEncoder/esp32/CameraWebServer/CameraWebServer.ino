@@ -45,8 +45,8 @@ void setup() {
   config.fb_location = CAMERA_FB_IN_DRAM;
   config.frame_size = FRAMESIZE_CIF;  //400x296
   config.jpeg_quality = 10;
-  config.fb_count = 1;
-  config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
+  config.fb_count = 2;
+  config.grab_mode = CAMERA_GRAB_LATEST;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);

@@ -2,8 +2,10 @@ from serial import Serial, SerialException
 from matplotlib import pyplot as plt
 import numpy as np
 
+line_width = 100
+number_of_lines = 296
 com_port = 'COM10'
-obraz = np.zeros((296, 400))
+obraz = np.zeros((number_of_lines, line_width))
 fig,ax = plt.subplots(1, 1)
 moj_obraz = None
 plt.ion()
@@ -26,18 +28,18 @@ while True:
     if text_message == 'IMG':
         image_size = int(ser.readline().decode('UTF-8').rstrip())
         print(f"Image size = {image_size}")
-        bytes = ser.read(400)
+        bytes = ser.read(line_width)
         bytes = bytearray(bytes)
         i=0
         while len(bytes) < image_size:
-            bytes += ser.read(400)
+            bytes += ser.read(line_width)
             print(f"read {i}, len = {len(bytes)}")
             i+=1
         print(len(bytes))
         ser.write("ACK\n".encode())
         image_list = list(bytes)
         # blue = []
-        # for i in range(0, 296*400):
+        # for i in range(0, number_of_lines*line_width):
         #     b1 = image_list[2*i]
         #     b2 = image_list[2*i + 1]
         #
@@ -63,7 +65,7 @@ while True:
         #
         # image = np.array(blue)
         # print(f"Shape of blue = {image.shape}")
-        image = np.reshape(image_list, (296, 400))
+        image = np.reshape(image_list, (number_of_lines, line_width))
         print(f"Shape of blue = {image.shape}")
         # image = np.bitwise_and(image, 31)
         print(image[:10, :10])
@@ -79,8 +81,8 @@ while True:
         fig.canvas.draw()
         plt.pause(1)
         # image = []
-        # for i in range(0, 296):
-        #     image.append(ser.read(400))
+        # for i in range(0, number_of_lines):
+        #     image.append(ser.read(line_width))
         #     print(f"Read line {i}")
         # # print("image read!")
 
