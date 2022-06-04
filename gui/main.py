@@ -6,6 +6,10 @@ from functions.serial_reader import SerialReader, get_available_com_ports
 from functions.serial_handlers.all_handlers import encoder_data
 from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
 from functions.server import get_web_server
+from functions.dec_estimator import DecEstimator
+from functions.dec_corrector import DecCorrector
+from functions.recent_files_provider import RecentImagesProvider, is_file_fits
+
 
 import time
 from threading import Thread
@@ -41,7 +45,12 @@ serial_thread = Thread(target=reader.loop)
 connection_manager = ConnectionManager(event_logger, reader, serial_thread, com_port_choice)
 root.title("PEliminator GUI")
 mover = CoordinateMover(reader, event_logger)
-web_server = get_web_server(mover)
+de = DecEstimator()
+dc = DecCorrector(de, reader)
+dec_corrector = RecentImagesProvider(dc, is_file_fits)
+
+
+# web_server = get_web_server(mover)
 
 root.geometry("800x480")
 tabs = ttk.Notebook(root)
@@ -217,6 +226,21 @@ onliner = OnlineAnalyzer(encoder_data, write_correction, reader)
 online_button = tk.Button(online_frame, text="Start online...", command=onliner.start)
 online_button.pack(side=tk.LEFT)
 
+correct_dec_button = tk.Button(online_frame, text="START dec correction")
+
+
+def start_dec_correction():
+    dec_corrector.start()
+    correct_dec_button.configure(text="STOP dec correction", command=stop_dec_correction)
+
+
+def stop_dec_correction():
+    dec_corrector.kill()
+    correct_dec_button.configure(text="START dec correction", command=start_dec_correction)
+
+
+correct_dec_button.configure(command=start_dec_correction)
+correct_dec_button.pack(side=tk.LEFT)
 
 onliner_historic = OnlineAnalyzer(None, write_correction)
 online_history_button = tk.Button(online_frame, text="Start historical analysis...", command=onliner_historic.start)
@@ -250,12 +274,12 @@ serial_log.configure(state='disabled')
 logger_thread = Thread(target=lambda: event_logger.run(serial_log))
 logger_thread.start()
 
-web_thread = Thread(target=web_server.serve_forever)
-web_thread.start()
+# web_thread = Thread(target=web_server.serve_forever)
+# web_thread.start()
 
 root.mainloop()
 print("End of main loop!")
-web_server.shutdown()
+# web_server.shutdown()
 event_logger.kill()
 onliner.kill()
 onliner_historic.kill()
@@ -263,5 +287,5 @@ reader.kill()
 logger_thread.join()
 if reader.is_connected():
     serial_thread.join()
-web_thread.join()
-web_server.server_close()
+# web_thread.join()
+# web_server.server_close()

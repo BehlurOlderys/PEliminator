@@ -33,8 +33,8 @@ while True:
         i=0
         while len(bytes) < image_size:
             bytes += ser.read(line_width)
-            print(f"read {i}, len = {len(bytes)}")
-            i+=1
+            # print(f"read {i}, len = {len(bytes)}")
+            # i+=1
         print(len(bytes))
         ser.write("ACK\n".encode())
         image_list = list(bytes)

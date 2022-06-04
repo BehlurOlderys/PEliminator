@@ -589,6 +589,12 @@ void ReadSerial(){
       Serial.readBytes((char*)(correction_data.time_intervals), NBytes);
       correction_data.TranformToArduinoTime();
     }
+    else if (strcmp("CORRECT+" ,command_name) == 0){
+      tracking_controller.AddCorrection(1);
+    }  
+    else if (strcmp("CORRECT-" ,command_name) == 0){
+      tracking_controller.AddCorrection(-1);
+    }  
     else if (strcmp("SET_DC+" ,command_name) == 0){
       drift_compensator.SetPositiveCompensation(command_argument);
     }  
@@ -715,8 +721,8 @@ void loop() {
   ReadSerial(); // 12us
 
 //  PrintMillis(serializer);
-  drift_compensator.Run();
+//  drift_compensator.Run();
 
-  UpdateAbsEncoder();
-  PrintEncoder();
+//  UpdateAbsEncoder();
+//  PrintEncoder();
 }

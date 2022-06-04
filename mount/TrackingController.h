@@ -9,7 +9,8 @@ struct TrackingController{
     _feedback(feed),
     _steps_required(0),
     _last_timestamp(0),
-    _paused(true)
+    _paused(true),
+    _correction(0)
   {}
 
   void Start(){
@@ -36,6 +37,10 @@ struct TrackingController{
     _paused = true;
   }
 
+  void AddCorrection(int32_t c){
+    _correction += c;
+  }
+
   void Run(){
     if (_paused){
       return;
@@ -45,13 +50,15 @@ struct TrackingController{
     if ( current_interval >= expected_step_interval){
       _last_timestamp = current_timestamp;
       _steps_required++;
-      _feedback.AddInterval(current_interval);
+//      _feedback.AddInterval(current_interval);
 
-      if (_feedback.GetError() > 0){
+      if (_correction > 0){
         _steps_required++;
+        _correction = 0;
       }
-      else if (_feedback.GetError() < 0){
+      else if (_correction < 0){
         _steps_required--;
+        _correction = 0;
       }
     }
    
@@ -65,4 +72,5 @@ struct TrackingController{
   uint32_t _last_timestamp;
   int32_t _steps_required;
   bool _paused;
+  int32_t _correction;
 };

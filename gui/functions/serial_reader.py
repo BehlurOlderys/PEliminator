@@ -1,3 +1,5 @@
+import os
+
 from serial import Serial, SerialException
 from struct import unpack
 import logging
@@ -63,6 +65,7 @@ class SerialReader:
         self._encoder_log_file = open(datetime.now().strftime('logs/encoder_%Y-%m-%d_%H-%M.log'), "w", buffering=1)
         self._timing_log_file = open('logs/timing_log', "w", buffering=1)
         self._timing_log_file.write(f"Current [us], Previous [us], Arduino time [ms], PC Time [ms]\n")
+        self._logs = [self._log_file, self._encoder_log_file, self._timing_log_file]
 
         print(f"Receiving welcome message...")
         self._receive_new_data_from_serial()  # should be welcome message

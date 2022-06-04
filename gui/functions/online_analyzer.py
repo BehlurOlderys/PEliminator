@@ -1,5 +1,6 @@
 from threading import Thread
 import struct
+from tkinter import filedialog
 
 from .image_calculator import ImageCalculator
 from .encoder_manager import just_read_encoder
@@ -102,8 +103,8 @@ class OnlineAnalyzer:
             self._provider_thread.join()
 
     def start(self):
-        # d = filedialog.askdirectory(title="Select directory with images:")
-        d = "C:/Users/Florek/Desktop/SharpCap Captures/LeoQuartet_cz5"
+        d = filedialog.askdirectory(title="Select directory with images:")
+        # d = "C:/Users/Florek/Desktop/SharpCap Captures/LeoQuartet_cz5"
         if d is None:
             return
         print(f"Using image dir={d}")

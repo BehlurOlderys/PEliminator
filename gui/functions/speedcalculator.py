@@ -12,6 +12,7 @@ class SpeedCalculator:
         self._speeds = []
         self._callback = callback
 
+        self._logfile = open('points.log', 'w', buffering=1)
         self._min_points = settings.get_minimal_full_period_points()
         self._ticks = settings.get_encoder_ticks()
         self._threshold_low = 2*(self._ticks / self._min_points)
@@ -19,6 +20,7 @@ class SpeedCalculator:
         print(f"Thresholds are: LOW={self._threshold_low}, HIGH={self._threshold_high}")
 
     def __del__(self):
+        self._logfile.close()
         self._log.close()
 
     def _add_new_speed(self, speed):
@@ -72,8 +74,9 @@ class SpeedCalculator:
         e = self._encoder_data_provider.find_readout_by_timestamp(t)
         if e is None:
             print(f"Could not find right encoder reading for timestamp {t}")
-            return
-        print(f"Found encoder reading {e} for timestamp {t}")
+            e = 0
+        else:
+            print(f"Found encoder reading {e} for timestamp {t}")
 
         if len(self._current_period) > 0:
             previous_tick = self._current_period[-1][2]
@@ -86,4 +89,5 @@ class SpeedCalculator:
 
         self._current_period.append((t, y, e))  # TODO: should be x or y depending on orientation
         print(f"Added point {p} to current period of length: {len(self._current_period)}")
+        self._logfile.write(str(p)+"\n")
         # seek for t in reader encoder

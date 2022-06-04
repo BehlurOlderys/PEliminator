@@ -2,6 +2,8 @@ import numpy as np
 from scipy.ndimage import label, gaussian_filter
 from PIL import Image
 import os
+from time import sleep
+from serial import Serial
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
@@ -135,6 +137,7 @@ def get_lines_from_rect(rect: MyRectangle):
 def get_np_data_from_image_file(file_path):
     im = Image.open(file_path)
     raw_data = np.array(im)
+    # print(raw_data.shape)
     return raw_data
 
 
@@ -286,12 +289,14 @@ def get_stripes_starts_positions(p):
 
 def get_mean_diff(s1, s2):
     initial = s2-s1
+    # print(initial)
     m = np.average(initial)
+    # print(f"First mean = {m}")
     counter = 0
     r = []
     for (a, b) in zip(s1, s2):
         d = b - a
-        if abs(d) < abs(3.0*m):
+        if abs(d) < 10:
             r.append(d)
 
     return np.average(r)
@@ -325,37 +330,72 @@ def measure_image_on_rect(f, rect: MyRectangle):
     plt.gca().add_patch(rect_patch)
     plt.show()
 
+def get_last_files(d):
+    """
+    returns list of pairs (file, timestamp)
+    """
+    files = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith("png")]
+    files = [(p, os.path.getctime(p)) for p in files]
+    return sorted(files, key=lambda x: x[1])
 
-d = filedialog.askdirectory(title="Open dir with images")
-files = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith("png")]
 
+main_dir = filedialog.askdirectory(title="Open dir with images")
+files = get_last_files(main_dir)
 print(f"Opening {len(files)} files!")
 
 pre = ImagePreparator()
 
-first_file = files[0]
-first_prepared = pre.prepare_one_image(get_np_data_from_image_file(first_file))
+first_file_name = files[0][0]
+print(f"First file = {first_file_name}")
+first_prepared = pre.prepare_one_image(get_np_data_from_image_file(first_file_name))
 # mean_slope = get_mean_slope(first_prepared)
 # print(f"Mean slope = {mean_slope}")
 # only_full_stripes = get_full_stripes(first_prepared, mean_slope)
 # print(f"Only full stripes = \n{only_full_stripes}")
 # scale = get_pixel_scale_as_function_of_x(only_full_stripes)
 # print(f"Scale = {scale}")
+previous_time = files[0][1]
 previous = get_stripes_starts_positions(first_prepared)
 
-log_file = open("result.log", 'w')
+log_file = open("result.log", 'w', buffering=1)
 
-for f in files[1:]:
-    p = pre.prepare_one_image(get_np_data_from_image_file(f))
-    sp = get_stripes_starts_positions(p)
-    # print(f"Positions = {sp}")
-    # plt.imshow(p)
-    # plt.show()
-    result = get_mean_diff(sp, previous)
-    print(f"Result = {result}")
-    if result > 0:
-        log_file.write(f"{result}\n")
-    previous = sp
+filenames = [f[0] for f in files]
+
+# ser = Serial(port="COM8", baudrate=115200, timeout=3)
+
+while True:
+    latest_state = get_last_files(main_dir)
+    new_files = [f for f in latest_state if f not in filenames]
+    if not new_files:
+        print("Waiting 1s for new files...")
+        sleep(1)
+        continue
+
+    print(f"Acquired new files: {new_files}")
+    for f, t in new_files:
+        p = pre.prepare_one_image(get_np_data_from_image_file(f))
+        try:
+            sp = get_stripes_starts_positions(p)
+        except IndexError:
+            continue
+        except PermissionError:
+            continue
+        delta_t = t - previous_time
+        previous_time = t
+        # print(f"Positions = {sp}")
+        # plt.imshow(p)
+        # plt.show()
+        result = get_mean_diff(sp, previous)
+        print(f"dt = {delta_t}, dx = {result}")
+        if abs(result) > 0:
+            log_file.write(f"{delta_t}\t{result}\n")
+        previous = sp
+        try:
+            os.remove(f)
+        except e:
+            print(f"Exception on removing file: {e}")
+    files += new_files
+    filenames = [f[0] for f in files]
 
 log_file.close()
 #
