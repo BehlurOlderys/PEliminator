@@ -49,16 +49,7 @@ class SerialReader:
     def is_connected(self):
         return self._ser is not None
 
-    def connect_to_port(self, port_name):
-        try:
-            self._ser = Serial(
-                port=port_name,
-                baudrate=115200,
-                timeout=3)
-        except SerialException:
-            message = f"Failed to open serial on port {port_name}"
-            print(message)
-            return message
+
 
         print(f"Opened serial on {port_name}")
         self._log_file = open("logs/log_entire_serial.txt", "w", buffering=1)
@@ -84,7 +75,7 @@ class SerialReader:
 
     def write_string(self, something):
         print(f"SerialReader: writing {something}")
-        self._something_to_write.append(something.encode())
+        self._something_to_write.append((something+"\n").encode())
 
     def __del__(self):
         if self._log_file is not None:

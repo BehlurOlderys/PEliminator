@@ -101,4 +101,4 @@ t = TestProcessor()
 r = RecentImagesProvider(t, is_file_png)
 r.start()
 #(...) cokolwiek innego
-#r.kill()  
+#r.kill()

@@ -30,10 +30,12 @@ struct TrackingController{
     _last_timestamp = micros();
     _steps_required = 0;
     _paused = false;
+    _correction = 0;
     _ra_stepper.set_direction(STEP_DIRECTION_FORWARD);
   }
 
   void Stop(){
+    _correction = 0;
     _paused = true;
   }
 
@@ -54,11 +56,11 @@ struct TrackingController{
 
       if (_correction > 0){
         _steps_required++;
-        _correction = 0;
+        _correction--;
       }
       else if (_correction < 0){
         _steps_required--;
-        _correction = 0;
+        _correction++;
       }
     }
    

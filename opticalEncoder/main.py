@@ -1,9 +1,11 @@
+import time
+import math
 import numpy as np
 from scipy.ndimage import label, gaussian_filter
 from PIL import Image
 import os
 from time import sleep
-from serial import Serial
+from serial import Serial, SerialException
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
@@ -19,6 +21,10 @@ pixels_count_threshold_for_group = 1000
 resolution_lpi = 200
 counts_per_rotation = 1800
 arcsec_full_circle = 1296000
+magical_factor = 2.922
+error_threshold = 0.10
+error_gain = 6
+max_correction = 7.0
 arcsec_per_strip = arcsec_full_circle / counts_per_rotation
 line_greaters = [False, False, True, True]
 
@@ -339,6 +345,14 @@ def get_last_files(d):
     return sorted(files, key=lambda x: x[1])
 
 
+serial_port = "COM4"
+ser = None
+try:
+    ser = Serial(port=serial_port, baudrate=115200, timeout=3)
+except SerialException:
+    print(f"Cannot connect to serial on {serial_port}!")
+    exit(-1)
+
 main_dir = filedialog.askdirectory(title="Open dir with images")
 files = get_last_files(main_dir)
 print(f"Opening {len(files)} files!")
@@ -358,37 +372,59 @@ previous_time = files[0][1]
 previous = get_stripes_starts_positions(first_prepared)
 
 log_file = open("result.log", 'w', buffering=1)
+log_file.write("dt\tdx\tex\tx\terror\ttime\n")
 
 filenames = [f[0] for f in files]
 
-# ser = Serial(port="COM8", baudrate=115200, timeout=3)
 
+# ser = Serial(port="COM8", baudrate=115200, timeout=3)
+total_t = 0
+total_x = 0
 while True:
     latest_state = get_last_files(main_dir)
     new_files = [f for f in latest_state if f not in filenames]
     if not new_files:
-        print("Waiting 1s for new files...")
-        sleep(1)
+        print("Waiting 0.25s for new files...")
+        sleep(0.25)
         continue
 
     print(f"Acquired new files: {new_files}")
+
     for f, t in new_files:
-        p = pre.prepare_one_image(get_np_data_from_image_file(f))
         try:
+            p = pre.prepare_one_image(get_np_data_from_image_file(f))
             sp = get_stripes_starts_positions(p)
         except IndexError:
             continue
         except PermissionError:
             continue
+        except Exception as ex:
+            print(f"Strangest exception happened: {ex}")
+            print("Sleeping for 1000s!")
+            sleep(1000)
         delta_t = t - previous_time
         previous_time = t
+        total_t += delta_t
+        expected = total_t * magical_factor
         # print(f"Positions = {sp}")
         # plt.imshow(p)
         # plt.show()
         result = get_mean_diff(sp, previous)
-        print(f"dt = {delta_t}, dx = {result}")
+        if math.isnan(result):
+            continue
+        total_x += result
+        error = expected - total_x
+        if abs(error) > error_threshold:
+            correction = int(min(max_correction, error_gain*abs(error)))
+            if error > 0:
+                ser.write(f"CORRECT {correction}\n".encode())
+                print(f"Correcting by {correction}")
+            else:
+                ser.write(f"CORRECT {-correction}\n".encode())
+                print(f"Correcting by {-correction}")
+        print(f"dt = {delta_t}, dx = {result}, ex={expected}, tx={total_x}, err={error}")
         if abs(result) > 0:
-            log_file.write(f"{delta_t}\t{result}\n")
+            log_file.write(f"{delta_t}\t{result}\t{expected}\t{total_x}\t{error}\t{total_t}\n")
         previous = sp
         try:
             os.remove(f)

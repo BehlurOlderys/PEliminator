@@ -43,7 +43,7 @@ void setup() {
   config.xclk_freq_hz = 12000000;
   config.pixel_format = PIXFORMAT_GRAYSCALE;
   config.fb_location = CAMERA_FB_IN_DRAM;
-  config.frame_size = FRAMESIZE_CIF;  //400x296
+  config.frame_size = FRAMESIZE_SVGA;  //800x600
   config.jpeg_quality = 10;
   config.fb_count = 2;
   config.grab_mode = CAMERA_GRAB_LATEST;

@@ -18,7 +18,7 @@
 #include "fd_forward.h"
 #include "fr_forward.h"
 
-static size_t const number_of_lines = 296;
+static size_t const number_of_lines = 300;
 static size_t const line_width = 100;
 static size_t size_of_gray_image = line_width*number_of_lines;
 

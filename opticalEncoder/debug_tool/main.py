@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 line_width = 100
-number_of_lines = 296
+number_of_lines = 300
 com_port = 'COM10'
 obraz = np.zeros((number_of_lines, line_width))
 fig,ax = plt.subplots(1, 1)
