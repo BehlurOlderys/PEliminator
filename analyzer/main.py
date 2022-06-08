@@ -2,17 +2,17 @@ import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from gui.functions.encoder_manager import EncoderManager
+# from gui.functions.encoder_manager import EncoderManager
 from widgets.periods_list import PeriodsList
 from widgets.data_aggregator import DataAggregator
 from widgets.image_files_list import ImageFilesList
-from common.global_settings import settings
+# from common.global_settings import settings
 from widgets.fragment_displayer import FragmentDisplayer
 from widgets.plotter import Plotter
 from widgets.image_displayer import ImageDisplayer
 from widgets.automat import Automat
 from widgets.text_indicator import TextIndicator
-from gui.functions.times_generator import TimesGenerator
+# from gui.functions.times_generator import TimesGenerator
 
 
 root = tk.Tk()

@@ -51,7 +51,7 @@ class RecentImagesProvider:
             if not self._files:
                 print("Waiting 1s for new files...")
                 sleep(1)
-        self._filenames = [f[0] for f in self._files]
+        self._filenames = [os.path.basename(f[0]) for f in self._files]
         if not self._processor.init(*self._files[-1]):
             print("Initialization failed, ending...")
             return
@@ -69,8 +69,10 @@ class RecentImagesProvider:
 
     def _process(self):
         while not self._kill:
-            files = get_last_files(self._main_dir, self._filter_fun)
-            new_files = [f for f in files if f[0] not in self._filenames]
+            latest_state = get_last_files(self._main_dir)
+            latest_filenames = [os.path.basename(f) for f, t in latest_state]
+            new_files = [f for f in latest_state if os.path.basename(f[0]) not in self._filenames]
+            new_filenames = [os.path.basename(f) for f, t in new_files]
 
             if not new_files:
                 print("Waiting 1s for new files...")
@@ -81,8 +83,7 @@ class RecentImagesProvider:
             for f, t in new_files:
                 self._processor.process(f, t)
 
-            self._files += new_files
-            self._filenames = [f[0] for f in files]
+            self._filenames += new_filenames
 
 
 class TestProcessor:
