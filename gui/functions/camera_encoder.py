@@ -4,7 +4,7 @@ from scipy.ndimage import gaussian_filter
 from PIL import Image
 import os
 from time import sleep
-from recent_files_provider import RecentImagesProvider, is_file_png
+from functions.recent_files_provider import RecentImagesProvider, is_file_png
 
 
 sidereal_day_s = 86164
@@ -47,11 +47,15 @@ class ImagePreparator:
 
 class Averager:
 
-    max_count = 20
+    max_count = 48
 
     def __init__(self):
         self._value = 0
         self._history = []
+
+    def reset(self):
+        self._history = []
+        self._value = 0
 
     def get_current_value(self):
         return self._value
@@ -265,18 +269,36 @@ class CameraImageProcessor:
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
+        self._scale_amendment = 0
         self._previous_time = None
         self._previous_sp = None
         self._previous_ep = None
+        self._last_file_data = None
+
+    def reset(self):
+        if self._last_file_data is None:
+            return
+        self._length_averager.reset()
+        self._total_t = 0
+        self._total_mean = 0
+        self._counter = 0
+        self._scale_amendment = 0
+        f, t = self._last_file_data
+        sp, ep = self._preprocess_one_file(f)
+        self._previous_time = t
+        self._previous_sp = sp
+        self._previous_ep = ep
 
     def __del__(self):
         self._log_file.close()
 
     def init(self, filename, timestamp):
         sp, ep = self._preprocess_one_file(filename)
+        self._last_file_data = filename, timestamp
         self._previous_time = timestamp
         self._previous_sp = sp
         self._previous_ep = ep
+        return True
 
     def _preprocess_one_file(self, filename):
         try:
@@ -295,14 +317,19 @@ class CameraImageProcessor:
             sleep(1000)
             return None
 
-    def reset(self):
-        pass
+    def get_scale_amendment(self):
+        return self._scale_amendment
+
+    def amend_scale(self, value):
+        self._scale_amendment = value
 
     def process(self, filename, timestamp):
         sp, ep = self._preprocess_one_file(filename)
 
         delta_t = timestamp - self._previous_time
         self._previous_time = timestamp
+
+        self._last_file_data = filename, timestamp
 
         self._total_t += delta_t
         expected = self._total_t * magical_factor
@@ -313,7 +340,7 @@ class CameraImageProcessor:
         self._length_averager.get_current_value()
         mean_length = self._length_averager.get_current_value()
 
-        scale = arcsec_per_strip / mean_length
+        scale = self._scale_amendment + (arcsec_per_strip / mean_length)
         if math.isnan(result_s) or math.isnan(result_e):
             print("NaN!")
             return
@@ -347,6 +374,12 @@ class CameraEncoder:
         self._effector = DummyEffector()
         self._processor = CameraImageProcessor(self._effector)
         self._provider = RecentImagesProvider(self._processor, is_file_png)
+
+    def set_amend(self, value):
+        self._processor.amend_scale(value)
+
+    def reset(self):
+        self._processor.reset()
 
     def start(self):
         self._provider.start()

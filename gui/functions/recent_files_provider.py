@@ -45,7 +45,10 @@ class RecentImagesProvider:
         self._thread.start()
 
     def _run(self):
-        self._main_dir = filedialog.askdirectory(title="Open dir with images")
+        self._main_dir = filedialog.askdirectory(title="Open dir with images for provider")
+        if not self._main_dir:
+            print("Direction with images failed to open, returning...")
+            return
         while not self._files:
             self._files = get_last_files(self._main_dir, self._filter_fun)
             if not self._files:
@@ -65,11 +68,12 @@ class RecentImagesProvider:
     def __del__(self):
         if not self._kill:
             self._kill = True
+        if self._thread is not None and self._thread.ident is not None:
             self._thread.join()
 
     def _process(self):
         while not self._kill:
-            latest_state = get_last_files(self._main_dir)
+            latest_state = get_last_files(self._main_dir, is_file_png)
             latest_filenames = [os.path.basename(f) for f, t in latest_state]
             new_files = [f for f in latest_state if os.path.basename(f[0]) not in self._filenames]
             new_filenames = [os.path.basename(f) for f, t in new_files]
@@ -98,8 +102,8 @@ class TestProcessor:
 
 
 # przykładowe użycie:
-t = TestProcessor()
-r = RecentImagesProvider(t, is_file_png)
-r.start()
+# t = TestProcessor()
+# r = RecentImagesProvider(t, is_file_png)
+# r.start()
 #(...) cokolwiek innego
 #r.kill()
