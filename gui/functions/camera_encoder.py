@@ -370,8 +370,9 @@ class CameraImageProcessor:
 
 class CameraEncoder:
     def __init__(self, serial_reader):
-        self._serial = serial_reader
-        self._effector = DummyEffector()
+        self._effector = DummyEffector() if serial_reader is None else CorrectionEffector(serial_reader)
+        if self._effector is None:
+            print("Dummy effector chosen!")
         self._processor = CameraImageProcessor(self._effector)
         self._provider = RecentImagesProvider(self._processor, is_file_png)
 
