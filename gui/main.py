@@ -10,6 +10,7 @@ from functions.dec_estimator import DecEstimator
 from functions.dec_corrector import DecCorrector
 from functions.recent_files_provider import RecentImagesProvider, is_file_fits
 from functions.camera_encoder import CameraEncoder
+from functions.image_tracker import ImageTrackerGUI
 
 
 import time
@@ -67,6 +68,10 @@ tabs.add(mount_tab, text="Mount control")
 correction_tab = tk.Frame(tabs)
 correction_tab.pack(fill='both', expand=True)
 tabs.add(correction_tab, text="Corrections")
+
+tracking_tab = tk.Frame(tabs)
+tracking_tab.pack(fill='both', expand=True)
+tabs.add(tracking_tab, text="Tracking")
 
 settings_tab = tk.Frame(tabs)
 settings_tab.pack(fill='both', expand=True)
@@ -316,6 +321,9 @@ check_current_correction_button.pack(side=tk.RIGHT)
 ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
 
+tracking_gui = ImageTrackerGUI(tracking_tab)
+
+
 serial_log = scrolledtext.ScrolledText(log_tab,
                                        font=('calibre', 10, 'normal'),
                                        background='black',
@@ -337,6 +345,7 @@ onliner.kill()
 onliner_historic.kill()
 reader.kill()
 encoder_gui.kill()
+tracking_gui.kill()
 logger_thread.join()
 if reader.is_connected():
     serial_thread.join()

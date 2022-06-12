@@ -40,15 +40,22 @@ class RecentImagesProvider:
         self._filenames = None
         self._main_dir = None
 
-    def start(self):
+    def start(self, directory=None):
+        print("Starting provider...")
+
+        if directory is not None:
+            self._main_dir = directory
         self._thread = Thread(target=self._run)
         self._thread.start()
 
     def _run(self):
-        self._main_dir = filedialog.askdirectory(title="Open dir with images for provider")
+        if self._main_dir is None:
+            print("No main dir given, choosing new...")
+            self._main_dir = filedialog.askdirectory(title="Open dir with images for provider")
         if not self._main_dir:
             print("Direction with images failed to open, returning...")
             return
+        print(f"Using directory: {self._main_dir}")
         while not self._files:
             self._files = get_last_files(self._main_dir, self._filter_fun)
             if not self._files:
@@ -63,7 +70,8 @@ class RecentImagesProvider:
 
     def kill(self):
         self._kill = True
-        self._thread.join()
+        if self._thread is not None and self._thread.ident is not None:
+            self._thread.join()
 
     def __del__(self):
         if not self._kill:
@@ -73,7 +81,7 @@ class RecentImagesProvider:
 
     def _process(self):
         while not self._kill:
-            latest_state = get_last_files(self._main_dir, is_file_png)
+            latest_state = get_last_files(self._main_dir, self._filter_fun)
             latest_filenames = [os.path.basename(f) for f, t in latest_state]
             new_files = [f for f in latest_state if os.path.basename(f[0]) not in self._filenames]
             new_filenames = [os.path.basename(f) for f, t in new_files]

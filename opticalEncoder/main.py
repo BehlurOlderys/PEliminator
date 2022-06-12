@@ -225,7 +225,7 @@ while True:
         result_s = get_mean_diff(sp, previous_sp)
         result_e = get_mean_diff(ep, previous_ep)
 
-        length_averager.get_current_value()
+        length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
         mean_length = length_averager.get_current_value()
 
         scale = arcsec_per_strip / mean_length

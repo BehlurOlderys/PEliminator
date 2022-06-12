@@ -8,6 +8,22 @@ import matplotlib.patches as mpatches
 
 from .global_settings import settings
 
+
+def get_star_position_estimate(data, rect):
+    x0, y0 = rect
+    w = settings.get_fragment_size()
+
+    print(data.shape)
+
+    fragment = data[int(y0 - w / 2):int(y0 + w / 2), int(x0 - w / 2):int(x0 + w / 2)]
+
+    without_hot = np.where(fragment < 65535, fragment, 0)
+    mid_y, mid_x = np.unravel_index(without_hot.argmax(), without_hot.shape)
+    px = int(mid_x + x0 - w / 2)
+    py = int(mid_y + y0 - w / 2)
+    print(f"Rect = {(x0, y0)}, mid = {(mid_x, mid_y)}, point = {(px, py)}")
+    return (x0, y0), (px, py)
+
 # TODO!
 # class StarChooser(tk.Toplevel):
 #     def __init__(self, data, parent):
