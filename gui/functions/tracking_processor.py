@@ -15,7 +15,8 @@ def try_to_open_fits(f):
 
 
 class TrackingProcessor:
-    def __init__(self):
+    def __init__(self, plotter):
+        self._plotter = plotter
         self._rect = None
         self._star_position = None
         self._previous_t = None
@@ -32,6 +33,7 @@ class TrackingProcessor:
         print(f"Suspected star at {self._rect}")
         self._previous_p, self._rect = get_star_position_estimate(current_data, self._rect)
         print(f"Star position = {self._previous_p}")
+        self._plotter.add_points([self._previous_p])
         return True
 
     def process(self, f, t):
@@ -47,6 +49,7 @@ class TrackingProcessor:
         x0, y0 = self._previous_p
         delta_p = (x-x0, y-y0)
         self._previous_p = p
+        self._plotter.add_points([p])
         print(f"New position = {self._star_position}, delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")
 

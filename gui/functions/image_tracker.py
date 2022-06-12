@@ -1,4 +1,3 @@
-import time
 from functions.recent_files_provider import RecentImagesProvider, is_file_fits
 from functions.sharpcap_capture import get_latest_sharpcap_images_dir, get_latest_sharpcap_capture_dir
 from functions.tracking_processor import TrackingProcessor
@@ -28,9 +27,9 @@ class ImageTrackerGUI:
 
         self._start_button = tk.Button(suggested_frame, text='Start', command=self._start)
         self._start_button.pack(side=tk.LEFT)
-        self._processor = TrackingProcessor()
-        self._file_provider = RecentImagesProvider(self._processor, is_file_fits)
         self._plot = ImageTrackingPlot(frame=frame)
+        self._processor = TrackingProcessor(self._plot)
+        self._file_provider = RecentImagesProvider(self._processor, is_file_fits)
 
     def _start(self):
         self._file_provider.start(self._suggested.get())

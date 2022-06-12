@@ -9,7 +9,7 @@ from functions.server import get_web_server
 from functions.dec_estimator import DecEstimator
 from functions.dec_corrector import DecCorrector
 from functions.recent_files_provider import RecentImagesProvider, is_file_fits
-from functions.camera_encoder import CameraEncoder
+from functions.camera_encoder import CameraEncoderGUI
 from functions.image_tracker import ImageTrackerGUI
 
 
@@ -51,9 +51,6 @@ mover = CoordinateMover(reader, event_logger)
 de = DecEstimator()
 dc = DecCorrector(de, reader)
 dec_corrector = RecentImagesProvider(dc, is_file_fits)
-dummy_effector_label = "Dummy output"
-serial_effector_label = "Serial output"
-available_effectors = [dummy_effector_label, serial_effector_label]
 
 # web_server = get_web_server(mover)
 
@@ -222,9 +219,6 @@ online_frame.pack(side=tk.TOP)
 
 ttk.Separator(correction_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-camera_encoder_frame = tk.Frame(correction_tab, highlightbackground="black", highlightthickness=1)
-camera_encoder_frame.pack(side=tk.TOP)
-
 
 def write_correction(correction):
     arrays_length, correction_bytes = correction
@@ -261,47 +255,7 @@ online_history_button = tk.Button(online_frame, text="Start historical analysis.
 online_history_button.pack(side=tk.LEFT)
 
 
-class CameraEncoderGUI:
-    def __init__(self, frame):
-        self._camera_encoder = CameraEncoder(None)
-        self._choice = tk.StringVar(value=available_effectors[0])
-        self._reset_button = tk.Button(frame, text="Reset camera encoder",
-                                       command=self._camera_encoder.reset())
-        self._reset_button.pack(side=tk.RIGHT)
-        self._amendment = tk.StringVar(value=0)
-        self._amendment_spin = ttk.Spinbox(frame, from_=-999, to=999,
-                                           width=5, textvariable=self._amendment)
-        self._amendment_spin.pack(side=tk.RIGHT)
-        self._amend_button = tk.Button(frame, text="Set encoder amendment",
-                                       command=self._camera_encoder.set_amend(
-                                                int(self._amendment.get()))
-                                      )
-        self._amend_button.pack(side=tk.RIGHT)
-
-        self._button = tk.Button(frame,
-                                 text="Start camera encoder", command=self._start_action)
-        self._button.pack(side=tk.LEFT)
-
-        self._combobox = ttk.Combobox(frame, textvariable=self._choice,
-                                      values=available_effectors)
-        self._combobox.pack(side=tk.RIGHT)
-
-    def kill(self):
-        self._camera_encoder.kill()
-
-    def _start_action(self):
-        effector = reader if self._choice.get() == serial_effector_label else None
-        self._camera_encoder = CameraEncoder(effector)
-        self._camera_encoder.start()
-        self._button.configure(text="Stop camera encoder", command=self._stop_action)
-
-    def _stop_action(self):
-        self._camera_encoder.kill()
-        self._camera_encoder = None
-        self._button.configure(text="Start camera encoder", command=self._start_action)
-
-
-encoder_gui = CameraEncoderGUI(camera_encoder_frame)
+encoder_gui = CameraEncoderGUI(correction_tab, reader)
 
 
 def get_and_log_correction():

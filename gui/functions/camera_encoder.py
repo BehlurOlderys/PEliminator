@@ -6,6 +6,13 @@ import os
 from time import sleep
 from functions.recent_files_provider import RecentImagesProvider, is_file_png
 from functions.global_settings import settings
+from functions.simple_1d_plotter import Simple1DPlotter
+import tkinter as tk
+from tkinter import ttk
+
+dummy_effector_label = "Dummy output"
+serial_effector_label = "Serial output"
+available_effectors = [dummy_effector_label, serial_effector_label]
 
 
 def normalize(p):
@@ -149,8 +156,9 @@ class DummyEffector:
 
 
 class CameraImageProcessor:
-    def __init__(self, effector):
+    def __init__(self, effector, plotter):
         self._effector = effector
+        self._plotter = plotter
         self._log_file = open("result.log", 'w', buffering=1)
         self._log_file.write("length\ttime\terror\texpected\tmean\n")
         self._preparator = ImagePreparator()
@@ -187,6 +195,7 @@ class CameraImageProcessor:
         self._previous_time = timestamp
         self._previous_sp = sp
         self._previous_ep = ep
+        self._plotter.add_points([timestamp, 0])
         return True
 
     def _preprocess_one_file(self, filename):
@@ -229,15 +238,17 @@ class CameraImageProcessor:
         self._length_averager.get_current_value()
         mean_length = self._length_averager.get_current_value()
 
-        scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
-        if math.isnan(result_s) or math.isnan(result_e):
-            print("NaN!")
+        if math.isnan(result_s) or math.isnan(result_e) or math.isnan(mean_length):
+            print(f"NaN!: s={result_s}, e={result_e}, m={mean_length}")
             return
 
+        scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         mean_result = (result_e + result_s) / 2
         self._total_mean += mean_result*scale
 
         error_m = expected - self._total_mean
+
+        self._plotter.add_points([timestamp, error_m])
 
         self._log_file.write(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
         print(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
@@ -258,11 +269,11 @@ class CameraImageProcessor:
 
 
 class CameraEncoder:
-    def __init__(self, serial_reader):
+    def __init__(self, serial_reader, plotter):
         self._effector = DummyEffector() if serial_reader is None else CorrectionEffector(serial_reader)
         if self._effector is None:
             print("Dummy effector chosen!")
-        self._processor = CameraImageProcessor(self._effector)
+        self._processor = CameraImageProcessor(self._effector, plotter)
         self._provider = RecentImagesProvider(self._processor, is_file_png)
 
     def set_amend(self, value):
@@ -276,3 +287,48 @@ class CameraEncoder:
 
     def kill(self):
         self._provider.kill()
+
+
+class CameraEncoderGUI:
+    def __init__(self, frame, reader):
+        self._encoder_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._encoder_frame.pack(side=tk.TOP)
+
+        self._plotter = Simple1DPlotter(frame)
+        self._reader = reader
+        self._camera_encoder = CameraEncoder(None, self._plotter)
+        self._choice = tk.StringVar(value=available_effectors[0])
+        self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
+                                       command=self._camera_encoder.reset())
+        self._reset_button.pack(side=tk.RIGHT)
+        self._amendment = tk.StringVar(value=0)
+        self._amendment_spin = ttk.Spinbox(self._encoder_frame, from_=-999, to=999,
+                                           width=5, textvariable=self._amendment)
+        self._amendment_spin.pack(side=tk.RIGHT)
+        self._amend_button = tk.Button(self._encoder_frame, text="Set encoder amendment",
+                                       command=self._camera_encoder.set_amend(
+                                           int(self._amendment.get()))
+                                       )
+        self._amend_button.pack(side=tk.RIGHT)
+
+        self._button = tk.Button(self._encoder_frame,
+                                 text="Start camera encoder", command=self._start_action)
+        self._button.pack(side=tk.LEFT)
+
+        self._combobox = ttk.Combobox(self._encoder_frame, textvariable=self._choice,
+                                      values=available_effectors)
+        self._combobox.pack(side=tk.RIGHT)
+
+    def kill(self):
+        self._camera_encoder.kill()
+
+    def _start_action(self):
+        effector = self._reader if self._choice.get() == serial_effector_label else None
+        self._camera_encoder = CameraEncoder(effector, self._plotter)
+        self._camera_encoder.start()
+        self._button.configure(text="Stop camera encoder", command=self._stop_action)
+
+    def _stop_action(self):
+        self._camera_encoder.kill()
+        self._camera_encoder = None
+        self._button.configure(text="Start camera encoder", command=self._start_action)
