@@ -2,6 +2,7 @@ import time
 from functions.recent_files_provider import RecentImagesProvider, is_file_fits
 from functions.sharpcap_capture import get_latest_sharpcap_images_dir, get_latest_sharpcap_capture_dir
 from functions.tracking_processor import TrackingProcessor
+from functions.image_tracking_plot import ImageTrackingPlot
 import tkinter as tk
 from tkinter import filedialog
 
@@ -29,6 +30,7 @@ class ImageTrackerGUI:
         self._start_button.pack(side=tk.LEFT)
         self._processor = TrackingProcessor()
         self._file_provider = RecentImagesProvider(self._processor, is_file_fits)
+        self._plot = ImageTrackingPlot(frame=frame)
 
     def _start(self):
         self._file_provider.start(self._suggested.get())

@@ -49,3 +49,18 @@ class TrackingProcessor:
         self._previous_p = p
         print(f"New position = {self._star_position}, delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")
+
+
+"""
+class EncoderManager:
+    def __init__(self, root, frame, progress, aggregator):
+        self._root = root
+        self._progress = progress
+        data_figure = plt.Figure(dpi=100)
+        self._ax = data_figure.add_subplot(111)
+        self._canvas = FigureCanvasTkAgg(data_figure, frame)
+        self._canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self._readings = {}
+        self._step_size = 0
+        self._counter = 0
+        self._aggregator = aggregator"""

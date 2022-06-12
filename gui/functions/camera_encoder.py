@@ -5,17 +5,7 @@ from PIL import Image
 import os
 from time import sleep
 from functions.recent_files_provider import RecentImagesProvider, is_file_png
-
-
-sidereal_day_s = 86164
-resolution_lpi = 200
-counts_per_rotation = 1800
-arcsec_full_circle = 1296000
-magical_factor = arcsec_full_circle / sidereal_day_s
-error_threshold = 0.3
-error_gain = 5
-max_correction = 10
-arcsec_per_strip = arcsec_full_circle / counts_per_rotation
+from functions.global_settings import settings
 
 
 def normalize(p):
@@ -31,7 +21,6 @@ def threshold_half(p):
 def get_np_data_from_image_file(file_path):
     im = Image.open(file_path)
     raw_data = np.array(im)
-    # print(raw_data.shape)
     return raw_data
 
 
@@ -47,7 +36,7 @@ class ImagePreparator:
 
 class Averager:
 
-    max_count = 48
+    max_count = settings.get_averager_max()
 
     def __init__(self):
         self._value = 0
@@ -104,12 +93,11 @@ def get_stripes_starts_positions(p):
     :return: array of positions of strip starts for each y coordinate of image
     """
     h, w = p.shape
-    raw_starts = [
-            np.where(
-                np.diff(p[i, :]) > 0
-            )[0]
-        for i in range(0, h)
-    ]
+
+    def get_edges(i):
+        return np.where(np.diff(p[i, :]) > 0)
+
+    raw_starts = [get_edges(i)[0] for i in range(0, h)]
     first_starts = [x[0] for x in raw_starts]
     return np.array(first_starts)
 
@@ -139,113 +127,14 @@ def get_last_files(d):
     return sorted(files, key=lambda x: x[1])
 
 
-# # connect_to_serial()
-# main_dir = filedialog.askdirectory(title="Open dir with images")
-# files = get_last_files(main_dir)
-# print(f"Opening {len(files)} files!")
-#
-# pre = ImagePreparator()
-#
-# first_file_name = files[-1][0]
-# print(f"First file = {first_file_name}")
-# first_prepared = pre.prepare_one_image(get_np_data_from_image_file(first_file_name))
-#
-# previous_time = files[0][1]
-#
-# previous_sp = get_stripes_starts_positions(first_prepared)
-# previous_ep = get_stripes_ends_positions(first_prepared)
-#
-# log_file = open("result.log", 'w', buffering=1)
-# log_file.write("length\ttime\terror\texpected\tmean\n")
-#
-# filenames = [os.path.basename(f[0]) for f in files]
-# print(f"Filenames in the beginning: \n{filenames}")
-#
-#
-# # ser = Serial(port="COM8", baudrate=115200, timeout=3)
-# length_averager = Averager()
-# total_t = 0
-# total_mean = 0
-# total_xs = 0
-# total_xe = 0
-# counter = 0
-# while True:
-#     latest_state = get_last_files(main_dir)
-#     latest_filenames = [os.path.basename(f) for f, t in latest_state]
-#     # print(f"latest_filenames in while: {latest_filenames}")
-#     # print(f"current filenames in while: {filenames}")
-#     new_files = [f for f in latest_state if os.path.basename(f[0]) not in filenames]
-#     new_filenames = [os.path.basename(f) for f, t in new_files]
-#     if not new_files:
-#         print("Waiting 0.25s for new files...")
-#         sleep(0.25)
-#         continue
-#
-#     print(f"new filenames in while: {new_filenames}")
-#     print(f"Got {len(new_files)} new files!")
-#     for f, t in new_files:
-#         try:
-#             p = pre.prepare_one_image(get_np_data_from_image_file(f))
-#             sp, ep = get_starts_and_ends(p)
-#         except IndexError:
-#             continue
-#         except PermissionError:
-#             continue
-#         except Exception as ex:
-#             print(f"Strangest exception happened: {ex}")
-#             print("Sleeping for 1000s!")
-#             sleep(1000)
-#         delta_t = t - previous_time
-#         previous_time = t
-#         total_t += delta_t
-#         expected = total_t * magical_factor
-#
-#         result_s = get_mean_diff(sp, previous_sp)
-#         result_e = get_mean_diff(ep, previous_ep)
-#
-#         length_averager.get_current_value()
-#         mean_length = length_averager.get_current_value()
-#
-#         scale = arcsec_per_strip / mean_length
-#         if math.isnan(result_s) or math.isnan(result_e):
-#             continue
-#
-#         mean_result = (result_e + result_s) / 2
-#         total_mean += mean_result*scale
-#
-#         error_s = expected - total_xs
-#         error_e = expected - total_xe
-#         error_m = expected - total_mean
-#
-#         log_file.write(f"{mean_length}\t{total_t}\t{error_m}\t{expected}\t{total_mean}\n")
-#         print(f"result s = {result_s}, result e = {result_e}, mean = {mean_result}, err={error_m}, t={total_t}")
-#
-#         # calculate_error_and_correct(expected_value=expected, measured_value=total_mean)
-#
-#         previous_sp = sp
-#         previous_ep = ep
-#
-#         if counter >= 20:
-#             counter = 0
-#         else:
-#             try:
-#                 os.remove(f)
-#             except Exception as e:
-#                 print(f"Exception on removing file: {e}")
-#         counter += 1
-#
-#     filenames += new_filenames
-#
-# log_file.close()
-
 class CorrectionEffector:
     def __init__(self, serial):
         self._serial = serial
 
     def effect(self, expected_value, measured_value):
         error = expected_value - measured_value
-        if abs(error) > error_threshold:
-            correction = int(min(max_correction, error_gain * abs(error)))
+        if abs(error) > settings.get_error_threshold():
+            correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
             if error > 0:
                 self._serial.write(f"CORRECT {correction}\n".encode())
                 print(f"Correcting by {correction}")
@@ -332,7 +221,7 @@ class CameraImageProcessor:
         self._last_file_data = filename, timestamp
 
         self._total_t += delta_t
-        expected = self._total_t * magical_factor
+        expected = self._total_t * settings.sidereal_speed
 
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
@@ -340,7 +229,7 @@ class CameraImageProcessor:
         self._length_averager.get_current_value()
         mean_length = self._length_averager.get_current_value()
 
-        scale = self._scale_amendment + (arcsec_per_strip / mean_length)
+        scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         if math.isnan(result_s) or math.isnan(result_e):
             print("NaN!")
             return

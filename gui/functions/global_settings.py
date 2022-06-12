@@ -8,20 +8,54 @@ possible_units = ["steps", "arcsec", "pixels"]
 
 
 class GlobalSettings:
+
+    # constants:
+    sidereal_day_s = 86164
+    arcsec_full_circle = 1296000
+    sidereal_speed = arcsec_full_circle / sidereal_day_s
+
     def __init__(self):
+        self._encoder_resolution_lpi = 200
+        self._encoder_cpr = 1800
+        self._error_threshold = 1
+        self._error_gain = 5
+        self._max_correction = 10
+        self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
         self._fragment_size = 70
         self._focal_length = 650
         self._pixel_pitch = 2.9
         self._declination_deg = 20.0
         self._correction_bins = 20
-        self._encoder_ticks = 4096
+        self._worm_encoder_ticks = 4096
         self._worm_teeth = 130
         self._correction_direction = 'positive'
         self._encoder_history_size = 10000
         self._minimal_full_period_points = 18
         self._focal = 650
         self._pixel = 2.9
+        self._averager_max = 48
+
+    def get_averager_max(self):
+        return self._averager_max
+
+    def get_encoder_resolution_lpi(self):
+        return self._encoder_resolution_lpi
+
+    def get_encoder_cpr(self):
+        return self._encoder_cpr
+
+    def get_error_threshold(self):
+        return self._error_threshold
+
+    def get_error_gain(self):
+        return self._error_gain
+
+    def get_max_correction(self):
+        return self._max_correction
+
+    def get_arcsec_per_strip(self):
+        return self._arcsec_per_strip
 
     def get_focal_length(self):
         return self._focal
@@ -33,7 +67,7 @@ class GlobalSettings:
         return self._encoder_history_size
 
     def get_worm_speed_factor(self):
-        return arcseconds_per_2pi / self._encoder_ticks
+        return arcseconds_per_2pi / self._worm_encoder_ticks
 
     def get_correction_direction(self):
         return self._correction_direction
@@ -45,7 +79,7 @@ class GlobalSettings:
         return self._minimal_full_period_points
 
     def get_encoder_ticks(self):
-        return self._encoder_ticks
+        return self._worm_encoder_ticks
 
     def get_correction_bins(self):
         return self._correction_bins
