@@ -46,12 +46,15 @@ class SerialReader:
         self._latest_encoder_readouts = []
         self._killme = False
 
+    def write_immediately(self, s):
+        self._ser.write(s)
+
     def is_connected(self):
         return self._ser is not None
 
     def connect_to_port(self, port_name):
         try:
-            self._ser = Serial(port = port_name, baudrate = 115200, timeout = 3)
+            self._ser = Serial(port = port_name, baudrate = 115200, timeout = 0.25)
         except SerialException:
             message = f"Failed to open serial on port {port_name}"
             print(message)
@@ -65,8 +68,11 @@ class SerialReader:
         self._logs = [self._log_file, self._encoder_log_file, self._timing_log_file]
 
         print(f"Receiving welcome message...")
+
+        self._ser.timeout = 3
         self._receive_new_data_from_serial()  # should be welcome message
         message = welcome_message_handler.get_welcome_message()
+        self._ser.timeout = 0.25
         if message is None:
             self._log_file.write("Could not connect to mount!")
             return "Connection failed!"
@@ -118,6 +124,7 @@ class SerialReader:
         print("Starting main loop")
         while not self._killme:
             if self._ser is None:
+                print("Self ser is none, waiting...")
                 time.sleep(1)
                 continue
             try:

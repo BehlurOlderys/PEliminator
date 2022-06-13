@@ -31,12 +31,14 @@ class TrackingProcessor:
         current_data = try_to_open_fits(f)
         self._rect = StarSelector(current_data).get_star_rect()
         print(f"Suspected star at {self._rect}")
-        self._previous_p, self._rect = get_star_position_estimate(current_data, self._rect)
+        self._rect, self._previous_p = get_star_position_estimate(current_data, self._rect)
+        x, y = self._previous_p
         print(f"Star position = {self._previous_p}")
-        self._plotter.add_points([self._previous_p])
+        self._plotter.add_points([(t, x, y)])
         return True
 
     def process(self, f, t):
+        print("Tracking processor = process!")
         if self._rect is None:
             print("No rect is set!")
             return
@@ -44,12 +46,14 @@ class TrackingProcessor:
         delta_t = t - self._previous_t
         self._previous_t = t
         data = try_to_open_fits(f)
-        p, self._rect = get_star_position_estimate(data, self._rect)
+        if data is None:
+            return
+        self._rect, p = get_star_position_estimate(data, self._rect)
         x, y = p
         x0, y0 = self._previous_p
         delta_p = (x-x0, y-y0)
         self._previous_p = p
-        self._plotter.add_points([p])
+        self._plotter.add_points([(t, x, y)])
         print(f"New position = {self._star_position}, delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")
 

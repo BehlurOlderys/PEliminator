@@ -1,8 +1,9 @@
 import time
 from tkinter import filedialog
 import os
-from time import sleep
-from threading import Thread
+from threading import Thread, Event
+
+waiting_event = Event()
 
 
 def is_file_wanted(f, extensions):
@@ -60,7 +61,7 @@ class RecentImagesProvider:
             self._files = get_last_files(self._main_dir, self._filter_fun)
             if not self._files:
                 print("Waiting 1s for new files...")
-                sleep(1)
+                waiting_event.wait(1)
         self._filenames = [os.path.basename(f[0]) for f in self._files]
         if not self._processor.init(*self._files[-1]):
             print("Initialization failed, ending...")
@@ -71,13 +72,19 @@ class RecentImagesProvider:
     def kill(self):
         self._kill = True
         if self._thread is not None and self._thread.ident is not None:
+            print("RFP (kill):Joining thread!")
             self._thread.join()
+        else:
+            print("RFP (kill): Nothing to join!")
 
     def __del__(self):
         if not self._kill:
             self._kill = True
         if self._thread is not None and self._thread.ident is not None:
+            print("RFP (del):Joining thread!")
             self._thread.join()
+        else:
+            print("RFP (del): Nothing to join!")
 
     def _process(self):
         while not self._kill:
@@ -88,7 +95,7 @@ class RecentImagesProvider:
 
             if not new_files:
                 print("Waiting 1s for new files...")
-                sleep(1)
+                waiting_event.wait(0.25)
                 continue
 
             print(f"Acquired  {len(new_files)} new files")

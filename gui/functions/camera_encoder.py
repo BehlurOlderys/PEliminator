@@ -9,6 +9,7 @@ from functions.global_settings import settings
 from functions.simple_1d_plotter import Simple1DPlotter
 import tkinter as tk
 from tkinter import ttk
+from datetime import datetime
 
 dummy_effector_label = "Dummy output"
 serial_effector_label = "Serial output"
@@ -75,6 +76,7 @@ class DifferenceCalculator:
             rising_edges = dline > 0
             f_edges_indices = np.where(falling_edges)
             r_edges_indices = np.where(rising_edges)
+            # print(f"r = {r_edges_indices}, f = {f_edges_indices}")
             # for some reason f and r diffs are double (nested) arrays of shape [1][N] so I need to squeeze them
             f_lengths = np.squeeze(np.diff(f_edges_indices))
             r_lengths = np.squeeze(np.diff(r_edges_indices))
@@ -140,13 +142,14 @@ class CorrectionEffector:
 
     def effect(self, expected_value, measured_value):
         error = expected_value - measured_value
+        print(f"Error = {error}")
         if abs(error) > settings.get_error_threshold():
             correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
             if error > 0:
-                self._serial.write(f"CORRECT {correction}\n".encode())
+                self._serial.write_immediately(f"CORRECT {correction}\n".encode())
                 print(f"Correcting by {correction}")
             else:
-                self._serial.write(f"CORRECT {-correction}\n".encode())
+                self._serial.write_immediately(f"CORRECT {-correction}\n".encode())
                 print(f"Correcting by {-correction}")
 
 
@@ -159,8 +162,8 @@ class CameraImageProcessor:
     def __init__(self, effector, plotter):
         self._effector = effector
         self._plotter = plotter
-        self._log_file = open("result.log", 'w', buffering=1)
-        self._log_file.write("length\ttime\terror\texpected\tmean\n")
+        self._log_file = open("result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
+        self._log_file.write("scale\tlength\ttime\terror\texpected\tmean\n")
         self._preparator = ImagePreparator()
         self._length_averager = Averager()
         self._total_t = 0
@@ -181,7 +184,7 @@ class CameraImageProcessor:
         self._counter = 0
         self._scale_amendment = 0
         f, t = self._last_file_data
-        sp, ep = self._preprocess_one_file(f)
+        _, sp, ep = self._preprocess_one_file(f)
         self._previous_time = t
         self._previous_sp = sp
         self._previous_ep = ep
@@ -190,19 +193,19 @@ class CameraImageProcessor:
         self._log_file.close()
 
     def init(self, filename, timestamp):
-        sp, ep = self._preprocess_one_file(filename)
+        _, sp, ep = self._preprocess_one_file(filename)
         self._last_file_data = filename, timestamp
         self._previous_time = timestamp
         self._previous_sp = sp
         self._previous_ep = ep
-        self._plotter.add_points([timestamp, 0])
+        self._plotter.add_points([(timestamp, 0)])
         return True
 
     def _preprocess_one_file(self, filename):
         try:
             p = self._preparator.prepare_one_image(get_np_data_from_image_file(filename))
             sp, ep = get_starts_and_ends(p)
-            return sp, ep
+            return p, sp, ep
         except IndexError:
             print("Index error ocurred!")
             return None
@@ -222,8 +225,10 @@ class CameraImageProcessor:
         self._scale_amendment = value
 
     def process(self, filename, timestamp):
-        sp, ep = self._preprocess_one_file(filename)
-
+        preprocess = self._preprocess_one_file(filename)
+        if preprocess is None:
+            return
+        p, sp, ep = preprocess
         delta_t = timestamp - self._previous_time
         self._previous_time = timestamp
 
@@ -235,10 +240,13 @@ class CameraImageProcessor:
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
 
-        self._length_averager.get_current_value()
+        self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
         mean_length = self._length_averager.get_current_value()
 
-        if math.isnan(result_s) or math.isnan(result_e) or math.isnan(mean_length):
+        if math.isnan(result_s) or \
+                math.isnan(result_e) or\
+                math.isnan(mean_length) or\
+                mean_length == 0:
             print(f"NaN!: s={result_s}, e={result_e}, m={mean_length}")
             return
 
@@ -248,12 +256,12 @@ class CameraImageProcessor:
 
         error_m = expected - self._total_mean
 
-        self._plotter.add_points([timestamp, error_m])
+        self._plotter.add_points([(timestamp, error_m)])
 
-        self._log_file.write(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
-        print(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
+        self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
+        # print(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
 
-        self._effector(expected, self._total_mean)
+        self._effector.effect(expected, self._total_mean)
 
         self._previous_sp = sp
         self._previous_ep = ep
@@ -270,6 +278,7 @@ class CameraImageProcessor:
 
 class CameraEncoder:
     def __init__(self, serial_reader, plotter):
+        self._plotter = plotter
         self._effector = DummyEffector() if serial_reader is None else CorrectionEffector(serial_reader)
         if self._effector is None:
             print("Dummy effector chosen!")
@@ -280,9 +289,11 @@ class CameraEncoder:
         self._processor.amend_scale(value)
 
     def reset(self):
+        self._plotter.clear_plot()
         self._processor.reset()
 
     def start(self):
+        self._plotter.clear_plot()
         self._provider.start()
 
     def kill(self):
@@ -299,7 +310,7 @@ class CameraEncoderGUI:
         self._camera_encoder = CameraEncoder(None, self._plotter)
         self._choice = tk.StringVar(value=available_effectors[0])
         self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
-                                       command=self._camera_encoder.reset())
+                                       command=self._camera_encoder.reset)
         self._reset_button.pack(side=tk.RIGHT)
         self._amendment = tk.StringVar(value=0)
         self._amendment_spin = ttk.Spinbox(self._encoder_frame, from_=-999, to=999,

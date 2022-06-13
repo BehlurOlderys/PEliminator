@@ -18,7 +18,7 @@ class GlobalSettings:
         self._encoder_resolution_lpi = 200
         self._encoder_cpr = 1800
         self._error_threshold = 1
-        self._error_gain = 5
+        self._error_gain = 1.5
         self._max_correction = 10
         self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
