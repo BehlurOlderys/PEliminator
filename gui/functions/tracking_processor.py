@@ -54,7 +54,7 @@ class TrackingProcessor:
         delta_p = (x-x0, y-y0)
         self._previous_p = p
         self._plotter.add_points([(t, x, y)])
-        print(f"New position = {self._star_position}, delta p = {delta_p}, delta t = {delta_t}")
+        print(f"New position = ({x}, {y}), delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")
 
 

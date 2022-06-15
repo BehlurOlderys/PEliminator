@@ -17,9 +17,9 @@ class GlobalSettings:
     def __init__(self):
         self._encoder_resolution_lpi = 200
         self._encoder_cpr = 1800
-        self._error_threshold = 1
-        self._error_gain = 1.5
-        self._max_correction = 10
+        self._error_threshold = 0.5
+        self._error_gain = 2
+        self._max_correction = 1
         self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
         self._fragment_size = 70
@@ -35,6 +35,10 @@ class GlobalSettings:
         self._focal = 650
         self._pixel = 2.9
         self._averager_max = 48
+        self._initial_scale_amendment = 0.08
+
+    def get_initial_scale_amendment(self):
+        return self._initial_scale_amendment
 
     def get_averager_max(self):
         return self._averager_max

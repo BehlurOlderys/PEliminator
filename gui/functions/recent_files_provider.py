@@ -63,9 +63,11 @@ class RecentImagesProvider:
                 print("Waiting 1s for new files...")
                 waiting_event.wait(1)
         self._filenames = [os.path.basename(f[0]) for f in self._files]
-        if not self._processor.init(*self._files[-1]):
+        f, t = self._files[-1]
+        if not self._processor.init(f, t):
             print("Initialization failed, ending...")
             return
+        print(f"Initializing with file = {f}")
 
         self._process()
 
@@ -100,6 +102,7 @@ class RecentImagesProvider:
 
             print(f"Acquired  {len(new_files)} new files")
             for f, t in new_files:
+                print(f"Processing file {f}")
                 self._processor.process(f, t)
 
             self._filenames += new_filenames

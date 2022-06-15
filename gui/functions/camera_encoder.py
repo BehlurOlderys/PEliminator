@@ -142,7 +142,7 @@ class CorrectionEffector:
 
     def effect(self, expected_value, measured_value):
         error = expected_value - measured_value
-        print(f"Error = {error}")
+        print(f"Error (\") = {error}")
         if abs(error) > settings.get_error_threshold():
             correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
             if error > 0:
@@ -169,7 +169,7 @@ class CameraImageProcessor:
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
-        self._scale_amendment = 0
+        self._scale_amendment = settings.get_initial_scale_amendment()
         self._previous_time = None
         self._previous_sp = None
         self._previous_ep = None
@@ -182,7 +182,7 @@ class CameraImageProcessor:
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
-        self._scale_amendment = 0
+        # self._scale_amendment = settings.get_initial_scale_amendment()
         f, t = self._last_file_data
         _, sp, ep = self._preprocess_one_file(f)
         self._previous_time = t
@@ -193,7 +193,8 @@ class CameraImageProcessor:
         self._log_file.close()
 
     def init(self, filename, timestamp):
-        _, sp, ep = self._preprocess_one_file(filename)
+        p, sp, ep = self._preprocess_one_file(filename)
+        self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
         self._last_file_data = filename, timestamp
         self._previous_time = timestamp
         self._previous_sp = sp
@@ -240,7 +241,6 @@ class CameraImageProcessor:
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
 
-        self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
         mean_length = self._length_averager.get_current_value()
 
         if math.isnan(result_s) or \
@@ -251,6 +251,7 @@ class CameraImageProcessor:
             return
 
         scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
+        print(f"Scale = {scale}")
         mean_result = (result_e + result_s) / 2
         self._total_mean += mean_result*scale
 
@@ -285,7 +286,11 @@ class CameraEncoder:
         self._processor = CameraImageProcessor(self._effector, plotter)
         self._provider = RecentImagesProvider(self._processor, is_file_png)
 
+    def get_amendment(self):
+        return self._processor.get_scale_amendment()
+
     def set_amend(self, value):
+        print(f"Setting new amendment: {value}")
         self._processor.amend_scale(value)
 
     def reset(self):
@@ -312,13 +317,13 @@ class CameraEncoderGUI:
         self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
                                        command=self._camera_encoder.reset)
         self._reset_button.pack(side=tk.RIGHT)
-        self._amendment = tk.StringVar(value=0)
+        self._amendment = tk.StringVar(value=int(100*self._camera_encoder.get_amendment()))
         self._amendment_spin = ttk.Spinbox(self._encoder_frame, from_=-999, to=999,
                                            width=5, textvariable=self._amendment)
         self._amendment_spin.pack(side=tk.RIGHT)
         self._amend_button = tk.Button(self._encoder_frame, text="Set encoder amendment",
-                                       command=self._camera_encoder.set_amend(
-                                           int(self._amendment.get()))
+                                       command=lambda: self._camera_encoder.set_amend
+                                       (int(self._amendment_spin.get()) / 100)
                                        )
         self._amend_button.pack(side=tk.RIGHT)
 

@@ -5,8 +5,15 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import matplotlib.patches as mpatches
+from scipy.ndimage import gaussian_filter, median_filter
 
 from .global_settings import settings
+
+
+def normalize(p):
+    a = np.percentile(p, 5)
+    b = np.percentile(p, 95)
+    return (p - a) / (b-a)
 
 
 def get_star_position_estimate(data, rect):
@@ -15,12 +22,17 @@ def get_star_position_estimate(data, rect):
 
     print(data.shape)
 
-    fragment = data[int(y0 - w / 2):int(y0 + w / 2), int(x0 - w / 2):int(x0 + w / 2)]
+    fragment = data[int(y0):int(y0 + w), int(x0):int(x0 + w)]
+    fragment = gaussian_filter(median_filter(normalize(fragment), 5), 3)
+    # plt.imshow(fragment)
+    # plt.show()
 
-    without_hot = np.where(fragment < 65535, fragment, 0)
+    without_hot = np.where(fragment < 12535, fragment, 0)
     mid_y, mid_x = np.unravel_index(without_hot.argmax(), without_hot.shape)
-    px = int(mid_x + x0 - w / 2)
-    py = int(mid_y + y0 - w / 2)
+    px = int(mid_x + x0)
+    py = int(mid_y + y0)
+    x0 = px - (w/2)
+    y0 = py - (w/2)
     print(f"Rect = {(x0, y0)}, mid = {(mid_x, mid_y)}, point = {(px, py)}")
     return (x0, y0), (px, py)
 
