@@ -45,10 +45,8 @@ class ImagePreparator:
 
 
 class Averager:
-
-    max_count = settings.get_averager_max()
-
-    def __init__(self):
+    def __init__(self, max_count=settings.get_averager_max()):
+        self._max_count = max_count
         self._value = 0
         self._history = []
 
@@ -56,11 +54,14 @@ class Averager:
         self._history = []
         self._value = 0
 
+    def is_full(self):
+        return len(self._history) >= self._max_count
+
     def get_current_value(self):
         return self._value
 
     def update_value(self, v):
-        if len(self._history) >= Averager.max_count:
+        if self.is_full():
             self._history.pop(0)
         self._history.append(v)
         self._value = np.average(np.array(self._history))
@@ -144,9 +145,12 @@ def calculate_command(e, m):
     if abs(error) > settings.get_error_threshold():
         correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
         if error > 0:
+            print(f"CORRECT {correction}\n")
             return f"CORRECT {correction}\n"
         else:
+            print(f"CORRECT {-correction}\n")
             return f"CORRECT {-correction}\n"
+    return None
 
 
 class SerialEffector:
@@ -186,6 +190,7 @@ class CameraImageProcessor:
         self._previous_sp = None
         self._previous_ep = None
         self._last_file_data = None
+        self._pipe = open(settings.get_star_tracking_pipe_name(), "rw")
 
     def reset(self):
         if self._last_file_data is None:
@@ -237,6 +242,7 @@ class CameraImageProcessor:
         self._scale_amendment = value
 
     def process(self, filename, timestamp):
+
         preprocess = self._preprocess_one_file(filename)
         if preprocess is None:
             return
@@ -272,12 +278,21 @@ class CameraImageProcessor:
 
         self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
         command = calculate_command(expected, self._total_mean)
-        self._effector.effect(command)
+        if command is not None:
+            self._effector.effect(command)
 
         self._previous_sp = sp
         self._previous_ep = ep
 
         if self._counter >= 20:
+            pipe_lines = self._pipe.readlines()
+            if pipe_lines:
+                last_correction = pipe_lines[-1]
+                # ra_correction: 0.8
+                value = float(last_correction.split(":")[-1])
+                print(f"Acquired correction: {value}")
+                self._pipe.seek(0)
+                self._pipe.truncate()
             self._counter = 0
         else:
             try:

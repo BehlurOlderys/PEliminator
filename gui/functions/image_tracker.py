@@ -39,6 +39,8 @@ class ImageTrackerGUI:
         self._combobox.pack(side=tk.LEFT)
         self._start_button = tk.Button(suggested_frame, text='Start', command=self._start)
         self._start_button.pack(side=tk.LEFT)
+        self._reset_button = tk.Button(suggested_frame, text='Reset', command=self.reset)
+        self._reset_button.pack(side=tk.LEFT)
 
         self._plot = ImageTrackingPlot(frame=frame)
         self._processor = TrackingProcessor(self._plot)
@@ -50,6 +52,9 @@ class ImageTrackerGUI:
             if tracking_type == offline_tracking \
             else RecentImagesProvider(self._processor, is_file_fits)
         self._file_provider.start(self._suggested.get())
+
+    def reset(self):
+        self._processor.reset()
 
     def _change_dir(self):
         new_dir = filedialog.askdirectory(title="Open dir with images for tracking",

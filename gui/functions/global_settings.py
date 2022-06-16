@@ -20,8 +20,8 @@ class GlobalSettings:
     def __init__(self):
         self._encoder_resolution_lpi = 200
         self._encoder_cpr = 1800
-        self._error_threshold = 0.5
-        self._error_gain = 2
+        self._error_threshold = 0.25
+        self._error_gain = 4
         self._max_correction = 1
         self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
@@ -39,6 +39,14 @@ class GlobalSettings:
         self._pixel = 2.9
         self._averager_max = 48
         self._initial_scale_amendment = 0.08
+        self._star_tracking_average = 5
+        self._star_tracking_pipe_name = "logs//star_tracking_pipe"
+
+    def get_star_tracking_pipe_name(self):
+        return self._star_tracking_pipe_name
+
+    def get_star_tracking_average(self):
+        return self._star_tracking_average
 
     def get_initial_scale_amendment(self):
         return self._initial_scale_amendment

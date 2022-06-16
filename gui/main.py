@@ -4,7 +4,7 @@ from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
 from functions.serial_reader import SerialReader, get_available_com_ports
 from functions.serial_handlers.all_handlers import encoder_data
-from functions.online_analyzer import OnlineAnalyzer, get_correction_from_mount
+from functions.online_analyzer import get_correction_from_mount
 from functions.server import get_web_server
 from functions.dec_estimator import DecEstimator
 from functions.dec_corrector import DecCorrector
@@ -230,10 +230,6 @@ def write_correction(correction):
     time.sleep(2)
 
 
-onliner = OnlineAnalyzer(encoder_data, write_correction, reader)
-online_button = tk.Button(online_frame, text="Start online...", command=onliner.start)
-online_button.pack(side=tk.LEFT)
-
 correct_dec_button = tk.Button(online_frame, text="START dec correction")
 
 
@@ -249,11 +245,6 @@ def stop_dec_correction():
 
 correct_dec_button.configure(command=start_dec_correction)
 correct_dec_button.pack(side=tk.LEFT)
-
-onliner_historic = OnlineAnalyzer(None, write_correction)
-online_history_button = tk.Button(online_frame, text="Start historical analysis...", command=onliner_historic.start)
-online_history_button.pack(side=tk.LEFT)
-
 
 encoder_gui = CameraEncoderGUI(correction_tab, reader)
 
@@ -277,17 +268,6 @@ ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
 tracking_gui = ImageTrackerGUI(tracking_tab)
 
-
-serial_log = scrolledtext.ScrolledText(log_tab,
-                                       font=('calibre', 10, 'normal'),
-                                       background='black',
-                                       foreground="red")
-serial_log.pack(side=tk.BOTTOM, expand=True)
-serial_log.configure(state='disabled')
-
-logger_thread = Thread(target=lambda: event_logger.run(serial_log))
-logger_thread.start()
-
 # web_thread = Thread(target=web_server.serve_forever)
 # web_thread.start()
 
@@ -295,12 +275,9 @@ root.mainloop()
 print("End of main loop!")
 # web_server.shutdown()
 event_logger.kill()
-onliner.kill()
-onliner_historic.kill()
 reader.kill()
 encoder_gui.kill()
 tracking_gui.kill()
-logger_thread.join()
 if reader.is_connected():
     serial_thread.join()
 # web_thread.join()

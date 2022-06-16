@@ -12,8 +12,7 @@ class EventLogger:
         self._killer_flag = True
 
     def log_event(self, s):
-        self._log_strings.append(s)
-        self._log_some_string.set()
+        print(s)
 
     def run(self, scrolled_text):
         while not self._killer_flag:

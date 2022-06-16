@@ -18,7 +18,7 @@ class ImageTrackingPlot(PointPlot):
         self.first_point = None
         self._data_x = []
         self._data_y = []
-        self.clear_plot()
+        self._clear_plot()
 
     def toggle_red(self):
         if self._red_on:

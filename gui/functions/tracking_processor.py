@@ -2,6 +2,8 @@ from functions.star_selector import StarSelector
 from astropy.io import fits
 import numpy as np
 from functions.image_calculator import get_star_position_estimate
+from functions.camera_encoder import Averager
+from functions.global_settings import settings
 
 
 def try_to_open_fits(f):
@@ -17,11 +19,14 @@ def try_to_open_fits(f):
 class TrackingProcessor:
     def __init__(self, plotter):
         self._plotter = plotter
+        self._averager = Averager(settings.get_star_tracking_average())
         self._rect = None
         self._star_position = None
         self._previous_t = None
         self._previous_p = None
+        self._average_counter = 0
         self._log = open("logs//tracking_processor.log", 'w', buffering=1)
+        self._pipe = open(settings.get_star_tracking_pipe_name(), 'w', buffering=1)
 
     def __del__(self):
         self._log.close()
@@ -36,6 +41,11 @@ class TrackingProcessor:
         print(f"Star position = {self._previous_p}")
         self._plotter.add_points([(t, x, y)])
         return True
+
+    def reset(self):
+        self._average_counter = 0
+        self._averager.reset()
+        self._plotter.clear_plot()
 
     def process(self, f, t):
         print("Tracking processor = process!")
@@ -54,5 +64,14 @@ class TrackingProcessor:
         delta_p = (x-x0, y-y0)
         self._previous_p = p
         self._plotter.add_points([(t, x, y)])
+        ra_in_x_axis_index = 0
+        self._averager.update_value(delta_p[ra_in_x_axis_index])
+        if self._averager.is_full() and self._average_counter >= 10:
+            self._pipe.write(f"ra_correction: {self._averager.get_current_value()}\n")
+            self._average_counter = 0
+        elif not self._averager.is_full():
+            print("Averager is not full!")
+        self._average_counter += 1
+
         print(f"New position = ({x}, {y}), delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")
