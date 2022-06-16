@@ -1,3 +1,4 @@
+import time
 from tkinter import filedialog
 import os
 from threading import Thread, Event
@@ -30,8 +31,7 @@ def get_last_files(d, filter_fun):
     return sorted(files, key=lambda x: x[1])
 
 
-
-class RecentImagesProvider:
+class OfflineImagesProvider:
     def __init__(self, processor, filter_fun):
         self._processor = processor
         self._filter_fun = filter_fun
@@ -57,18 +57,12 @@ class RecentImagesProvider:
             print("Direction with images failed to open, returning...")
             return
         print(f"Using directory: {self._main_dir}")
-        while not self._files:
-            self._files = get_last_files(self._main_dir, self._filter_fun)
-            if not self._files:
-                print("Waiting 1s for new files...")
-                waiting_event.wait(1)
-        self._filenames = [os.path.basename(f[0]) for f in self._files]
-        f, t = self._files[-1]
+        self._files = get_last_files(self._main_dir, self._filter_fun)
+        f, t = self._files[0]
         if not self._processor.init(f, t):
             print("Initialization failed, ending...")
             return
         print(f"Initializing with file = {f}")
-
         self._process()
 
     def kill(self):
@@ -89,23 +83,9 @@ class RecentImagesProvider:
             print("RFP (del): Nothing to join!")
 
     def _process(self):
-        while not self._kill:
-            latest_state = get_last_files(self._main_dir, self._filter_fun)
-            latest_filenames = [os.path.basename(f) for f, t in latest_state]
-            new_files = [f for f in latest_state if os.path.basename(f[0]) not in self._filenames]
-            new_filenames = [os.path.basename(f) for f, t in new_files]
-
-            if not new_files:
-                print("Waiting 1s for new files...")
-                waiting_event.wait(0.25)
-                continue
-
-            print(f"Acquired  {len(new_files)} new files")
-            for f, t in new_files:
-                print(f"Processing file {f}")
-                self._processor.process(f, t)
-
-            self._filenames += new_filenames
+        for f, t in self._files[1:]:
+            print(f"Processing file {f}")
+            self._processor.process(f, t)
 
 
 class TestProcessor:

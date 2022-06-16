@@ -7,6 +7,9 @@ us_in_1_second = 1000000.0
 possible_units = ["steps", "arcsec", "pixels"]
 
 
+mount_server_port = 50110
+
+
 class GlobalSettings:
 
     # constants:

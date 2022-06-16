@@ -23,7 +23,7 @@ de = DecEstimator()
 dc = DecCorrector(de, reader)
 dec_corrector = RecentImagesProvider(dc, is_file_fits)
 
-root.geometry("800x480")
+root.geometry("1080x480")
 tabs = ttk.Notebook(root)
 tabs.pack(expand=True)
 
@@ -53,6 +53,7 @@ optics_pixel_label.pack(side=tk.LEFT)
 optics_pixel_spin = ttk.Spinbox(settings_frame, from_=0, to=99, width=5,
                                 textvariable=optics_pixel_var, format='%.2f', increment=0.1)
 optics_pixel_spin.pack(side=tk.LEFT)
+
 
 tracking_gui = ImageTrackerGUI(tracking_tab)
 

@@ -7,13 +7,15 @@ from time import sleep
 from functions.recent_files_provider import RecentImagesProvider, is_file_png
 from functions.global_settings import settings
 from functions.simple_1d_plotter import Simple1DPlotter
+from functions.mount_client import MountClient
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
 dummy_effector_label = "Dummy output"
 serial_effector_label = "Serial output"
-available_effectors = [dummy_effector_label, serial_effector_label]
+socket_effector_label = "Socket output"
+available_effectors = [dummy_effector_label, serial_effector_label, socket_effector_label]
 
 
 def normalize(p):
@@ -136,33 +138,43 @@ def get_last_files(d):
     return sorted(files, key=lambda x: x[1])
 
 
-class CorrectionEffector:
+def calculate_command(e, m):
+    error = e - m
+    print(f"Error (\") = {error}")
+    if abs(error) > settings.get_error_threshold():
+        correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
+        if error > 0:
+            return f"CORRECT {correction}\n"
+        else:
+            return f"CORRECT {-correction}\n"
+
+
+class SerialEffector:
     def __init__(self, serial):
         self._serial = serial
 
-    def effect(self, expected_value, measured_value):
-        error = expected_value - measured_value
-        print(f"Error (\") = {error}")
-        if abs(error) > settings.get_error_threshold():
-            correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
-            if error > 0:
-                self._serial.write_immediately(f"CORRECT {correction}\n".encode())
-                print(f"Correcting by {correction}")
-            else:
-                self._serial.write_immediately(f"CORRECT {-correction}\n".encode())
-                print(f"Correcting by {-correction}")
+    def effect(self, command):
+        self._serial.write_immediately(command.encode())
 
 
 class DummyEffector:
-    def effect(self, e, m):
-        pass
+    def effect(self, command):
+        print(command)
+
+
+class SocketEffector:
+    def __init__(self):
+        self._client = MountClient()
+
+    def effect(self, command):
+        self._client.send(command)
 
 
 class CameraImageProcessor:
     def __init__(self, effector, plotter):
         self._effector = effector
         self._plotter = plotter
-        self._log_file = open("result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
+        self._log_file = open("logs\\result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
         self._log_file.write("scale\tlength\ttime\terror\texpected\tmean\n")
         self._preparator = ImagePreparator()
         self._length_averager = Averager()
@@ -182,7 +194,6 @@ class CameraImageProcessor:
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
-        # self._scale_amendment = settings.get_initial_scale_amendment()
         f, t = self._last_file_data
         _, sp, ep = self._preprocess_one_file(f)
         self._previous_time = t
@@ -260,9 +271,8 @@ class CameraImageProcessor:
         self._plotter.add_points([(timestamp, error_m)])
 
         self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
-        # print(f"{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
-
-        self._effector.effect(expected, self._total_mean)
+        command = calculate_command(expected, self._total_mean)
+        self._effector.effect(command)
 
         self._previous_sp = sp
         self._previous_ep = ep
@@ -278,9 +288,9 @@ class CameraImageProcessor:
 
 
 class CameraEncoder:
-    def __init__(self, serial_reader, plotter):
+    def __init__(self, effector, plotter):
         self._plotter = plotter
-        self._effector = DummyEffector() if serial_reader is None else CorrectionEffector(serial_reader)
+        self._effector = effector
         if self._effector is None:
             print("Dummy effector chosen!")
         self._processor = CameraImageProcessor(self._effector, plotter)
@@ -339,7 +349,15 @@ class CameraEncoderGUI:
         self._camera_encoder.kill()
 
     def _start_action(self):
-        effector = self._reader if self._choice.get() == serial_effector_label else None
+        effector = None
+        choice = self._choice.get()
+        if choice == serial_effector_label:
+            effector = SerialEffector(self._reader)
+        elif choice == socket_effector_label:
+            effector = SocketEffector()
+        else:
+            effector = DummyEffector()
+
         self._camera_encoder = CameraEncoder(effector, self._plotter)
         self._camera_encoder.start()
         self._button.configure(text="Stop camera encoder", command=self._stop_action)
