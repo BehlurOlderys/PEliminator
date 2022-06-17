@@ -1,19 +1,10 @@
-from tkinter import scrolledtext, ttk
+from tkinter import ttk
 from functions.global_settings import possible_units
 from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
 from functions.serial_reader import SerialReader, get_available_com_ports
-from functions.serial_handlers.all_handlers import encoder_data
-from functions.online_analyzer import get_correction_from_mount
-from functions.server import get_web_server
-from functions.dec_estimator import DecEstimator
-from functions.dec_corrector import DecCorrector
-from functions.recent_files_provider import RecentImagesProvider, is_file_fits
 from functions.camera_encoder import CameraEncoderGUI
-from functions.image_tracker import ImageTrackerGUI
 
-
-import time
 from threading import Thread
 import tkinter as tk
 
@@ -48,9 +39,6 @@ serial_thread = Thread(target=reader.loop)
 connection_manager = ConnectionManager(event_logger, reader, serial_thread, com_port_choice)
 root.title("PEliminator GUI")
 mover = CoordinateMover(reader, event_logger)
-de = DecEstimator()
-dc = DecCorrector(de, reader)
-dec_corrector = RecentImagesProvider(dc, is_file_fits)
 
 # web_server = get_web_server(mover)
 
@@ -66,17 +54,9 @@ correction_tab = tk.Frame(tabs)
 correction_tab.pack(fill='both', expand=True)
 tabs.add(correction_tab, text="Corrections")
 
-tracking_tab = tk.Frame(tabs)
-tracking_tab.pack(fill='both', expand=True)
-tabs.add(tracking_tab, text="Tracking")
-
 settings_tab = tk.Frame(tabs)
 settings_tab.pack(fill='both', expand=True)
 tabs.add(settings_tab, text="Settings")
-
-log_tab = tk.Frame(tabs)
-log_tab.pack(fill='both', expand=True)
-tabs.add(log_tab, text="Command log")
 
 connect_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
 connect_frame.pack(side=tk.TOP)
@@ -192,93 +172,12 @@ halt_dec_button.pack(side=tk.LEFT)
 
 ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-drift_frame = tk.Frame(mount_tab, highlightbackground="black", highlightthickness=1)
-drift_frame.pack(side=tk.TOP)
-dec_drift_label = tk.Label(drift_frame, text='DEC drift value: ', font=('calibre', 10, 'bold'))
-dec_drift_label.pack(side=tk.LEFT)
-
-dec_drift_spin = ttk.Spinbox(drift_frame, from_=-999, to=999, width=4, textvariable=mover.vars["dec_drift"], wrap=True)
-dec_drift_spin.pack(side=tk.LEFT)
-
-dec_drift_units_label = tk.Label(drift_frame, text='arcsek / 100s', font=('calibre', 10, 'bold'))
-dec_drift_units_label.pack(side=tk.LEFT)
-
-dec_drift_button_set = tk.Button(drift_frame, text='Set drift value', command=mover.set_dec_drift)
-dec_drift_button_set.pack(side=tk.LEFT)
-
-dec_drift_button_start = tk.Button(drift_frame, text='Compensate!', command=mover.start_dec_drift)
-dec_drift_button_start.pack(side=tk.LEFT)
-
-dec_drift_button_stop = tk.Button(drift_frame, text='STOP', command=mover.stop_dec_drift)
-dec_drift_button_stop.pack(side=tk.LEFT)
-
-ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
-
-online_frame = tk.Frame(correction_tab, highlightbackground="black", highlightthickness=1)
-online_frame.pack(side=tk.TOP)
-
-ttk.Separator(correction_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
-
-
-def write_correction(correction):
-    arrays_length, correction_bytes = correction
-    if not reader.is_connected():
-        event_logger.log_event("Mount is not connected!\n")
-        return
-    event_logger.log_event("Entering new correction for mount!\n")
-    reader.write_bytes(f"ENTER_CORR {arrays_length}\n".encode() + correction_bytes)
-    time.sleep(2)
-
-
-correct_dec_button = tk.Button(online_frame, text="START dec correction")
-
-
-def start_dec_correction():
-    dec_corrector.start()
-    correct_dec_button.configure(text="STOP dec correction", command=stop_dec_correction)
-
-
-def stop_dec_correction():
-    dec_corrector.kill()
-    correct_dec_button.configure(text="START dec correction", command=start_dec_correction)
-
-
-correct_dec_button.configure(command=start_dec_correction)
-correct_dec_button.pack(side=tk.LEFT)
-
 encoder_gui = CameraEncoderGUI(correction_tab, reader)
-
-
-def get_and_log_correction():
-    data = get_correction_from_mount(reader)
-    if data is None:
-        event_logger.log_event(f"Mount is not connected!\n")
-    elif not data:
-        event_logger.log_event(f"Getting correction data timed out!\n")
-    else:
-        event_logger.log_event(f"Obtained recent correction data from mount:\n{data}\n")
-
-
-check_current_correction_button = tk. Button(online_frame, text="Get currect correction",
-                                             command=get_and_log_correction)
-check_current_correction_button.pack(side=tk.RIGHT)
-
-ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
-
-
-tracking_gui = ImageTrackerGUI(tracking_tab)
-
-# web_thread = Thread(target=web_server.serve_forever)
-# web_thread.start()
 
 root.mainloop()
 print("End of main loop!")
-# web_server.shutdown()
 event_logger.kill()
 reader.kill()
 encoder_gui.kill()
-tracking_gui.kill()
 if reader.is_connected():
     serial_thread.join()
-# web_thread.join()
-# web_server.server_close()

@@ -2,7 +2,7 @@ from functions.star_selector import StarSelector
 from astropy.io import fits
 import numpy as np
 from functions.image_calculator import get_star_position_estimate
-from functions.camera_encoder import Averager
+from functions.camera_image_processor import Averager
 from functions.global_settings import settings
 
 
@@ -17,8 +17,9 @@ def try_to_open_fits(f):
 
 
 class TrackingProcessor:
-    def __init__(self, plotter):
+    def __init__(self, plotter, feedback_var):
         self._plotter = plotter
+        self._feedback_var = feedback_var
         self._averager = Averager(settings.get_star_tracking_average())
         self._rect = None
         self._star_position = None
@@ -27,9 +28,19 @@ class TrackingProcessor:
         self._average_counter = 0
         self._log = open("logs//tracking_processor.log", 'w', buffering=1)
         self._pipe = open(settings.get_star_tracking_pipe_name(), 'w', buffering=1)
+        self._counter = 0
 
     def __del__(self):
         self._log.close()
+
+    def send_feedback(self):
+        value = float(self._feedback_var.get())
+        self._send_feedback(value)
+
+    def _send_feedback(self, value):
+        print(f"Sending feedback: {value}")
+        self._pipe.write(f"{self._counter}: ra_correction: {value}\n")
+        self._counter += 1
 
     def init(self, f, t):
         self._previous_t = t
@@ -46,6 +57,7 @@ class TrackingProcessor:
         self._average_counter = 0
         self._averager.reset()
         self._plotter.clear_plot()
+        self._feedback_var.set(0)
 
     def process(self, f, t):
         print("Tracking processor = process!")
@@ -66,8 +78,10 @@ class TrackingProcessor:
         self._plotter.add_points([(t, x, y)])
         ra_in_x_axis_index = 0
         self._averager.update_value(delta_p[ra_in_x_axis_index])
-        if self._averager.is_full() and self._average_counter >= 10:
-            self._pipe.write(f"ra_correction: {self._averager.get_current_value()}\n")
+        if self._average_counter >= 2:
+            feedback_value = self._averager.get_current_value()
+            self._send_feedback(feedback_value)
+            self._feedback_var.set(feedback_value)
             self._average_counter = 0
         elif not self._averager.is_full():
             print("Averager is not full!")

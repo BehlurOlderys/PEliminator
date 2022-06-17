@@ -41,6 +41,10 @@ class GlobalSettings:
         self._initial_scale_amendment = 0.08
         self._star_tracking_average = 5
         self._star_tracking_pipe_name = "logs//star_tracking_pipe"
+        self._initial_feedback_gain = 0.01
+
+    def get_initial_feedback_gain(self):
+        return self._initial_feedback_gain
 
     def get_star_tracking_pipe_name(self):
         return self._star_tracking_pipe_name
