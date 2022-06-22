@@ -22,7 +22,7 @@ class GlobalSettings:
         self._encoder_cpr = 1800
         self._error_threshold = 0.25
         self._error_gain = 4
-        self._max_correction = 1
+        self._max_correction = 2
         self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
         self._fragment_size = 70

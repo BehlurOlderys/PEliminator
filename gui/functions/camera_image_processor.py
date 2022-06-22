@@ -161,6 +161,7 @@ class CameraImageProcessor:
         self._dec_pipe = None
         self._corrections_map = {}
         self._dec_corrections_map = {}
+        self._cumulated_correction = 0
 
     def _get_image_length_s(self):
         return int(self._image_length_var.get())
@@ -178,6 +179,7 @@ class CameraImageProcessor:
         self._previous_sp = sp
         self._previous_ep = ep
         self._ticks_averager.reset()
+        self._cumulated_correction = 0
 
     def __del__(self):
         self._log_file.close()
@@ -261,6 +263,7 @@ class CameraImageProcessor:
         return value
 
     def process(self, filename, timestamp):
+        start_t = time.time()
         preprocess = self._preprocess_one_file(filename)
         if preprocess is None:
             return
@@ -275,6 +278,7 @@ class CameraImageProcessor:
 
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
+        mean_result = (result_e + result_s) / 2
 
         mean_length = self._length_averager.get_current_value()
 
@@ -287,7 +291,6 @@ class CameraImageProcessor:
 
         scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         print(f"Scale = {scale}")
-        mean_result = (result_e + result_s) / 2
         mean_result_as = mean_result*scale
         self._total_mean += mean_result_as
 
@@ -298,7 +301,7 @@ class CameraImageProcessor:
         self._plotter.add_points([(timestamp, error_m, mean_error)])
 
         self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
-        command = calculate_command(expected, self._total_mean)
+        command = calculate_command(expected, mean_error)
         if command is not None:
             self._effector.effect(command)
 
@@ -328,10 +331,13 @@ class CameraImageProcessor:
             if dec_correction is not None:
                 self._dec_feedback.set_feedback(dec_correction)
                 feedback_as_per_100s = dec_correction * 100 / self._get_image_length_s()
+                error_per_100s = self._cumulated_correction - feedback_as_per_100s
                 gain = self._dec_feedback.get_feedback_gain()
                 # correction = -gain * dec_correction
-                correction = -gain * feedback_as_per_100s  # gain should be 1 initially
+                # correction = gain * feedback_as_per_100s  # gain should be 1 initially
+                correction = gain*error_per_100s - 0.25*gain*feedback_as_per_100s
                 print(f"==== DEC CORRECTION SETTING: {correction}")
+                self._cumulated_correction += correction
                 self._effector.effect(f"ADD_DC {correction}\n")
 
         if self._counter >= 20:
@@ -342,3 +348,5 @@ class CameraImageProcessor:
             except Exception as e:
                 print(f"Exception on removing file: {e}")
         self._counter += 1
+        end_t = time.time()
+        print(f"Time of execution = {end_t - start_t}s")
