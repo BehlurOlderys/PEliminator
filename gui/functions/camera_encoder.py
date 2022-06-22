@@ -1,6 +1,7 @@
 from functions.recent_files_provider import RecentImagesProvider, is_file_png
 from functions.global_settings import settings
 from functions.simple_1d_plotter import Simple1DPlotter
+from functions.image_tracking_plot import ImageTrackingPlot
 from functions.camera_image_processor import CameraImageProcessor
 import tkinter as tk
 from tkinter import ttk
@@ -8,7 +9,7 @@ from tkinter import ttk
 
 dummy_effector_label = "Dummy output"
 serial_effector_label = "Serial output"
-available_effectors = [dummy_effector_label, serial_effector_label]
+available_effectors = [serial_effector_label, dummy_effector_label]
 
 
 class SerialEffector:
@@ -25,12 +26,12 @@ class DummyEffector:
 
 
 class CameraEncoder:
-    def __init__(self, effector, plotter, feedback):
+    def __init__(self, effector, plotter, feedback, dec_feedback, image_length):
         self._plotter = plotter
         self._effector = effector
         if self._effector is None:
             print("Dummy effector chosen!")
-        self._processor = CameraImageProcessor(self._effector, plotter, feedback)
+        self._processor = CameraImageProcessor(self._effector, plotter, feedback, dec_feedback, image_length)
         self._provider = RecentImagesProvider(self._processor, is_file_png)
 
     def get_amendment(self):
@@ -52,6 +53,34 @@ class CameraEncoder:
         self._provider.kill()
 
 
+class StarDecFeedbackController:
+    def __init__(self, frame):
+        self._frame = frame
+        self._feedback_var = tk.StringVar(value="<none>")
+        self._feedback_gain_var = tk.StringVar(value=settings.get_initial_dec_feedback_gain())
+
+        self._current_feedback_label = tk.Label(self._frame,
+                                                text="DEC:", font=('calibre', 10, 'bold'))
+        self._current_feedback_label.pack(side=tk.LEFT)
+
+        self._current_feedback_display = tk.Entry(self._frame,
+                                                  state="disabled", textvariable=self._feedback_var)
+        self._current_feedback_display.pack(side=tk.LEFT)
+        self._feedback_gain_label = tk.Label(self._frame,
+                                             text="Gain:", font=('calibre', 10, 'bold'))
+        self._feedback_gain_label.pack(side=tk.LEFT)
+
+        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment="0.001",
+                                               from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
+        self._feedback_gain_spin.pack(side=tk.LEFT)
+
+    def set_feedback(self, value):
+        self._feedback_var.set(value)
+
+    def get_feedback_gain(self):
+        return float(self._feedback_gain_var.get())
+
+
 class StarFeedbackController:
     def __init__(self, frame):
         self._frame = frame
@@ -59,7 +88,7 @@ class StarFeedbackController:
         self._feedback_gain_var = tk.StringVar(value=settings.get_initial_feedback_gain())
 
         self._current_feedback_label = tk.Label(self._frame,
-                                                text="Current feedback from stars:", font=('calibre', 10, 'bold'))
+                                                text="RA feedback from stars:", font=('calibre', 10, 'bold'))
         self._current_feedback_label.pack(side=tk.LEFT)
 
         self._current_feedback_display = tk.Entry(self._frame,
@@ -72,7 +101,8 @@ class StarFeedbackController:
         self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment="0.001",
                                                from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
         self._feedback_gain_spin.pack(side=tk.LEFT)
-        # self._enable_feedback_button = tk.Button(self._frame, text="Turn on feedback from stars", command=self._enable_feedback)
+        # self._enable_feedback_button = tk.Button(self._frame,
+        # text="Turn on feedback from stars", command=self._enable_feedback)
 
     def set_feedback(self, value):
         self._feedback_var.set(value)
@@ -83,17 +113,31 @@ class StarFeedbackController:
 
 class CameraEncoderGUI:
     def __init__(self, frame, reader):
+        self._image_length_var = tk.StringVar(value=settings.get_frame_length_s())
         self._encoder_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._encoder_frame.pack(side=tk.TOP)
 
         self._feedback_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._feedback_frame.pack(side=tk.TOP)
 
-        self._feedback = StarFeedbackController(self._feedback_frame)
+        self._image_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._image_frame.pack(side=tk.TOP)
 
-        self._plotter = Simple1DPlotter(frame)
+        self._image_length_label = tk.Label(self._image_frame,
+                                            text="Image length (s):", font=('calibre', 10, 'bold'))
+        self._image_length_label.pack(side=tk.LEFT)
+
+        self._image_length_spin = ttk.Spinbox(self._image_frame, from_=0, to=999,
+                                           width=5, textvariable=self._image_length_var)
+        self._image_length_spin.pack(side=tk.RIGHT)
+
+        self._feedback = StarFeedbackController(self._feedback_frame)
+        self._dec_feedback = StarDecFeedbackController(self._feedback_frame)
+
+        self._plotter = ImageTrackingPlot(frame)
         self._reader = reader
-        self._camera_encoder = CameraEncoder(None, self._plotter, self._feedback)
+        self._camera_encoder = CameraEncoder(None, self._plotter, self._feedback,
+                                             self._dec_feedback, self._image_length_var)
         self._choice = tk.StringVar(value=available_effectors[0])
         self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
                                        command=self._camera_encoder.reset)
@@ -127,7 +171,8 @@ class CameraEncoderGUI:
         else:
             effector = DummyEffector()
 
-        self._camera_encoder = CameraEncoder(effector, self._plotter, self._feedback)
+        self._camera_encoder = CameraEncoder(effector, self._plotter,
+                                             self._feedback, self._dec_feedback, self._image_length_var)
         self._camera_encoder.start()
         self._button.configure(text="Stop camera encoder", command=self._stop_action)
 

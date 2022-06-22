@@ -38,13 +38,24 @@ class GlobalSettings:
         self._focal = 650
         self._pixel = 2.9
         self._averager_max = 48
-        self._initial_scale_amendment = 0.08
+        self._initial_scale_amendment = 0.00
         self._star_tracking_average = 5
         self._star_tracking_pipe_name = "logs//star_tracking_pipe"
-        self._initial_feedback_gain = 0.01
+        self._initial_feedback_gain = 0.005
+        self._initial_dec_feedback_gain = 1
+        self._frame_length_s = 30
+
+    def get_frame_length_s(self):
+        return self._frame_length_s
+
+    def set_frame_length_s(self):
+        return self._frame_length_s
 
     def get_initial_feedback_gain(self):
         return self._initial_feedback_gain
+
+    def get_initial_dec_feedback_gain(self):
+        return self._initial_dec_feedback_gain
 
     def get_star_tracking_pipe_name(self):
         return self._star_tracking_pipe_name

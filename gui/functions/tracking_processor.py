@@ -17,10 +17,13 @@ def try_to_open_fits(f):
 
 
 class TrackingProcessor:
-    def __init__(self, plotter, feedback_var):
+    def __init__(self, plotter, feedback_vars):
+        ra_var, dec_var = feedback_vars
         self._plotter = plotter
-        self._feedback_var = feedback_var
+        self._feedback_var = ra_var
+        self._dec_feedback_var = dec_var
         self._averager = Averager(settings.get_star_tracking_average())
+        self._dec_averager = Averager(settings.get_star_tracking_average())
         self._rect = None
         self._star_position = None
         self._previous_t = None
@@ -28,18 +31,22 @@ class TrackingProcessor:
         self._average_counter = 0
         self._log = open("logs//tracking_processor.log", 'w', buffering=1)
         self._pipe = open(settings.get_star_tracking_pipe_name(), 'w', buffering=1)
+        self._dec_pipe = open(settings.get_star_tracking_pipe_name()+"_dec", 'w', buffering=1)
         self._counter = 0
 
     def __del__(self):
         self._log.close()
 
     def send_feedback(self):
-        value = float(self._feedback_var.get())
-        self._send_feedback(value)
+        ra = float(self._feedback_var.get())
+        dec = float(self._dec_feedback_var.get())
+        self._send_feedback((ra, dec))
 
     def _send_feedback(self, value):
         print(f"Sending feedback: {value}")
-        self._pipe.write(f"{self._counter}: ra_correction: {value}\n")
+        ra, dec = value
+        self._dec_pipe.write(f"{self._counter}: dec_correction: {dec}\n")
+        self._pipe.write(f"{self._counter}: ra_correction: {ra}\n")
         self._counter += 1
 
     def init(self, f, t):
@@ -54,10 +61,7 @@ class TrackingProcessor:
         return True
 
     def reset(self):
-        self._average_counter = 0
-        self._averager.reset()
         self._plotter.clear_plot()
-        self._feedback_var.set(0)
 
     def process(self, f, t):
         print("Tracking processor = process!")
@@ -77,11 +81,16 @@ class TrackingProcessor:
         self._previous_p = p
         self._plotter.add_points([(t, x, y)])
         ra_in_x_axis_index = 0
+        dec_in_y_axis_index = 1
         self._averager.update_value(delta_p[ra_in_x_axis_index])
+        self._dec_averager.update_value(delta_p[dec_in_y_axis_index])
+
         if self._average_counter >= 2:
             feedback_value = self._averager.get_current_value()
-            self._send_feedback(feedback_value)
+            dec_feedback_value = self._dec_averager.get_current_value()
+            self._send_feedback((feedback_value, dec_feedback_value))
             self._feedback_var.set(feedback_value)
+            self._dec_feedback_var.set(dec_feedback_value)
             self._average_counter = 0
         elif not self._averager.is_full():
             print("Averager is not full!")

@@ -17,6 +17,9 @@ class DummyReader:
     def write_string(self, s):
         print(f"This should write >>{s}<< to serial!")
 
+    def kill(self):
+        pass
+
 
 reader = DummyReader()
 de = DecEstimator()

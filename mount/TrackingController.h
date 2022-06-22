@@ -68,6 +68,7 @@ struct TrackingController{
       _steps_required--;
       _ra_stepper.step_motor();      
     }
+    delayMicroseconds(5);
   }
   Stepper& _ra_stepper;
   EncoderFeedback& _feedback;

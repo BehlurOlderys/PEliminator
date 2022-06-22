@@ -138,14 +138,17 @@ def calculate_command(e, m):
 
 
 class CameraImageProcessor:
-    def __init__(self, effector, plotter, feedback):
+    def __init__(self, effector, plotter, feedback, dec_feedback, image_length_var):
         self._effector = effector
         self._plotter = plotter
         self._feedback = feedback
+        self._dec_feedback = dec_feedback
+        self._image_length_var = image_length_var
         self._log_file = open("logs\\result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
         self._log_file.write("scale\tlength\ttime\terror\texpected\tmean\n")
         self._preparator = ImagePreparator()
         self._length_averager = Averager()
+        self._ticks_averager = Averager(10)
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
@@ -155,7 +158,12 @@ class CameraImageProcessor:
         self._previous_ep = None
         self._last_file_data = None
         self._pipe = None
+        self._dec_pipe = None
         self._corrections_map = {}
+        self._dec_corrections_map = {}
+
+    def _get_image_length_s(self):
+        return int(self._image_length_var.get())
 
     def reset(self):
         if self._last_file_data is None:
@@ -169,6 +177,7 @@ class CameraImageProcessor:
         self._previous_time = t
         self._previous_sp = sp
         self._previous_ep = ep
+        self._ticks_averager.reset()
 
     def __del__(self):
         self._log_file.close()
@@ -180,7 +189,7 @@ class CameraImageProcessor:
         self._previous_time = timestamp
         self._previous_sp = sp
         self._previous_ep = ep
-        self._plotter.add_points([(timestamp, 0)])
+        self._plotter.add_points([(timestamp, 0, 0)])
         return True
 
     def _preprocess_one_file(self, filename):
@@ -206,8 +215,52 @@ class CameraImageProcessor:
     def amend_scale(self, value):
         self._scale_amendment += value
 
-    def process(self, filename, timestamp):
+    def _get_ra_correction_value(self):
+        try:
+            pipe_file = open(settings.get_star_tracking_pipe_name(), "r")
+            pipe_lines = pipe_file.readlines()
+            pipe_file.close()
+        except:
+            print(" !!!! Could not obtain ra correction from file !!!! ")
+            return None
 
+        if not pipe_lines:
+            return None
+        last_correction = pipe_lines[-1]
+        split_by_colon = last_correction.split(":")
+        value = float(split_by_colon[-1])
+        ident = int(split_by_colon[0])
+        if ident in self._corrections_map.keys():
+            return None
+
+        self._corrections_map[ident] = value
+        print(f"Acquired RA correction: {value}")
+        return value
+
+    def _get_dec_correction_value(self):
+        try:
+            pipe_file = open(settings.get_star_tracking_pipe_name()+"_dec", "r")
+            dec_pipe_lines = pipe_file.readlines()
+            pipe_file.close()
+        except:
+            print(" !!!! Could not obtain dec correction from file !!!! ")
+            return None
+
+        if not dec_pipe_lines:
+            return None
+
+        last_correction = dec_pipe_lines[-1]
+        split_by_colon = last_correction.split(":")
+        value = float(split_by_colon[-1])
+        ident = int(split_by_colon[0])
+        if ident in self._dec_corrections_map.keys():
+            return None
+
+        self._dec_corrections_map[ident] = value
+        print(f"Acquired DEC correction: {value}")
+        return value
+
+    def process(self, filename, timestamp):
         preprocess = self._preprocess_one_file(filename)
         if preprocess is None:
             return
@@ -235,11 +288,14 @@ class CameraImageProcessor:
         scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         print(f"Scale = {scale}")
         mean_result = (result_e + result_s) / 2
-        self._total_mean += mean_result*scale
+        mean_result_as = mean_result*scale
+        self._total_mean += mean_result_as
 
         error_m = expected - self._total_mean
+        self._ticks_averager.update_value(error_m)
+        mean_error = self._ticks_averager.get_current_value()
 
-        self._plotter.add_points([(timestamp, error_m)])
+        self._plotter.add_points([(timestamp, error_m, mean_error)])
 
         self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
         command = calculate_command(expected, self._total_mean)
@@ -249,31 +305,36 @@ class CameraImageProcessor:
         self._previous_sp = sp
         self._previous_ep = ep
 
+        if self._counter == 10 or self._counter == 20:
+            ra_correction = self._get_ra_correction_value()
+            if ra_correction is not None:
+                self._feedback.set_feedback(ra_correction)
+                sky_movement_as = self._get_image_length_s() * 15  #as/per_s
+                image_measured_movement_as = sky_movement_as - ra_correction  # or +
+                image_speed_ass = image_measured_movement_as / self._get_image_length_s()
+                encoder_speed_ass = mean_result_as / delta_t
+                speed_error_ass = image_speed_ass - encoder_speed_ass
+                print(f"*** Image speed = {image_speed_ass},"
+                      f" Encoder speed = {encoder_speed_ass}, "
+                      f"speed error={speed_error_ass} ***")
+
+                gain = self._feedback.get_feedback_gain()
+                print(f"Current gain = {gain}")
+                delta_a = ra_correction * gain
+                print(f"Correction to scale is: {delta_a}")
+                self.amend_scale(-delta_a)
+
+            dec_correction = self._get_dec_correction_value()
+            if dec_correction is not None:
+                self._dec_feedback.set_feedback(dec_correction)
+                feedback_as_per_100s = dec_correction * 100 / self._get_image_length_s()
+                gain = self._dec_feedback.get_feedback_gain()
+                # correction = -gain * dec_correction
+                correction = -gain * feedback_as_per_100s  # gain should be 1 initially
+                print(f"==== DEC CORRECTION SETTING: {correction}")
+                self._effector.effect(f"ADD_DC {correction}\n")
+
         if self._counter >= 20:
-            pipe_lines = []
-            try:
-                self._pipe = open(settings.get_star_tracking_pipe_name(), "r")
-                pipe_lines = self._pipe.readlines()
-                self._pipe.close()
-            except:
-                pass
-            if pipe_lines:
-                last_correction = pipe_lines[-1]
-                # ra_correction: 0.8
-                split_by_colon = last_correction.split(":")
-                value = float(split_by_colon[-1])
-                ident = int(split_by_colon[0])
-                if not ident in self._corrections_map.keys():
-                    self._corrections_map[ident] = value
-                    print(f"Acquired correction: {value}")
-                    self._feedback.set_feedback(value)
-                    gain = self._feedback.get_feedback_gain()
-                    print(f"Current gain = {gain}")
-                    delta_a = value * gain
-                    print(f"Correction to scale is: {delta_a}")
-                    self.amend_scale(-delta_a)
-                    # self._pipe.seek(0)
-                    # self._pipe.truncate()
             self._counter = 0
         else:
             try:

@@ -49,6 +49,7 @@ struct DecDriftCompensator{
     _dec_motor(dec_motor),
     _stopped(true),
     _millis_per_step(0),
+    _as_per_100s(0),
     _direction(DEC_DRIFT_COMPENSATION_UNDEFINED),
     _last_timestamp(0)
   {}
@@ -87,15 +88,15 @@ struct DecDriftCompensator{
     return (uint32_t)(1000.0f / steps_per_s);
   }
   
-  void SetPositiveCompensation(uint32_t as_per_100s){
-    _millis_per_step = CalculateMsPerStep(as_per_100s);
-    _direction = DEC_DRIFT_COMPENSATION_POSITIVE;
+  void AddCompensation(uint32_t as_per_100s){
+    _as_per_100s += as_per_100s;
+    _millis_per_step = CalculateMsPerStep(abs(_as_per_100s));
+    _direction = (_as_per_100s > 0) ? DEC_DRIFT_COMPENSATION_POSITIVE : DEC_DRIFT_COMPENSATION_NEGATIVE;
+  }  
+
+  int32_t GetAsPer100s()const {
+    return _as_per_100s;
   }
-  
-  void SetNegativeCompensation(uint32_t as_per_100s){
-    _millis_per_step = CalculateMsPerStep(as_per_100s);
-    _direction = DEC_DRIFT_COMPENSATION_NEGATIVE;
-  }   
 
   DecDriftCompensationDir GetDirection() const {
     return _direction;
@@ -108,6 +109,7 @@ struct DecDriftCompensator{
   Stepper& _dec_motor;
   bool _stopped;
   uint32_t _millis_per_step;
+  int32_t _as_per_100s;
   DecDriftCompensationDir _direction;
   uint32_t _last_timestamp;
 };
@@ -225,7 +227,7 @@ void DisplayCurrentDecCompensation(){
   else{
     lcd.print("???");
   }
-  lcd.print(drift_compensator.GetMsPerStep());
+  lcd.print(drift_compensator.GetAsPer100s());
 }
 
 void DisplayCurrentFocuser(){
@@ -595,11 +597,8 @@ void ReadSerial(){
     else if (strcmp("CORRECT" ,command_name) == 0){
       tracking_controller.AddCorrection(command_argument);
     }  
-    else if (strcmp("SET_DC+" ,command_name) == 0){
-      drift_compensator.SetPositiveCompensation(command_argument);
-    }  
-    else if (strcmp("SET_DC-" ,command_name) == 0){
-      drift_compensator.SetNegativeCompensation(command_argument);
+    else if (strcmp("ADD_DC" ,command_name) == 0){
+      drift_compensator.AddCompensation(command_argument);
     }
     else if (strcmp("START_DC" ,command_name) == 0){
       drift_compensator.Start();
@@ -665,6 +664,7 @@ void setup() {
   
   ra_encoder.setup_encoder();
   correction_data.InitializeWithStaticValues();
+  drift_compensator.Start();
 
   serializer.PushStructure(SPECIAL_WELCOME_ID, welcome_message);
   tracking_controller.Start();  
@@ -721,7 +721,7 @@ void loop() {
   ReadSerial(); // 12us
 
 //  PrintMillis(serializer);
-//  drift_compensator.Run();
+  drift_compensator.Run();
 
 //  UpdateAbsEncoder();
 //  PrintEncoder();

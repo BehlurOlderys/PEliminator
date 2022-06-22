@@ -3,6 +3,7 @@ from functions.offline_images_provider import OfflineImagesProvider
 from functions.sharpcap_capture import get_latest_sharpcap_images_dir, get_latest_sharpcap_capture_dir
 from functions.tracking_processor import TrackingProcessor
 from functions.image_tracking_plot import ImageTrackingPlot
+from functions.global_settings import settings
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
@@ -24,7 +25,8 @@ class ImageTrackerGUI:
 
     def __init__(self, frame):
         self._feedback_var = tk.StringVar(value=0)
-        self._combo_choice = tk.StringVar(value=offline_tracking)
+        self._dec_feedback_var = tk.StringVar(value=0)
+        self._combo_choice = tk.StringVar(value=online_tracking)
         try:
             self._suggested = tk.StringVar(value=get_latest_sharpcap_images_dir())
         except:
@@ -43,10 +45,14 @@ class ImageTrackerGUI:
         self._suggested_button = tk.Button(suggested_frame, text='Change...', command=self._change_dir)
         self._suggested_button.pack(side=tk.LEFT)
 
-        self._feedback_label = tk.Label(control_frame, text="Current feedback value:", font=('calibre', 10, 'bold'))
+        self._feedback_label = tk.Label(control_frame, text="Current feedback value (RA):", font=('calibre', 10, 'bold'))
         self._feedback_label.pack(side=tk.LEFT)
         self._feedback_display = tk.Entry(control_frame, textvariable=self._feedback_var)
         self._feedback_display.pack(side=tk.LEFT)
+        self._dec_feedback_label = tk.Label(control_frame, text="(DEC):", font=('calibre', 10, 'bold'))
+        self._dec_feedback_label.pack(side=tk.LEFT)
+        self._dec_feedback_display = tk.Entry(control_frame, textvariable=self._dec_feedback_var)
+        self._dec_feedback_display.pack(side=tk.LEFT)
         self._send_button = tk.Button(control_frame, text='Send', command=self._send)
         self._send_button.pack(side=tk.LEFT)
 
@@ -58,7 +64,7 @@ class ImageTrackerGUI:
         self._reset_button.pack(side=tk.LEFT)
 
         self._plot = ImageTrackingPlot(frame=frame)
-        self._processor = TrackingProcessor(self._plot, self._feedback_var)
+        self._processor = TrackingProcessor(self._plot, (self._feedback_var, self._dec_feedback_var))
         self._file_provider = None
 
     def _send(self):
