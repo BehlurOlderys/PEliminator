@@ -123,32 +123,39 @@ class DifferenceCalculator:
         return sum_length / self._h
 
 
-def calculate_command(e, m):
-    error = e - m
-    print(f"Error (\") = {error}")
-    if abs(error) > settings.get_error_threshold():
-        correction = int(min(settings.get_max_correction(), settings.get_error_gain() * abs(error)))
-        if error > 0:
-            print(f"CORRECT {correction}\n")
-            return f"CORRECT {correction}\n"
-        else:
-            print(f"CORRECT {-correction}\n")
-            return f"CORRECT {-correction}\n"
-    return None
+class MyPID:
+    def __init__(self, memory_size, kp_var, ki_var, kd_var):
+        self._kp_var = kp_var
+        self._ki_var = ki_var
+        self._kd_var = kd_var
+        self._memory = [0]
+        self._memory_size = memory_size
+
+    def get_correction(self, error):
+        diff_d = error-self._memory[-1]
+        self._memory.append(error)
+        if len(self._memory) >= self._memory_size:
+            self._memory.pop(0)
+
+        sum_i = sum(self._memory)
+        return float(self._kp_var.get()) * error + \
+               float(self._ki_var.get()) * sum_i + \
+               float(self._kd_var.get())*diff_d
 
 
 class CameraImageProcessor:
-    def __init__(self, effector, plotter, feedback, dec_feedback, image_length_var):
+    def __init__(self, effector, plotter, feedback, dec_feedback, vars_dict):
         self._effector = effector
         self._plotter = plotter
         self._feedback = feedback
         self._dec_feedback = dec_feedback
-        self._image_length_var = image_length_var
+        self._image_length_var = vars_dict["image_length"]
         self._log_file = open("logs\\result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
-        self._log_file.write("scale\tlength\ttime\terror\texpected\tmean\n")
+        self._log_file.write("scale\tlength\ttime\texpected\terror\tmean\n")
         self._preparator = ImagePreparator()
         self._length_averager = Averager()
         self._ticks_averager = Averager(10)
+        self._pid = MyPID(5, kp_var=vars_dict["kp"], ki_var=vars_dict["ki"], kd_var=vars_dict["kd"])
         self._total_t = 0
         self._total_mean = 0
         self._counter = 0
@@ -162,7 +169,18 @@ class CameraImageProcessor:
         self._corrections_map = {}
         self._dec_corrections_map = {}
         self._cumulated_correction = 0
+        self._finished_ra_correction = 0
+        self._current_error_as = 0
 
+    def _send_correction_to_mount(self, correction):
+        print(f"PID correction = {correction}")
+        step_as = settings.get_stepper_microstep_as()
+        steps = int(correction / step_as)
+        if abs(steps) > 0:
+            command = f"CORRECT {steps}\n"
+            self._effector.effect(command)
+            print(command)
+    
     def _get_image_length_s(self):
         return int(self._image_length_var.get())
 
@@ -180,6 +198,8 @@ class CameraImageProcessor:
         self._previous_ep = ep
         self._ticks_averager.reset()
         self._cumulated_correction = 0
+        self._finished_ra_correction = 0
+        self._current_error_as = 0
 
     def __del__(self):
         self._log_file.close()
@@ -262,6 +282,16 @@ class CameraImageProcessor:
         print(f"Acquired DEC correction: {value}")
         return value
 
+    def _implement_ra_correction(self, error_mean, error_instant):
+        correction = self._pid.get_correction(error_mean)
+        command = send_correction_to_mount(correction)
+
+
+    def idle(self):
+        mean_error = self._ticks_averager.get_current_value()
+        mean_error -= self._finished_ra_correction
+        self._implement_ra_correction(mean_error, self._current_error_as)
+
     def process(self, filename, timestamp):
         start_t = time.time()
         preprocess = self._preprocess_one_file(filename)
@@ -270,11 +300,9 @@ class CameraImageProcessor:
         p, sp, ep = preprocess
         delta_t = timestamp - self._previous_time
         self._previous_time = timestamp
-
         self._last_file_data = filename, timestamp
-
         self._total_t += delta_t
-        expected = self._total_t * settings.sidereal_speed
+        expected_as = self._total_t * settings.sidereal_speed
 
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
@@ -292,61 +320,66 @@ class CameraImageProcessor:
         scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         print(f"Scale = {scale}")
         mean_result_as = mean_result*scale
-        self._total_mean += mean_result_as
+        self._total_mean_as += mean_result_as
 
-        error_m = expected - self._total_mean
-        self._ticks_averager.update_value(error_m)
-        mean_error = self._ticks_averager.get_current_value()
+        error_as = expected_as - self._total_mean_as
+        self._ticks_averager.update_value(error_as)
+        mean_error_as = self._ticks_averager.get_current_value()
+        self._current_error_as = mean_error_as
 
-        self._plotter.add_points([(timestamp, error_m, mean_error)])
+        self._plotter.add_points([(timestamp, error_as, mean_error_as)])
+        self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{expected_as}\t{error_as}\t{mean_error_as}\n")
 
-        self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{error_m}\t{expected}\t{self._total_mean}\n")
-        command = calculate_command(expected, mean_error)
-        if command is not None:
-            self._effector.effect(command)
+        self._finished_ra_correction = 0
+        self._implement_ra_correction(mean_error_as, error_as)
 
         self._previous_sp = sp
         self._previous_ep = ep
 
-        if self._counter == 10 or self._counter == 20:
-            ra_correction = self._get_ra_correction_value()
-            if ra_correction is not None:
-                self._feedback.set_feedback(ra_correction)
-                sky_movement_as = self._get_image_length_s() * 15  #as/per_s
-                image_measured_movement_as = sky_movement_as - ra_correction  # or +
-                image_speed_ass = image_measured_movement_as / self._get_image_length_s()
-                encoder_speed_ass = mean_result_as / delta_t
-                speed_error_ass = image_speed_ass - encoder_speed_ass
-                print(f"*** Image speed = {image_speed_ass},"
-                      f" Encoder speed = {encoder_speed_ass}, "
-                      f"speed error={speed_error_ass} ***")
+        self._correct_longterm_ra()
+        self._correct_longterm_dec()
 
-                gain = self._feedback.get_feedback_gain()
-                print(f"Current gain = {gain}")
-                delta_a = ra_correction * gain
-                print(f"Correction to scale is: {delta_a}")
-                self.amend_scale(-delta_a)
+        # if self._counter == 10 or self._counter == 20:
+        #     ra_correction = self._get_ra_correction_value()
+        #     if ra_correction is not None:
+        #         self._feedback.set_feedback(ra_correction)
+        #         sky_movement_as = self._get_image_length_s() * 15  #as/per_s
+        #         image_measured_movement_as = sky_movement_as - ra_correction  # or +
+        #         image_speed_ass = image_measured_movement_as / self._get_image_length_s()
+        #         encoder_speed_ass = mean_result_as / delta_t
+        #         speed_error_ass = image_speed_ass - encoder_speed_ass
+        #         print(f"*** Image speed = {image_speed_ass},"
+        #               f" Encoder speed = {encoder_speed_ass}, "
+        #               f"speed error={speed_error_ass} ***")
+        #
+        #         gain = self._feedback.get_feedback_gain()
+        #         print(f"Current gain = {gain}")
+        #         delta_a = ra_correction * gain
+        #         print(f"Correction to scale is: {delta_a}")
+        #         self.amend_scale(-delta_a)
+        #
+        #     dec_correction = self._get_dec_correction_value()
+        #     if dec_correction is not None:
+        #         self._dec_feedback.set_feedback(dec_correction)
+        #         feedback_as_per_100s = dec_correction * 100 / self._get_image_length_s()
+        #         error_per_100s = feedback_as_per_100s - self._cumulated_correction
+        #         gain = self._dec_feedback.get_feedback_gain()
+        #         # correction = -gain * dec_correction
+        #         # correction = gain * feedback_as_per_100s  # gain should be 1 initially
+        #         correction = -0.25*gain*feedback_as_per_100s # -gain*error_per_100s #-
+        #         print(f"==== DEC CORRECTION SETTING: {correction}")
+        #         self._cumulated_correction += correction
+        #         self._effector.effect(f"ADD_DC {correction}\n")
 
-            dec_correction = self._get_dec_correction_value()
-            if dec_correction is not None:
-                self._dec_feedback.set_feedback(dec_correction)
-                feedback_as_per_100s = dec_correction * 100 / self._get_image_length_s()
-                error_per_100s = self._cumulated_correction - feedback_as_per_100s
-                gain = self._dec_feedback.get_feedback_gain()
-                # correction = -gain * dec_correction
-                # correction = gain * feedback_as_per_100s  # gain should be 1 initially
-                correction = gain*error_per_100s - 0.25*gain*feedback_as_per_100s
-                print(f"==== DEC CORRECTION SETTING: {correction}")
-                self._cumulated_correction += correction
-                self._effector.effect(f"ADD_DC {correction}\n")
-
-        if self._counter >= 20:
-            self._counter = 0
-        else:
-            try:
-                os.remove(filename)
-            except Exception as e:
-                print(f"Exception on removing file: {e}")
-        self._counter += 1
+        try:
+            os.remove(filename)
+        except Exception as e:
+            print(f"Exception on removing file: {e}")
         end_t = time.time()
         print(f"Time of execution = {end_t - start_t}s")
+
+    def _correct_longterm_ra(self):
+        pass
+
+    def _correct_longterm_dec(self):
+        pass

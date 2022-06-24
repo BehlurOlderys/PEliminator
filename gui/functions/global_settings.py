@@ -18,11 +18,12 @@ class GlobalSettings:
     sidereal_speed = arcsec_full_circle / sidereal_day_s
 
     def __init__(self):
+        self._stepper_microstep_as = 0.6
         self._encoder_resolution_lpi = 200
         self._encoder_cpr = 1800
         self._error_threshold = 0.25
-        self._error_gain = 4
-        self._max_correction = 2
+        self._error_gain = 1.5
+        self._max_correction = 1
         self._arcsec_per_strip = GlobalSettings.arcsec_full_circle / self._encoder_cpr
         self._visualisation_on = True
         self._fragment_size = 70
@@ -44,6 +45,9 @@ class GlobalSettings:
         self._initial_feedback_gain = 0.005
         self._initial_dec_feedback_gain = 1
         self._frame_length_s = 30
+
+    def get_stepper_microstep_as(self):
+        return self._stepper_microstep_as
 
     def get_frame_length_s(self):
         return self._frame_length_s

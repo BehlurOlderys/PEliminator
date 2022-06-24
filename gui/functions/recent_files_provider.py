@@ -96,7 +96,8 @@ class RecentImagesProvider:
             new_filenames = [os.path.basename(f) for f, t in new_files]
 
             if not new_files:
-                print("Waiting 1s for new files...")
+                print("Waiting 0.1s for new files...")
+                self._processor.idle()
                 waiting_event.wait(0.25)
                 continue
 

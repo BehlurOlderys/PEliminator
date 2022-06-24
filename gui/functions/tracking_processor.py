@@ -60,6 +60,9 @@ class TrackingProcessor:
         self._plotter.add_points([(t, x, y)])
         return True
 
+    def idle(self):
+        pass
+
     def reset(self):
         self._plotter.clear_plot()
 
