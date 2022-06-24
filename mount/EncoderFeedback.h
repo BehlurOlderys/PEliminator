@@ -5,7 +5,7 @@
 #include "Timing.h"
 #include "CorrectionDataHolder.h"
 
-static uint32_t const expected_step_interval = Timing::arduino_interval(39972U);
+static uint32_t const expected_step_interval = Timing::arduino_interval(19986U);
 static uint32_t const feedback_max_interval = 662800000UL;
 
 struct EncoderFeedback{

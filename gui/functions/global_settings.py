@@ -18,7 +18,7 @@ class GlobalSettings:
     sidereal_speed = arcsec_full_circle / sidereal_day_s
 
     def __init__(self):
-        self._stepper_microstep_as = 0.6
+        self._stepper_microstep_as = 0.3
         self._encoder_resolution_lpi = 200
         self._encoder_cpr = 1800
         self._error_threshold = 0.25

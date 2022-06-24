@@ -82,7 +82,7 @@ private:
   positionChangedAction _action_dec;
 };
 
-static const double RA_ARCSECONDS_PER_STEP  = 0.6012145;
+static const double RA_ARCSECONDS_PER_STEP  = 0.3006072;
 static const double DEC_ARCSECONDS_PER_STEP = 0.9619433;
 
 typedef void (*positionReachedCallback)();

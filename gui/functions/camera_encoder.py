@@ -1,6 +1,5 @@
 from functions.recent_files_provider import RecentImagesProvider, is_file_png
 from functions.global_settings import settings
-from functions.simple_1d_plotter import Simple1DPlotter
 from functions.image_tracking_plot import ImageTrackingPlot
 from functions.camera_image_processor import CameraImageProcessor
 import tkinter as tk
@@ -70,7 +69,7 @@ class StarDecFeedbackController:
                                              text="Gain:", font=('calibre', 10, 'bold'))
         self._feedback_gain_label.pack(side=tk.LEFT)
 
-        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment="0.001",
+        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment=0.001,
                                                from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
         self._feedback_gain_spin.pack(side=tk.LEFT)
 
@@ -98,7 +97,7 @@ class StarFeedbackController:
                                              text="Gain to feedback:", font=('calibre', 10, 'bold'))
         self._feedback_gain_label.pack(side=tk.LEFT)
 
-        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment="0.001",
+        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment=0.001,
                                                from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
         self._feedback_gain_spin.pack(side=tk.LEFT)
         # self._enable_feedback_button = tk.Button(self._frame,
@@ -123,13 +122,15 @@ class SpinWithLabel:
 class CameraEncoderGUI:
     def __init__(self, frame, reader):
         self._image_length_var = tk.StringVar(value=settings.get_frame_length_s())
-        self._kp_var = tk.StringVar(value=1.0)
-        self._ki_var = tk.StringVar(value=0.2)
-        self._kd_var = tk.StringVar(value=0.1)
+        self._kp_var = tk.StringVar(value=0.0)
+        self._ki_var = tk.StringVar(value=0.0)
+        self._kd_var = tk.StringVar(value=4.0)
+        self._isize_var = tk.StringVar(value=5)
         self._vars_dict = {"image_length": self._image_length_var,
                            "kp": self._kp_var,
                            "ki": self._ki_var,
-                           "kd": self._kd_var}
+                           "kd": self._kd_var,
+                           "isize": self._isize_var}
         self._encoder_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._encoder_frame.pack(side=tk.TOP)
 
@@ -142,11 +143,13 @@ class CameraEncoderGUI:
         self._image_length_indicator = SpinWithLabel(
             self._image_frame, self._image_length_var, "Image length (s):", from_=0, to=999, width=5)
         self._kp_indicator = SpinWithLabel(
-            self._image_frame, self._kp_var, "Kp=", format="%.3f", increment="0.01", width=5, from_=0, to=5.0)
+            self._image_frame, self._kp_var, "Kp=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
         self._ki_indicator = SpinWithLabel(
-            self._image_frame, self._ki_var, "Ki=", format="%.3f", increment="0.01", width=5, from_=0, to=5.0)
+            self._image_frame, self._ki_var, "Ki=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
         self._kd_indicator = SpinWithLabel(
-            self._image_frame, self._kd_var, "Kd=", format="%.3f", increment="0.01", width=5, from_=0, to=5.0)
+            self._image_frame, self._kd_var, "Kd=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
+        self._isize_indicator = SpinWithLabel(
+            self._image_frame, self._isize_var, "i_size=", increment=1, width=3, from_=2, to=20)
 
         self._feedback = StarFeedbackController(self._feedback_frame)
         self._dec_feedback = StarDecFeedbackController(self._feedback_frame)

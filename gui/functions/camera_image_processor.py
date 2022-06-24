@@ -124,23 +124,29 @@ class DifferenceCalculator:
 
 
 class MyPID:
-    def __init__(self, memory_size, kp_var, ki_var, kd_var):
-        self._kp_var = kp_var
-        self._ki_var = ki_var
-        self._kd_var = kd_var
+    def __init__(self, kp, ki, kd, isize, **_):
+        self._kp_var = kp
+        self._ki_var = ki
+        self._kd_var = kd
         self._memory = [0]
-        self._memory_size = memory_size
+        self._memory_size_var = isize
+        print(f"Initializing PID with Kp={self._kp_var.get()},"
+              f" Ki={self._ki_var.get()}, Kd={self._kd_var.get()} and size of {self._memory_size_var.get()}")
 
     def get_correction(self, error):
         diff_d = error-self._memory[-1]
+        memory_size = int(self._memory_size_var.get())
         self._memory.append(error)
-        if len(self._memory) >= self._memory_size:
+        while len(self._memory) >= memory_size:
             self._memory.pop(0)
 
         sum_i = sum(self._memory)
-        return float(self._kp_var.get()) * error + \
-               float(self._ki_var.get()) * sum_i + \
-               float(self._kd_var.get())*diff_d
+        try:
+            return float(self._kp_var.get()) * error + \
+                   float(self._ki_var.get()) * sum_i + \
+                   float(self._kd_var.get()) * diff_d
+        except ValueError:
+            return 0
 
 
 class CameraImageProcessor:
@@ -155,9 +161,9 @@ class CameraImageProcessor:
         self._preparator = ImagePreparator()
         self._length_averager = Averager()
         self._ticks_averager = Averager(10)
-        self._pid = MyPID(5, kp_var=vars_dict["kp"], ki_var=vars_dict["ki"], kd_var=vars_dict["kd"])
+        self._pid = MyPID(**vars_dict)
         self._total_t = 0
-        self._total_mean = 0
+        self._total_mean_as = 0
         self._counter = 0
         self._scale_amendment = settings.get_initial_scale_amendment()
         self._previous_time = None
@@ -171,16 +177,18 @@ class CameraImageProcessor:
         self._cumulated_correction = 0
         self._finished_ra_correction = 0
         self._current_error_as = 0
+        self._previous_mean_error_as = 0
 
     def _send_correction_to_mount(self, correction):
         print(f"PID correction = {correction}")
         step_as = settings.get_stepper_microstep_as()
         steps = int(correction / step_as)
         if abs(steps) > 0:
+            steps = min(max(steps, -10), 10)
             command = f"CORRECT {steps}\n"
             self._effector.effect(command)
             print(command)
-    
+
     def _get_image_length_s(self):
         return int(self._image_length_var.get())
 
@@ -189,7 +197,7 @@ class CameraImageProcessor:
             return
         self._length_averager.reset()
         self._total_t = 0
-        self._total_mean = 0
+        self._total_mean_as = 0
         self._counter = 0
         f, t = self._last_file_data
         _, sp, ep = self._preprocess_one_file(f)
@@ -283,14 +291,14 @@ class CameraImageProcessor:
         return value
 
     def _implement_ra_correction(self, error_mean, error_instant):
-        correction = self._pid.get_correction(error_mean)
-        command = send_correction_to_mount(correction)
-
+        correction = self._pid.get_correction(error_instant)
+        self._send_correction_to_mount(correction)
 
     def idle(self):
-        mean_error = self._ticks_averager.get_current_value()
-        mean_error -= self._finished_ra_correction
-        self._implement_ra_correction(mean_error, self._current_error_as)
+        # mean_error = self._ticks_averager.get_current_value()
+        # mean_error -= self._finished_ra_correction
+        # self._implement_ra_correction(mean_error, self._current_error_as)
+        pass
 
     def process(self, filename, timestamp):
         start_t = time.time()
@@ -323,6 +331,7 @@ class CameraImageProcessor:
         self._total_mean_as += mean_result_as
 
         error_as = expected_as - self._total_mean_as
+        error_as = delta_t*settings.sidereal_speed - mean_result_as
         self._ticks_averager.update_value(error_as)
         mean_error_as = self._ticks_averager.get_current_value()
         self._current_error_as = mean_error_as
@@ -331,6 +340,8 @@ class CameraImageProcessor:
         self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{expected_as}\t{error_as}\t{mean_error_as}\n")
 
         self._finished_ra_correction = 0
+        diff_err = mean_error_as - self._previous_mean_error_as
+        self._previous_mean_error_as = mean_error_as
         self._implement_ra_correction(mean_error_as, error_as)
 
         self._previous_sp = sp
