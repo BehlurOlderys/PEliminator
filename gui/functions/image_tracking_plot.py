@@ -27,7 +27,7 @@ class ImageTrackingPlot(PointPlot):
                 self._line_red = None
 
         else:
-            self._line_red = self._ax.plot(self.data_t, self._data_x, 'r')[0]
+            self._line_red = self._ax.plot(self.data_t, self._data_x, 'r', linewidth=1, drawstyle='steps-mid')[0]
 
         self._red_on = not self._red_on
         self.redraw()
@@ -39,7 +39,7 @@ class ImageTrackingPlot(PointPlot):
                 self._line_green = None
 
         else:
-            self._line_green = self.ax.plot(self.data_t, self._data_y, 'g')[0]
+            self._line_green = self.ax.plot(self.data_t, self._data_y, 'g', linewidth=4)[0]
 
         self._green_on = not self._green_on
         self.redraw()
@@ -53,7 +53,8 @@ class ImageTrackingPlot(PointPlot):
     def add_points(self, time_points):
         if not self.data_t:
             self.first_point = time_points[0]
-            self._line_green, self._line_red = self.ax.plot(0, 0, 'g', 0, 0, 'r')
+            self._line_green = self.ax.plot(0, 0, 'g', linewidth=4)[0]
+            self._line_red = self.ax.plot(0, 0, 'r', linewidth=1, drawstyle='steps-mid')[0]
         t0, x0, y0 = self.first_point
         for p in time_points:
             t, x, y = p

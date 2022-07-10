@@ -1,9 +1,14 @@
-from functions.recent_files_provider import RecentImagesProvider, is_file_png
+from functions.zwo_asi_camera_grabber import ASICamera
 from functions.global_settings import settings
 from functions.image_tracking_plot import ImageTrackingPlot
 from functions.camera_image_processor import CameraImageProcessor
 import tkinter as tk
+import time
 from tkinter import ttk
+from threading import Thread, Event
+
+
+waiting_event = Event()
 
 
 dummy_effector_label = "Dummy output"
@@ -25,13 +30,15 @@ class DummyEffector:
 
 
 class CameraEncoder:
-    def __init__(self, effector, plotter, feedback, dec_feedback, vars_dict):
+    def __init__(self, effector, plotter, ra_feedback, dec_feedback, vars_dict):
         self._plotter = plotter
         self._effector = effector
         if self._effector is None:
             print("Dummy effector chosen!")
-        self._processor = CameraImageProcessor(self._effector, plotter, feedback, dec_feedback, vars_dict)
-        self._provider = RecentImagesProvider(self._processor, is_file_png)
+        self._processor = CameraImageProcessor(self._effector, plotter, ra_feedback, dec_feedback, vars_dict)
+        self._camera = ASICamera()
+        self._killme = False
+        self._thread = None
 
     def get_amendment(self):
         return self._processor.get_scale_amendment()
@@ -44,70 +51,40 @@ class CameraEncoder:
         self._plotter.clear_plot()
         self._processor.reset()
 
+    def _run(self):
+        while not self._killme:
+            waiting_event.wait(2)
+            image_buffer = self._camera.capture_image()
+            self._processor.process(image_buffer, time.time())
+
     def start(self):
         self._plotter.clear_plot()
-        self._provider.start()
+        self._camera.connect_and_prepare_camera(roi=(400, 512))
+        image_buffer = self._camera.capture_image()
+        self._processor.init(image_buffer, time.time())
+        self._thread = Thread(target=self._run)
+        self._thread.start()
 
     def kill(self):
-        self._provider.kill()
+        self._killme = True
+        if self._thread is not None and self._thread.ident is not None:
+            self._thread.join()
 
 
-class StarDecFeedbackController:
-    def __init__(self, frame):
+class FeedbackController:
+    def __init__(self, frame, feedback_title):
         self._frame = frame
-        self._feedback_var = tk.StringVar(value="<none>")
-        self._feedback_gain_var = tk.StringVar(value=settings.get_initial_dec_feedback_gain())
-
+        self._feedback_var = tk.StringVar(value=0)
         self._current_feedback_label = tk.Label(self._frame,
-                                                text="DEC:", font=('calibre', 10, 'bold'))
+                                                text=feedback_title, font=('calibre', 10, 'bold'))
         self._current_feedback_label.pack(side=tk.LEFT)
 
         self._current_feedback_display = tk.Entry(self._frame,
                                                   state="disabled", textvariable=self._feedback_var)
         self._current_feedback_display.pack(side=tk.LEFT)
-        self._feedback_gain_label = tk.Label(self._frame,
-                                             text="Gain:", font=('calibre', 10, 'bold'))
-        self._feedback_gain_label.pack(side=tk.LEFT)
-
-        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment=0.001,
-                                               from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
-        self._feedback_gain_spin.pack(side=tk.LEFT)
 
     def set_feedback(self, value):
         self._feedback_var.set(value)
-
-    def get_feedback_gain(self):
-        return float(self._feedback_gain_var.get())
-
-
-class StarFeedbackController:
-    def __init__(self, frame):
-        self._frame = frame
-        self._feedback_var = tk.StringVar(value="<none>")
-        self._feedback_gain_var = tk.StringVar(value=settings.get_initial_feedback_gain())
-
-        self._current_feedback_label = tk.Label(self._frame,
-                                                text="RA feedback from stars:", font=('calibre', 10, 'bold'))
-        self._current_feedback_label.pack(side=tk.LEFT)
-
-        self._current_feedback_display = tk.Entry(self._frame,
-                                                  state="disabled", textvariable=self._feedback_var)
-        self._current_feedback_display.pack(side=tk.LEFT)
-        self._feedback_gain_label = tk.Label(self._frame,
-                                             text="Gain to feedback:", font=('calibre', 10, 'bold'))
-        self._feedback_gain_label.pack(side=tk.LEFT)
-
-        self._feedback_gain_spin = ttk.Spinbox(self._frame, format="%.4f", increment=0.001,
-                                               from_=-1, to=1, width=7, textvariable=self._feedback_gain_var)
-        self._feedback_gain_spin.pack(side=tk.LEFT)
-        # self._enable_feedback_button = tk.Button(self._frame,
-        # text="Turn on feedback from stars", command=self._enable_feedback)
-
-    def set_feedback(self, value):
-        self._feedback_var.set(value)
-
-    def get_feedback_gain(self):
-        return float(self._feedback_gain_var.get())
 
 
 class SpinWithLabel:
@@ -119,18 +96,39 @@ class SpinWithLabel:
         self._spin.pack(side=tk.LEFT)
 
 
+class PIDGUI:
+    def __init__(self, frame, prefix, vars_dict, label):
+        self._kp_var = tk.StringVar(value=0.5)
+        self._ki_var = tk.StringVar(value=0.15)
+        self._kd_var = tk.StringVar(value=0.0)
+        self._isize_var = tk.StringVar(value=12)
+
+        vars_dict.update({
+            prefix+"_kp": self._kp_var,
+            prefix+"_ki": self._ki_var,
+            prefix+"_kd": self._kd_var,
+            prefix+"_isize": self._isize_var
+        })
+
+        self._label = tk.Label(frame, text=label, font=('calibre', 10, 'bold'))
+        self._label.pack(side=tk.LEFT)
+
+        self._kp_indicator = SpinWithLabel(
+            frame, self._kp_var, "Kp=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
+        self._ki_indicator = SpinWithLabel(
+            frame, self._ki_var, "Ki=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
+        self._kd_indicator = SpinWithLabel(
+            frame, self._kd_var, "Kd=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
+        self._isize_indicator = SpinWithLabel(
+            frame, self._isize_var, "i_size=", increment=1, width=3, from_=2, to=20)
+
+
 class CameraEncoderGUI:
     def __init__(self, frame, reader):
         self._image_length_var = tk.StringVar(value=settings.get_frame_length_s())
-        self._kp_var = tk.StringVar(value=0.0)
-        self._ki_var = tk.StringVar(value=0.0)
-        self._kd_var = tk.StringVar(value=4.0)
-        self._isize_var = tk.StringVar(value=5)
-        self._vars_dict = {"image_length": self._image_length_var,
-                           "kp": self._kp_var,
-                           "ki": self._ki_var,
-                           "kd": self._kd_var,
-                           "isize": self._isize_var}
+
+        self._vars_dict = {"image_length": self._image_length_var}
+
         self._encoder_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._encoder_frame.pack(side=tk.TOP)
 
@@ -140,23 +138,30 @@ class CameraEncoderGUI:
         self._image_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._image_frame.pack(side=tk.TOP)
 
+        self._main_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._main_pid_frame.pack(side=tk.TOP)
+        self._main_pid = PIDGUI(self._main_pid_frame, "main_pid", self._vars_dict,
+                                label="Main RA PID settings:")
+
+        self._long_ra_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._long_ra_pid_frame.pack(side=tk.TOP)
+        self._long_ra_pid = PIDGUI(self._long_ra_pid_frame, "long_ra_pid", self._vars_dict,
+                                   label="Long term RA PID settings:")
+
+        self._long_dec_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._long_dec_pid_frame.pack(side=tk.TOP)
+        self._long_dec_pid = PIDGUI(self._long_dec_pid_frame, "long_dec_pid", self._vars_dict,
+                                    label="Long term DEC PID settings:")
+
         self._image_length_indicator = SpinWithLabel(
             self._image_frame, self._image_length_var, "Image length (s):", from_=0, to=999, width=5)
-        self._kp_indicator = SpinWithLabel(
-            self._image_frame, self._kp_var, "Kp=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._ki_indicator = SpinWithLabel(
-            self._image_frame, self._ki_var, "Ki=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._kd_indicator = SpinWithLabel(
-            self._image_frame, self._kd_var, "Kd=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._isize_indicator = SpinWithLabel(
-            self._image_frame, self._isize_var, "i_size=", increment=1, width=3, from_=2, to=20)
 
-        self._feedback = StarFeedbackController(self._feedback_frame)
-        self._dec_feedback = StarDecFeedbackController(self._feedback_frame)
+        self._ra_feedback = FeedbackController(self._feedback_frame, "Current RA error:")
+        self._dec_feedback = FeedbackController(self._feedback_frame, "Current DEC error:")
 
         self._plotter = ImageTrackingPlot(frame)
         self._reader = reader
-        self._camera_encoder = CameraEncoder(None, self._plotter, self._feedback,
+        self._camera_encoder = CameraEncoder(None, self._plotter, self._ra_feedback,
                                              self._dec_feedback, self._vars_dict)
         self._choice = tk.StringVar(value=available_effectors[0])
         self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
@@ -192,7 +197,7 @@ class CameraEncoderGUI:
             effector = DummyEffector()
 
         self._camera_encoder = CameraEncoder(effector, self._plotter,
-                                             self._feedback, self._dec_feedback, self._vars_dict)
+                                             self._ra_feedback, self._dec_feedback, self._vars_dict)
         self._camera_encoder.start()
         self._button.configure(text="Stop camera encoder", command=self._stop_action)
 

@@ -7,7 +7,6 @@ asi_lib_path = "C:\\ASI SDK\\lib\\x64\\ASICamera2.dll"
 
 class ASICamera:
     def __init__(self):
-        asi.init(asi_lib_path)
         self._camera = None
 
     def get_cameras_list(self):
@@ -16,6 +15,7 @@ class ASICamera:
         return asi.list_cameras()
 
     def connect_and_prepare_camera(self, camera_id=0, exposure_ms=50, gain=0, roi=(256, 512)):
+        asi.init(asi_lib_path)
         self._camera = asi.Camera(camera_id)
         camera_info = self._camera.get_camera_property()
         print(camera_info)

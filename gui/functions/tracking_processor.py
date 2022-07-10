@@ -57,7 +57,7 @@ class TrackingProcessor:
         self._rect, self._previous_p = get_star_position_estimate(current_data, self._rect)
         x, y = self._previous_p
         print(f"Star position = {self._previous_p}")
-        self._plotter.add_points([(t, x, y)])
+        self._plotter.add_points([(t, x, 0)])
         return True
 
     def idle(self):
@@ -81,23 +81,16 @@ class TrackingProcessor:
         x, y = p
         x0, y0 = self._previous_p
         delta_p = (x-x0, y-y0)
-        self._previous_p = p
-        self._plotter.add_points([(t, x, y)])
         ra_in_x_axis_index = 0
         dec_in_y_axis_index = 1
-        self._averager.update_value(delta_p[ra_in_x_axis_index])
-        self._dec_averager.update_value(delta_p[dec_in_y_axis_index])
+        current_ra_speed = delta_p[ra_in_x_axis_index] / delta_t
+        current_dec_speed = delta_p[dec_in_y_axis_index] / delta_t
+        self._previous_p = p
+        self._plotter.add_points([(t, x, y)])
 
-        if self._average_counter >= 2:
-            feedback_value = self._averager.get_current_value()
-            dec_feedback_value = self._dec_averager.get_current_value()
-            self._send_feedback((feedback_value, dec_feedback_value))
-            self._feedback_var.set(feedback_value)
-            self._dec_feedback_var.set(dec_feedback_value)
-            self._average_counter = 0
-        elif not self._averager.is_full():
-            print("Averager is not full!")
-        self._average_counter += 1
+        self._send_feedback((current_ra_speed, current_dec_speed))
+        self._feedback_var.set(current_ra_speed)
+        self._dec_feedback_var.set(current_dec_speed)
 
         print(f"New position = ({x}, {y}), delta p = {delta_p}, delta t = {delta_t}")
         self._log.write(f"{t}\t{x}\t{y}\n")

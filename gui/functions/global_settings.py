@@ -42,7 +42,7 @@ class GlobalSettings:
         self._initial_scale_amendment = 0.00
         self._star_tracking_average = 5
         self._star_tracking_pipe_name = "logs//star_tracking_pipe"
-        self._initial_feedback_gain = 0.005
+        self._initial_feedback_gain = 0.7
         self._initial_dec_feedback_gain = 1
         self._frame_length_s = 30
 

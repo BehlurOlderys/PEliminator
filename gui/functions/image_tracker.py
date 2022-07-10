@@ -1,5 +1,6 @@
 from functions.recent_files_provider import RecentImagesProvider, is_file_fits
 from functions.offline_images_provider import OfflineImagesProvider
+
 from functions.sharpcap_capture import get_latest_sharpcap_images_dir, get_latest_sharpcap_capture_dir
 from functions.tracking_processor import TrackingProcessor
 from functions.image_tracking_plot import ImageTrackingPlot

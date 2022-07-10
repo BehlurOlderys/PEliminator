@@ -1,11 +1,22 @@
-import os
 import numpy as np
-from PIL import Image
 from scipy.ndimage import gaussian_filter
 from datetime import datetime
 from functions.global_settings import settings
 import time
 import math
+import matplotlib.pyplot as plt
+
+
+class OnceForAWhileDoer:
+    def __init__(self, interval):
+        self._interval = interval
+        self._counter = 0
+
+    def do_once_for_a_while(self, f):
+        if self._counter >= self._interval:
+            f()
+            self._counter = 0
+        self._counter += 1
 
 
 def normalize(p):
@@ -16,12 +27,6 @@ def normalize(p):
 
 def threshold_half(p):
     return 1*(p < np.median(p))  # less than median will be stripes, not spaces between
-
-
-def get_np_data_from_image_file(file_path):
-    im = Image.open(file_path)
-    raw_data = np.array(im)
-    return raw_data
 
 
 def get_stripes_ends_positions(p):
@@ -78,7 +83,7 @@ class ImagePreparator:
 
 
 class Averager:
-    def __init__(self, max_count=settings.get_averager_max()):
+    def __init__(self, max_count):
         self._max_count = max_count
         self._value = 0
         self._history = []
@@ -106,21 +111,24 @@ class Averager:
 class DifferenceCalculator:
     def __init__(self, p):
         self._h, _ = p.shape
+        print(f"shape = {p.shape}")
         self._diff_lines = [np.diff(p[i, :]) for i in range(0, self._h)]
 
     def get_stripes_length(self):
-        sum_length = 0
+        all_lengths = np.array([])
         for dline in self._diff_lines:
             falling_edges = dline < 0
             rising_edges = dline > 0
             f_edges_indices = np.where(falling_edges)
             r_edges_indices = np.where(rising_edges)
-            # print(f"r = {r_edges_indices}, f = {f_edges_indices}")
-            # for some reason f and r diffs are double (nested) arrays of shape [1][N] so I need to squeeze them
-            f_lengths = np.squeeze(np.diff(f_edges_indices))
-            r_lengths = np.squeeze(np.diff(r_edges_indices))
-            sum_length += np.average(np.array(f_lengths[0], r_lengths[0]))
-        return sum_length / self._h
+            print(f"indices_f = {f_edges_indices[0]} , indices_r = {r_edges_indices[0]})")
+            lengths_r = np.diff(r_edges_indices[0])
+            lengths_f = np.diff(f_edges_indices[0])
+            all_lengths = np.concatenate((all_lengths, lengths_r, lengths_f))
+
+        average_length = np.median(all_lengths)
+        print(f"average_length = {average_length}")
+        return average_length
 
 
 class MyPID:
@@ -149,35 +157,42 @@ class MyPID:
             return 0
 
 
+def filter_dict_for_prefix_to_pid(d, prefix):
+    return {k.split("_")[-1]:v for k, v in d.items() if prefix in k}
+
+
 class CameraImageProcessor:
-    def __init__(self, effector, plotter, feedback, dec_feedback, vars_dict):
+    def __init__(self, effector, plotter, ra_feedback, dec_feedback, vars_dict):
         self._effector = effector
         self._plotter = plotter
-        self._feedback = feedback
+        self._ra_feedback = ra_feedback
         self._dec_feedback = dec_feedback
         self._image_length_var = vars_dict["image_length"]
         self._log_file = open("logs\\result" + datetime.now().strftime("%m%d%Y_%H-%M-%S") + ".log", 'w', buffering=1)
-        self._log_file.write("scale\tlength\ttime\texpected\terror\tmean\n")
+        self._log_file.write("scale\tlength\texpected\terror\tcorrection\n")
         self._preparator = ImagePreparator()
-        self._length_averager = Averager()
-        self._ticks_averager = Averager(10)
-        self._pid = MyPID(**vars_dict)
-        self._total_t = 0
+        self._length_averager = Averager(10)
+        self._length_average_performer = OnceForAWhileDoer(100)
+        self._main_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "main_pid"))
+        self._longterm_ra_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "long_ra_pid"))
+        self._longterm_dec_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "long_dec_pid"))
+        self._total_expected_as = 0
         self._total_mean_as = 0
-        self._counter = 0
         self._scale_amendment = settings.get_initial_scale_amendment()
         self._previous_time = None
         self._previous_sp = None
         self._previous_ep = None
         self._last_file_data = None
-        self._pipe = None
-        self._dec_pipe = None
         self._corrections_map = {}
         self._dec_corrections_map = {}
-        self._cumulated_correction = 0
-        self._finished_ra_correction = 0
-        self._current_error_as = 0
-        self._previous_mean_error_as = 0
+        max_count_ra = self._get_max_count_ra()
+        print(f"Max count for RA  ={max_count_ra}")
+        self._longterm_ra_correction = 0
+        self._longterm_dec_correction = 0
+        self._start_t = time.time()
+
+    def _get_max_count_ra(self):
+        return max(5, int(662/float(self._image_length_var.get())))
 
     def _send_correction_to_mount(self, correction):
         print(f"PID correction = {correction}")
@@ -188,6 +203,8 @@ class CameraImageProcessor:
             command = f"CORRECT {steps}\n"
             self._effector.effect(command)
             print(command)
+            return steps
+        return 0
 
     def _get_image_length_s(self):
         return int(self._image_length_var.get())
@@ -196,35 +213,37 @@ class CameraImageProcessor:
         if self._last_file_data is None:
             return
         self._length_averager.reset()
-        self._total_t = 0
+        self._total_expected_as = 0
         self._total_mean_as = 0
-        self._counter = 0
         f, t = self._last_file_data
         _, sp, ep = self._preprocess_one_file(f)
         self._previous_time = t
         self._previous_sp = sp
         self._previous_ep = ep
-        self._ticks_averager.reset()
-        self._cumulated_correction = 0
-        self._finished_ra_correction = 0
-        self._current_error_as = 0
+        max_count_ra = self._get_max_count_ra()
+        self._longterm_ra_correction = 0
+        self._longterm_dec_correction = 0
+
+    def _get_measured_speed(self):
+        return settings.sidereal_speed + self._longterm_ra_correction
 
     def __del__(self):
         self._log_file.close()
 
-    def init(self, filename, timestamp):
-        p, sp, ep = self._preprocess_one_file(filename)
+    def init(self, data, timestamp):
+        p, sp, ep = self._preprocess_one_file(data)
+        print(f"p = {p} from init")
         self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
-        self._last_file_data = filename, timestamp
+        self._last_file_data = data, timestamp
         self._previous_time = timestamp
         self._previous_sp = sp
         self._previous_ep = ep
         self._plotter.add_points([(timestamp, 0, 0)])
         return True
 
-    def _preprocess_one_file(self, filename):
+    def _preprocess_one_file(self, data):
         try:
-            p = self._preparator.prepare_one_image(get_np_data_from_image_file(filename))
+            p = self._preparator.prepare_one_image(data)
             sp, ep = get_starts_and_ends(p)
             return p, sp, ep
         except IndexError:
@@ -235,7 +254,9 @@ class CameraImageProcessor:
             return None
         except Exception as ex:
             print(f"Strangest exception happened: {ex}")
-            print("Sleeping for 1000s!")
+            print("Displaying last image and sleeping for 1000s!")
+            plt.imshow(data)
+            plt.show()
             time.sleep(1000)
             return None
 
@@ -290,32 +311,29 @@ class CameraImageProcessor:
         print(f"Acquired DEC correction: {value}")
         return value
 
-    def _implement_ra_correction(self, error_mean, error_instant):
-        correction = self._pid.get_correction(error_instant)
-        self._send_correction_to_mount(correction)
+    def _implement_ra_correction(self, error_instant):
+        correction = self._main_pid.get_correction(error_instant)
+        return self._send_correction_to_mount(correction)
 
-    def idle(self):
-        # mean_error = self._ticks_averager.get_current_value()
-        # mean_error -= self._finished_ra_correction
-        # self._implement_ra_correction(mean_error, self._current_error_as)
-        pass
-
-    def process(self, filename, timestamp):
-        start_t = time.time()
-        preprocess = self._preprocess_one_file(filename)
+    def process(self, data, timestamp):
+        preprocess = self._preprocess_one_file(data)
         if preprocess is None:
             return
         p, sp, ep = preprocess
         delta_t = timestamp - self._previous_time
         self._previous_time = timestamp
-        self._last_file_data = filename, timestamp
-        self._total_t += delta_t
-        expected_as = self._total_t * settings.sidereal_speed
+        self._last_file_data = data, timestamp
+        self._total_expected_as += delta_t*self._get_measured_speed()
 
         result_s = get_mean_diff(sp, self._previous_sp)
         result_e = get_mean_diff(ep, self._previous_ep)
         mean_result = (result_e + result_s) / 2
 
+        self._length_average_performer.do_once_for_a_while(
+            self._length_averager.update_value(
+                DifferenceCalculator(p).get_stripes_length()
+            )
+        )
         mean_length = self._length_averager.get_current_value()
 
         if math.isnan(result_s) or \
@@ -330,19 +348,12 @@ class CameraImageProcessor:
         mean_result_as = mean_result*scale
         self._total_mean_as += mean_result_as
 
-        error_as = expected_as - self._total_mean_as
-        error_as = delta_t*settings.sidereal_speed - mean_result_as
-        self._ticks_averager.update_value(error_as)
-        mean_error_as = self._ticks_averager.get_current_value()
-        self._current_error_as = mean_error_as
+        total_error_as = self._total_expected_as - self._total_mean_as
+        error_as = delta_t*self._get_measured_speed() - mean_result_as
+        corr = self._implement_ra_correction(total_error_as)
 
-        self._plotter.add_points([(timestamp, error_as, mean_error_as)])
-        self._log_file.write(f"{scale}\t{mean_length}\t{self._total_t}\t{expected_as}\t{error_as}\t{mean_error_as}\n")
-
-        self._finished_ra_correction = 0
-        diff_err = mean_error_as - self._previous_mean_error_as
-        self._previous_mean_error_as = mean_error_as
-        self._implement_ra_correction(mean_error_as, error_as)
+        self._plotter.add_points([(timestamp, corr, total_error_as)])
+        self._log_file.write(f"{scale}\t{mean_length}\t{self._total_expected_as}\t{error_as}\t{corr}\n")
 
         self._previous_sp = sp
         self._previous_ep = ep
@@ -350,47 +361,33 @@ class CameraImageProcessor:
         self._correct_longterm_ra()
         self._correct_longterm_dec()
 
-        # if self._counter == 10 or self._counter == 20:
-        #     ra_correction = self._get_ra_correction_value()
-        #     if ra_correction is not None:
-        #         self._feedback.set_feedback(ra_correction)
-        #         sky_movement_as = self._get_image_length_s() * 15  #as/per_s
-        #         image_measured_movement_as = sky_movement_as - ra_correction  # or +
-        #         image_speed_ass = image_measured_movement_as / self._get_image_length_s()
-        #         encoder_speed_ass = mean_result_as / delta_t
-        #         speed_error_ass = image_speed_ass - encoder_speed_ass
-        #         print(f"*** Image speed = {image_speed_ass},"
-        #               f" Encoder speed = {encoder_speed_ass}, "
-        #               f"speed error={speed_error_ass} ***")
-        #
-        #         gain = self._feedback.get_feedback_gain()
-        #         print(f"Current gain = {gain}")
-        #         delta_a = ra_correction * gain
-        #         print(f"Correction to scale is: {delta_a}")
-        #         self.amend_scale(-delta_a)
-        #
-        #     dec_correction = self._get_dec_correction_value()
-        #     if dec_correction is not None:
-        #         self._dec_feedback.set_feedback(dec_correction)
-        #         feedback_as_per_100s = dec_correction * 100 / self._get_image_length_s()
-        #         error_per_100s = feedback_as_per_100s - self._cumulated_correction
-        #         gain = self._dec_feedback.get_feedback_gain()
-        #         # correction = -gain * dec_correction
-        #         # correction = gain * feedback_as_per_100s  # gain should be 1 initially
-        #         correction = -0.25*gain*feedback_as_per_100s # -gain*error_per_100s #-
-        #         print(f"==== DEC CORRECTION SETTING: {correction}")
-        #         self._cumulated_correction += correction
-        #         self._effector.effect(f"ADD_DC {correction}\n")
-
-        try:
-            os.remove(filename)
-        except Exception as e:
-            print(f"Exception on removing file: {e}")
         end_t = time.time()
-        print(f"Time of execution = {end_t - start_t}s")
+        print(f"Time of execution = {end_t - self._start_t}s")
+        self._start_t = time.time()
 
     def _correct_longterm_ra(self):
-        pass
+        ra_error = self._get_ra_correction_value()
+        if ra_error is None:
+            return
+
+        error_per_frame = ra_error*float(self._image_length_var.get())
+        if error_per_frame < settings.get_image_scale():
+            return
+
+        self._longterm_ra_correction = self._longterm_ra_pid.get_correction(ra_error)
+        self._ra_feedback.set_feedback(ra_error)
+        print(f"LT RA CORRECTION = {self._longterm_ra_correction}")
+        # TODO LATER!
 
     def _correct_longterm_dec(self):
-        pass
+        dec_error = self._get_dec_correction_value()
+        if dec_error is None:
+            return
+        error_per_frame = dec_error * float(self._image_length_var.get())
+        if error_per_frame < settings.get_image_scale():
+            return
+
+        self._longterm_dec_correction = self._longterm_dec_pid.get_correction(dec_error)
+        self._dec_feedback.set_feedback(dec_error)
+        print(f"LT DEC CORRECTION = {self._longterm_dec_correction}")
+        # TODO LATER!
