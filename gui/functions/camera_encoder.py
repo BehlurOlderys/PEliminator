@@ -2,11 +2,13 @@ from functions.zwo_asi_camera_grabber import ASICamera
 from functions.global_settings import settings
 from functions.image_tracking_plot import ImageTrackingPlot
 from functions.camera_image_processor import CameraImageProcessor
+from functions.spin_with_label import SpinWithLabel
+from functions.dithering_controller import DitheringControllerGUI
+from functions.pid_controller import PIDGUI
 import tkinter as tk
 import time
 from tkinter import ttk
 from threading import Thread, Event
-
 
 waiting_event = Event()
 
@@ -30,11 +32,12 @@ class DummyEffector:
 
 
 class CameraEncoder:
-    def __init__(self, effector, plotter, ra_feedback, dec_feedback, vars_dict):
+    def __init__(self, effector, plotter, ra_feedback, dec_feedback, dithering_ra, vars_dict):
         self._plotter = plotter
         self._effector = effector
         if self._effector is None:
             print("Dummy effector chosen!")
+        self._dithering_ra = dithering_ra
         self._processor = CameraImageProcessor(self._effector, plotter, ra_feedback, dec_feedback, vars_dict)
         self._camera = ASICamera()
         self._killme = False
@@ -42,6 +45,9 @@ class CameraEncoder:
 
     def get_amendment(self):
         return self._processor.get_scale_amendment()
+
+    def send_dither_as(self, value_as):
+        self._processor.add_ra_set_point_as(value_as)
 
     def set_amend(self, value):
         print(f"Setting new amendment: {value}")
@@ -55,6 +61,7 @@ class CameraEncoder:
         while not self._killme:
             waiting_event.wait(2)
             image_buffer = self._camera.capture_image()
+            self._dithering_ra.step()
             self._processor.process(image_buffer, time.time())
 
     def start(self):
@@ -87,42 +94,6 @@ class FeedbackController:
         self._feedback_var.set(value)
 
 
-class SpinWithLabel:
-    def __init__(self, frame, variable, name_str, **kwargs):
-        self._label = tk.Label(frame, text=name_str, font=('calibre', 10, 'bold'))
-        self._label.pack(side=tk.LEFT)
-
-        self._spin = ttk.Spinbox(frame, textvariable=variable, **kwargs)
-        self._spin.pack(side=tk.LEFT)
-
-
-class PIDGUI:
-    def __init__(self, frame, prefix, vars_dict, label):
-        self._kp_var = tk.StringVar(value=0.5)
-        self._ki_var = tk.StringVar(value=0.15)
-        self._kd_var = tk.StringVar(value=0.0)
-        self._isize_var = tk.StringVar(value=12)
-
-        vars_dict.update({
-            prefix+"_kp": self._kp_var,
-            prefix+"_ki": self._ki_var,
-            prefix+"_kd": self._kd_var,
-            prefix+"_isize": self._isize_var
-        })
-
-        self._label = tk.Label(frame, text=label, font=('calibre', 10, 'bold'))
-        self._label.pack(side=tk.LEFT)
-
-        self._kp_indicator = SpinWithLabel(
-            frame, self._kp_var, "Kp=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._ki_indicator = SpinWithLabel(
-            frame, self._ki_var, "Ki=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._kd_indicator = SpinWithLabel(
-            frame, self._kd_var, "Kd=", format="%.3f", increment=0.01, width=5, from_=0, to=10.0)
-        self._isize_indicator = SpinWithLabel(
-            frame, self._isize_var, "i_size=", increment=1, width=3, from_=2, to=20)
-
-
 class CameraEncoderGUI:
     def __init__(self, frame, reader):
         self._image_length_var = tk.StringVar(value=settings.get_frame_length_s())
@@ -139,22 +110,27 @@ class CameraEncoderGUI:
         self._image_frame.pack(side=tk.TOP)
 
         self._main_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
-        self._main_pid_frame.pack(side=tk.TOP)
+        self._main_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._main_pid = PIDGUI(self._main_pid_frame, "main_pid", self._vars_dict,
                                 label="Main RA PID settings:")
 
         self._long_ra_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
-        self._long_ra_pid_frame.pack(side=tk.TOP)
+        self._long_ra_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._long_ra_pid = PIDGUI(self._long_ra_pid_frame, "long_ra_pid", self._vars_dict,
                                    label="Long term RA PID settings:")
 
         self._long_dec_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
-        self._long_dec_pid_frame.pack(side=tk.TOP)
+        self._long_dec_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._long_dec_pid = PIDGUI(self._long_dec_pid_frame, "long_dec_pid", self._vars_dict,
                                     label="Long term DEC PID settings:")
 
         self._image_length_indicator = SpinWithLabel(
             self._image_frame, self._image_length_var, "Image length (s):", from_=0, to=999, width=5)
+
+        self._dithering_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        self._dithering_frame.pack(side=tk.TOP, anchor=tk.W)
+        self._ra_dithering = DitheringControllerGUI(
+            self._dithering_frame, "RA dithering", lambda x: self._camera_encoder.send_dither_as(x))
 
         self._ra_feedback = FeedbackController(self._feedback_frame, "Current RA error:")
         self._dec_feedback = FeedbackController(self._feedback_frame, "Current DEC error:")
@@ -162,7 +138,7 @@ class CameraEncoderGUI:
         self._plotter = ImageTrackingPlot(frame)
         self._reader = reader
         self._camera_encoder = CameraEncoder(None, self._plotter, self._ra_feedback,
-                                             self._dec_feedback, self._vars_dict)
+                                             self._dec_feedback, self._ra_dithering, self._vars_dict)
         self._choice = tk.StringVar(value=available_effectors[0])
         self._reset_button = tk.Button(self._encoder_frame, text="Reset camera encoder",
                                        command=self._camera_encoder.reset)

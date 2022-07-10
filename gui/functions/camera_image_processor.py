@@ -1,7 +1,8 @@
+from functions.global_settings import settings
+from functions.pid_controller import MyPID, filter_dict_for_prefix_to_pid
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from datetime import datetime
-from functions.global_settings import settings
 import time
 import math
 import matplotlib.pyplot as plt
@@ -131,36 +132,6 @@ class DifferenceCalculator:
         return average_length
 
 
-class MyPID:
-    def __init__(self, kp, ki, kd, isize, **_):
-        self._kp_var = kp
-        self._ki_var = ki
-        self._kd_var = kd
-        self._memory = [0]
-        self._memory_size_var = isize
-        print(f"Initializing PID with Kp={self._kp_var.get()},"
-              f" Ki={self._ki_var.get()}, Kd={self._kd_var.get()} and size of {self._memory_size_var.get()}")
-
-    def get_correction(self, error):
-        diff_d = error-self._memory[-1]
-        memory_size = int(self._memory_size_var.get())
-        self._memory.append(error)
-        while len(self._memory) >= memory_size:
-            self._memory.pop(0)
-
-        sum_i = sum(self._memory)
-        try:
-            return float(self._kp_var.get()) * error + \
-                   float(self._ki_var.get()) * sum_i + \
-                   float(self._kd_var.get()) * diff_d
-        except ValueError:
-            return 0
-
-
-def filter_dict_for_prefix_to_pid(d, prefix):
-    return {k.split("_")[-1]:v for k, v in d.items() if prefix in k}
-
-
 class CameraImageProcessor:
     def __init__(self, effector, plotter, ra_feedback, dec_feedback, vars_dict):
         self._effector = effector
@@ -287,6 +258,10 @@ class CameraImageProcessor:
         self._corrections_map[ident] = value
         print(f"Acquired RA correction: {value}")
         return value
+
+    def add_ra_set_point_as(self, value_as):
+        print(f"=== RA dither by {value_as}\"")
+        self._total_expected_as += value_as
 
     def _get_dec_correction_value(self):
         try:
