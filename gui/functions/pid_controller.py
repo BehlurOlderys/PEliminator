@@ -34,9 +34,9 @@ def filter_dict_for_prefix_to_pid(d, prefix):
 
 class PIDGUI:
     def __init__(self, frame, prefix, vars_dict, label):
-        self._kp_var = tk.StringVar(value=0.5)
-        self._ki_var = tk.StringVar(value=0.15)
-        self._kd_var = tk.StringVar(value=0.0)
+        self._kp_var = tk.StringVar(value=1.5)
+        self._ki_var = tk.StringVar(value=0.05)
+        self._kd_var = tk.StringVar(value=0.01)
         self._isize_var = tk.StringVar(value=12)
 
         vars_dict.update({

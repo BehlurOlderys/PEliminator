@@ -31,6 +31,8 @@ class DitheringController:
             return
         threshold = int(self._image_threshold_var.get())
         max_as = int(self._max_as_var.get())
+        if max_as == 0 or threshold == 0:
+            return
         self._counter += 1
         if self._counter >= max(0, threshold):
             self._counter = 0
@@ -53,7 +55,7 @@ class DitheringControllerGUI:
         self._interval_spin = SpinWithLabel(
             frame, self._interval_var, "Interval [frames]:", format="%d", increment=1, width=4, from_=1, to=9999)
         self._max_as_spin = SpinWithLabel(
-            frame, self._interval_var, "Maximum amount [\"]:", format="%d", increment=1, width=3, from_=1, to=999)
+            frame, self._max_as_var, "Maximum amount [\"]:", format="%d", increment=1, width=3, from_=1, to=999)
 
         self._dithering_controller = DitheringController(effect_function, self._interval_var, self._max_as_var)
 
@@ -62,6 +64,9 @@ class DitheringControllerGUI:
 
         self._manual_button = tk.Button(frame, text="Move", command=self._manual_dither, state=tk.DISABLED)
         self._manual_button.pack(side=tk.RIGHT)
+
+    def step(self):
+        self._dithering_controller.step()
 
     def _manual_dither(self):
         self._dithering_controller.manual_dither(int(self._manual_var.get()))

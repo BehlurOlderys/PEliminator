@@ -170,7 +170,7 @@ class CameraImageProcessor:
         step_as = settings.get_stepper_microstep_as()
         steps = int(correction / step_as)
         if abs(steps) > 0:
-            steps = min(max(steps, -10), 10)
+            steps = min(max(steps, -settings.get_max_correction()), settings.get_max_correction())
             command = f"CORRECT {steps}\n"
             self._effector.effect(command)
             print(command)
@@ -304,11 +304,7 @@ class CameraImageProcessor:
         result_e = get_mean_diff(ep, self._previous_ep)
         mean_result = (result_e + result_s) / 2
 
-        self._length_average_performer.do_once_for_a_while(
-            self._length_averager.update_value(
-                DifferenceCalculator(p).get_stripes_length()
-            )
-        )
+
         mean_length = self._length_averager.get_current_value()
 
         if math.isnan(result_s) or \
@@ -318,6 +314,11 @@ class CameraImageProcessor:
             print(f"NaN!: s={result_s}, e={result_e}, m={mean_length}")
             return
 
+        self._length_average_performer.do_once_for_a_while(lambda:
+            self._length_averager.update_value(
+                DifferenceCalculator(p).get_stripes_length()
+            )
+        )
         scale = self._scale_amendment + (settings.get_arcsec_per_strip() / mean_length)
         print(f"Scale = {scale}")
         mean_result_as = mean_result*scale

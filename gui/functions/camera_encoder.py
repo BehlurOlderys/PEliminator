@@ -59,7 +59,7 @@ class CameraEncoder:
 
     def _run(self):
         while not self._killme:
-            waiting_event.wait(2)
+            waiting_event.wait(0.5)
             image_buffer = self._camera.capture_image()
             self._dithering_ra.step()
             self._processor.process(image_buffer, time.time())
@@ -172,8 +172,8 @@ class CameraEncoderGUI:
         else:
             effector = DummyEffector()
 
-        self._camera_encoder = CameraEncoder(effector, self._plotter,
-                                             self._ra_feedback, self._dec_feedback, self._vars_dict)
+        self._camera_encoder = CameraEncoder(
+            effector, self._plotter, self._ra_feedback, self._dec_feedback, self._ra_dithering, self._vars_dict)
         self._camera_encoder.start()
         self._button.configure(text="Stop camera encoder", command=self._stop_action)
 
