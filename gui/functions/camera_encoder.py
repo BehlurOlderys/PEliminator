@@ -117,7 +117,7 @@ class CameraEncoderGUI:
         self._long_ra_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._long_ra_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._long_ra_pid = PIDGUI(self._long_ra_pid_frame, "long_ra_pid", self._vars_dict,
-                                   label="Long term RA PID settings:")
+                                   label="Long term RA PID settings:", initial_kd=0.3, initial_ki=0)
 
         self._long_dec_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._long_dec_pid_frame.pack(side=tk.TOP, anchor=tk.E)

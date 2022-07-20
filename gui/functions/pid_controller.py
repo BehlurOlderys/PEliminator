@@ -37,11 +37,11 @@ def filter_dict_for_prefix_to_pid(d, prefix):
 
 
 class PIDGUI:
-    def __init__(self, frame, prefix, vars_dict, label):
-        self._kp_var = tk.StringVar(value=1.5)
-        self._ki_var = tk.StringVar(value=0.05)
-        self._kd_var = tk.StringVar(value=0.01)
-        self._isize_var = tk.StringVar(value=12)
+    def __init__(self, frame, prefix, vars_dict, label, initial_kp=1.5, initial_ki=0.05, initial_kd=0.01, initial_size=12):
+        self._kp_var = tk.StringVar(value=initial_kp)
+        self._ki_var = tk.StringVar(value=initial_ki)
+        self._kd_var = tk.StringVar(value=initial_kd)
+        self._isize_var = tk.StringVar(value=initial_size)
 
         vars_dict.update({
             prefix+"_kp": self._kp_var,
