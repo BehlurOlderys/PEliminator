@@ -202,6 +202,9 @@ class CameraImageProcessor:
         self._log_file.close()
 
     def init(self, data, timestamp):
+        open(settings.get_star_tracking_pipe_name(), "r")
+        pipe_file = open(settings.get_star_tracking_pipe_name() + "_dec", "r")
+        
         p, sp, ep = self._preprocess_one_file(data)
         print(f"p = {p} from init")
         self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
@@ -368,19 +371,11 @@ class CameraImageProcessor:
             return
 
         frame_time = float(self._image_length_var.get())
-        print(f"%%%%%%%%%%%%%%%% LT DEC ERROR acquired: {dec_error}\" while frame is {frame_time}s")
+        print(f"%%%%%%%%%%%%%%%% LT DEC ERROR acquired: {dec_error}\" per s while frame is {frame_time}s")
 
-        error_per_second = dec_error / frame_time
-        error_per_100s = 100*error_per_second
+        error_per_100s = 100*dec_error
         print(f"%%%%%%%%%%%%%%%% LT DEC ERROR speed = {error_per_100s} \"/100s")
         correction = self._longterm_dec_pid.get_correction(error_per_100s)
-        self._dec_feedback.set_feedback(error_per_second)
-        print(f"==================== LT RA CORRECTION = {correction}")
-        self._effector.effect(f"ADD_DC {correction}\n")
-
-
-
-        self._longterm_dec_correction = self._longterm_dec_pid.get_correction(dec_error)
-        self._dec_feedback.set_feedback(dec_error)
-        print(f"LT DEC CORRECTION = {self._longterm_dec_correction}")
-        # TODO LATER!
+        self._dec_feedback.set_feedback(error_per_100s)
+        print(f"%%%%%%%%%%%%%%%% LT DEC CORRECTION = {correction}")
+        # self._effector.effect(f"ADD_DC {correction}\n")
