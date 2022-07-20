@@ -145,7 +145,7 @@ class CameraImageProcessor:
         self._length_averager = Averager(10)
         self._length_average_performer = OnceForAWhileDoer(100)
         self._main_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "main_pid"))
-        self._longterm_ra_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "long_ra_pid"))
+        self._longterm_ra_pid = MyPID(verbose=True, **filter_dict_for_prefix_to_pid(vars_dict, "long_ra_pid"))
         self._longterm_dec_pid = MyPID(**filter_dict_for_prefix_to_pid(vars_dict, "long_dec_pid"))
         self._total_expected_as = 0
         self._total_mean_as = 0
@@ -238,25 +238,28 @@ class CameraImageProcessor:
         self._scale_amendment += value
 
     def _get_ra_correction_value(self):
+        print("GET_RA_CORR: Started")
         try:
             pipe_file = open(settings.get_star_tracking_pipe_name(), "r")
             pipe_lines = pipe_file.readlines()
             pipe_file.close()
         except:
-            print(" !!!! Could not obtain ra correction from file !!!! ")
+            print("GET_RA_CORR: !!!! Could not obtain ra correction from file !!!! ")
             return None
 
         if not pipe_lines:
+            print("GET_RA_CORR: No lines found")
             return None
         last_correction = pipe_lines[-1]
         split_by_colon = last_correction.split(":")
         value = float(split_by_colon[-1])
         ident = int(split_by_colon[0])
         if ident in self._corrections_map.keys():
+            print("GET_RA_CORR: No unique lines found")
             return None
 
         self._corrections_map[ident] = value
-        print(f"Acquired RA correction: {value}")
+        print(f"GET_RA_CORR: Acquired RA correction: {value}")
         return value
 
     def add_ra_set_point_as(self, value_as):
@@ -345,14 +348,18 @@ class CameraImageProcessor:
         ra_error = self._get_ra_correction_value()
         if ra_error is None:
             return
-
-        error_per_frame = ra_error*float(self._image_length_var.get())
-        if error_per_frame < settings.get_image_scale():
-            return
-
-        self._longterm_ra_correction = self._longterm_ra_pid.get_correction(ra_error)
+        frame_time = float(self._image_length_var.get())
+        print(f"==================== LT RA ERROR aquired: {ra_error} as/s while frame is {frame_time}s")
+        error_per_frame = ra_error*frame_time
+        print(f"==================== LT RA ERROR = {error_per_frame} /frame")
+        correction = self._longterm_ra_pid.get_correction(ra_error)
         self._ra_feedback.set_feedback(ra_error)
-        print(f"LT RA CORRECTION = {self._longterm_ra_correction}")
+        print(f"==================== LT RA CORRECTION = {correction}")
+        self._longterm_ra_correction += correction
+        #
+        # if abs(error_per_frame) < 1.5*settings.get_image_scale():
+        #     print(f"==================== LT RA ERROR is smaller than scale {settings.get_image_scale()}")
+        #     return
         # TODO LATER!
 
     def _correct_longterm_dec(self):

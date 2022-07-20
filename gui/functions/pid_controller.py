@@ -3,12 +3,13 @@ import tkinter as tk
 
 
 class MyPID:
-    def __init__(self, kp, ki, kd, isize, **_):
+    def __init__(self, kp, ki, kd, isize, verbose=False, **_):
         self._kp_var = kp
         self._ki_var = ki
         self._kd_var = kd
         self._memory = [0]
         self._memory_size_var = isize
+        self._verbose = verbose
         print(f"Initializing PID with Kp={self._kp_var.get()},"
               f" Ki={self._ki_var.get()}, Kd={self._kd_var.get()} and size of {self._memory_size_var.get()}")
 
@@ -21,9 +22,12 @@ class MyPID:
 
         sum_i = sum(self._memory)
         try:
-            return float(self._kp_var.get()) * error + \
-                   float(self._ki_var.get()) * sum_i + \
-                   float(self._kd_var.get()) * diff_d
+            factor_p = float(self._kp_var.get()) * error
+            factor_i = float(self._ki_var.get()) * sum_i
+            factor_d = float(self._kd_var.get()) * diff_d
+            if self._verbose:
+                print(f"+++++++++++++ PID factors: P={factor_p}, I={factor_i}, D={factor_d}")
+            return factor_p + factor_i + factor_d
         except ValueError:
             return 0
 

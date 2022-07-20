@@ -57,7 +57,7 @@ class TrackingProcessor:
         self._rect, self._previous_p = get_star_position_estimate(current_data, self._rect)
         x, y = self._previous_p
         print(f"Star position = {self._previous_p}")
-        self._plotter.add_points([(t, x, 0)])
+        self._plotter.add_points([(t, x, y)])
         return True
 
     def idle(self):
