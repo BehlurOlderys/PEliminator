@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 import math
 import matplotlib.pyplot as plt
+import os
 
 
 class OnceForAWhileDoer:
@@ -202,9 +203,9 @@ class CameraImageProcessor:
         self._log_file.close()
 
     def init(self, data, timestamp):
-        open(settings.get_star_tracking_pipe_name(), "r")
-        pipe_file = open(settings.get_star_tracking_pipe_name() + "_dec", "r")
-        
+        os.remove(settings.get_star_tracking_pipe_name())
+        os.remove(settings.get_star_tracking_pipe_name() + "_dec")
+
         p, sp, ep = self._preprocess_one_file(data)
         print(f"p = {p} from init")
         self._length_averager.update_value(DifferenceCalculator(p).get_stripes_length())
@@ -378,4 +379,4 @@ class CameraImageProcessor:
         correction = self._longterm_dec_pid.get_correction(error_per_100s)
         self._dec_feedback.set_feedback(error_per_100s)
         print(f"%%%%%%%%%%%%%%%% LT DEC CORRECTION = {correction}")
-        # self._effector.effect(f"ADD_DC {correction}\n")
+        self._effector.effect(f"ADD_DC {correction}\n")
