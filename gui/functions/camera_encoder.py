@@ -117,12 +117,13 @@ class CameraEncoderGUI:
         self._long_ra_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._long_ra_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._long_ra_pid = PIDGUI(self._long_ra_pid_frame, "long_ra_pid", self._vars_dict,
-                                   label="Long term RA PID settings:", initial_kd=0.3, initial_ki=0)
+                                   label="Long term RA PID settings:", initial_kp=0.3, initial_kd=0, initial_ki=0,
+                                   initial_size=5)
 
         self._long_dec_pid_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         self._long_dec_pid_frame.pack(side=tk.TOP, anchor=tk.E)
         self._long_dec_pid = PIDGUI(self._long_dec_pid_frame, "long_dec_pid", self._vars_dict,
-                                    label="Long term DEC PID settings:")
+                                    label="Long term DEC PID settings:", initial_kp=0.2, initial_kd=0, initial_ki=0)
 
         self._image_length_indicator = SpinWithLabel(
             self._image_frame, self._image_length_var, "Image length (s):", from_=0, to=999, width=5)

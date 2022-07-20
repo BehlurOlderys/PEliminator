@@ -366,9 +366,19 @@ class CameraImageProcessor:
         dec_error = self._get_dec_correction_value()
         if dec_error is None:
             return
-        error_per_frame = dec_error * float(self._image_length_var.get())
-        if error_per_frame < settings.get_image_scale():
-            return
+
+        frame_time = float(self._image_length_var.get())
+        print(f"%%%%%%%%%%%%%%%% LT DEC ERROR acquired: {dec_error}\" while frame is {frame_time}s")
+
+        error_per_second = dec_error / frame_time
+        error_per_100s = 100*error_per_second
+        print(f"%%%%%%%%%%%%%%%% LT DEC ERROR speed = {error_per_100s} \"/100s")
+        correction = self._longterm_dec_pid.get_correction(error_per_100s)
+        self._dec_feedback.set_feedback(error_per_second)
+        print(f"==================== LT RA CORRECTION = {correction}")
+        self._effector.effect(f"ADD_DC {correction}\n")
+
+
 
         self._longterm_dec_correction = self._longterm_dec_pid.get_correction(dec_error)
         self._dec_feedback.set_feedback(dec_error)
