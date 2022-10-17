@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import os
-from datetime import date
+from time import gmtime, strftime
+from tkinter import filedialog
 
 
 MAX_FAILURES_TO_RECONNECT = 10
@@ -52,6 +53,7 @@ class SessionPlanGUI:
         if not self._available_cameras:
             self._available_cameras = [empty_camera_list_string]
 
+        self._image_dir_var = tk.StringVar(value=os.getcwd())
         self._exposure_var = tk.StringVar(value=1)
         self._multiplicity_var = tk.StringVar(value=1)
         self._gain_var = tk.StringVar(value=50)
@@ -87,6 +89,17 @@ class SessionPlanGUI:
 
         ttk.Separator(frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
+        image_dir_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
+        image_dir_frame.pack(side=tk.TOP)
+        image_dir_label = tk.Label(image_dir_frame, text="Chosen image dir:", font=('calibre', 10, 'bold'))
+        image_dir_label.pack(side=tk.LEFT)
+        image_dir_value = tk.Label(image_dir_frame, textvariable=self._image_dir_var, font=('calibre', 10, 'bold'))
+        image_dir_value.pack(side=tk.LEFT)
+        image_dir_button = tk.Button(image_dir_frame, text='Change...', command=self._change_image_dir)
+        image_dir_button.pack(side=tk.LEFT)
+
+        ttk.Separator(frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+
         start_frame = tk.Frame(frame, highlightbackground="black", highlightthickness=1)
         start_frame.pack(side=tk.TOP)
 
@@ -104,10 +117,23 @@ class SessionPlanGUI:
         # imarray = np.array(im)
         # self._ax.imshow(np.log(imarray))
 
+    def _change_image_dir(self):
+        new_dir = filedialog.askdirectory(title="Open dir with images for tracking",
+                                          initialdir=self._image_dir_var.get())
+        if not new_dir:
+            print("No directory is chosen!")
+            return
+        print(f"Dir chosen = {new_dir}")
+        self._image_dir_var.set(new_dir)
+
     def _start(self):
         if self._camera is None:
             print("Nothing to start right now!")
             return
+
+        time_struct = gmtime()
+        day_dir = strftime("%Y-%m-%d", time_struct)
+        hour_dir = os.path.join(day_dir, strftime("%H_%M_%S", time_struct))
 
         exposure_s = int(self._exposure_var.get())
         multiplicity = int(self._multiplicity_var.get())
@@ -121,14 +147,17 @@ class SessionPlanGUI:
         increment_s = exposure_s + self._move_time_s
         increment_as = 15*increment_s
         self._camera.connect_and_prepare_camera(exposure_ms=interval_ms, gain=gain, roi=None)
+
+        if not os.path.isdir(day_dir):
+            os.mkdir(day_dir)
+
+        if not os.path.isdir(hour_dir):
+            os.mkdir(hour_dir)
+
         failure_counter = 0
 
-        dir_name = date.today()
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
-
         for i in range(0, multiplicity):
-            filename = os.path.join(f"{dir_name}", "capture_{i:04d}.tiff")
+            filename = os.path.join(f"{hour_dir}", "capture_{i:04d}.tiff")
             print(f"Capturing to file {filename}...")
             st = time.time()
             if not self._camera.capture_file(filename):
