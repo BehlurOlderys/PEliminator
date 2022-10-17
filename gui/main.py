@@ -4,6 +4,7 @@ from functions.event_logger import EventLogger
 from functions.coordinate_mover import CoordinateMover
 from functions.serial_reader import SerialReader, get_available_com_ports
 from functions.camera_encoder import CameraEncoderGUI
+from functions.session_plan import SessionPlanGUI
 
 from threading import Thread
 import tkinter as tk
@@ -50,7 +51,13 @@ mount_tab = tk.Frame(tabs)
 mount_tab.pack(fill='both', expand=True)
 tabs.add(mount_tab, text="Mount control")
 
+plan_tab = tk.Frame(tabs)
+plan_gui = SessionPlanGUI(plan_tab, mover)
+plan_tab.pack(fill='both', expand=True)
+tabs.add(plan_tab, text="Session plan")
+
 correction_tab = tk.Frame(tabs)
+encoder_gui = CameraEncoderGUI(correction_tab, reader)
 correction_tab.pack(fill='both', expand=True)
 tabs.add(correction_tab, text="Corrections")
 
@@ -172,7 +179,6 @@ halt_dec_button.pack(side=tk.LEFT)
 
 ttk.Separator(mount_tab, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
 
-encoder_gui = CameraEncoderGUI(correction_tab, reader)
 
 root.mainloop()
 print("End of main loop!")

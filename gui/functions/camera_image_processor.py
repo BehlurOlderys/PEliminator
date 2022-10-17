@@ -162,6 +162,7 @@ class CameraImageProcessor:
         self._longterm_ra_correction = 0
         self._longterm_dec_correction = 0
         self._start_t = time.time()
+        self._leftover_correction = 0
 
     def _get_max_count_ra(self):
         return max(5, int(662/float(self._image_length_var.get())))
@@ -195,6 +196,7 @@ class CameraImageProcessor:
         max_count_ra = self._get_max_count_ra()
         self._longterm_ra_correction = 0
         self._longterm_dec_correction = 0
+        self._leftover_correction = 0
 
     def _get_measured_speed(self):
         return settings.sidereal_speed + self._longterm_ra_correction
@@ -203,8 +205,12 @@ class CameraImageProcessor:
         self._log_file.close()
 
     def init(self, data, timestamp):
-        os.remove(settings.get_star_tracking_pipe_name())
-        os.remove(settings.get_star_tracking_pipe_name() + "_dec")
+        pipe_ra_name = settings.get_star_tracking_pipe_name()
+        if os.path.exists(pipe_ra_name):
+            os.remove(pipe_ra_name)
+        dec_pipe_name = settings.get_star_tracking_pipe_name() + "_dec"
+        if os.path.exists(dec_pipe_name):
+            os.remove(dec_pipe_name)
 
         p, sp, ep = self._preprocess_one_file(data)
         print(f"p = {p} from init")
@@ -311,7 +317,6 @@ class CameraImageProcessor:
         result_e = get_mean_diff(ep, self._previous_ep)
         mean_result = (result_e + result_s) / 2
 
-
         mean_length = self._length_averager.get_current_value()
 
         if math.isnan(result_s) or \
@@ -371,12 +376,17 @@ class CameraImageProcessor:
         if dec_error is None:
             return
 
+        """ probably minus sign... """
+        dec_error = -dec_error
         frame_time = float(self._image_length_var.get())
         print(f"%%%%%%%%%%%%%%%% LT DEC ERROR acquired: {dec_error}\" per s while frame is {frame_time}s")
 
         error_per_100s = 100*dec_error
         print(f"%%%%%%%%%%%%%%%% LT DEC ERROR speed = {error_per_100s} \"/100s")
         correction = self._longterm_dec_pid.get_correction(error_per_100s)
+        correction += self._leftover_correction
         self._dec_feedback.set_feedback(error_per_100s)
         print(f"%%%%%%%%%%%%%%%% LT DEC CORRECTION = {correction}")
-        self._effector.effect(f"ADD_DC {correction}\n")
+        integer_correction = int(correction)
+        self._leftover_correction = (correction - integer_correction)
+        self._effector.effect(f"ADD_DC {int(correction)}\n")

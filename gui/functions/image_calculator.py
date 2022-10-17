@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import matplotlib.patches as mpatches
-from scipy.ndimage import gaussian_filter, median_filter
+from scipy.ndimage import gaussian_filter, median_filter, center_of_mass
 
 from .global_settings import settings
 
@@ -28,7 +28,11 @@ def get_star_position_estimate(data, rect):
     # plt.show()
 
     without_hot = np.where(fragment < 12535, fragment, 0)
+    # Brightest pixel:
     mid_y, mid_x = np.unravel_index(without_hot.argmax(), without_hot.shape)
+    # Or center of mass?
+    fragment_to_center = 1*(fragment > np.median(fragment))
+    mid_y, mid_x = center_of_mass(fragment_to_center)
     px = int(mid_x + x0)
     py = int(mid_y + y0)
     x0 = px - (w/2)

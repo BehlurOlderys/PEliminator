@@ -76,8 +76,8 @@ class CoordinateMover:
     def _on_ra_movement_end(self, quantity):
         self._logger.log_event(f"RA Movement done!\n")
         self._is_moving = False
-        self._current_ra += quantity
-        self._current_ra = normalize_ra(self._current_ra)
+        # self._current_ra += quantity
+        # self._current_ra = normalize_ra(self._current_ra)
 
     def _move_ra_as(self, quantity):
         if self._is_moving:
@@ -98,7 +98,7 @@ class CoordinateMover:
     def _on_dec_movement_end(self, quantity):
         self._logger.log_event(f"DEC Movement done!\n")
         self._is_moving = False
-        self._current_dec += quantity
+        #self._current_dec += quantity
 
     def _move_dec_as(self, quantity):
         if self._is_moving:
@@ -125,6 +125,10 @@ class CoordinateMover:
 
     def go_back_ra(self):
         self._move_ra_as(3*15*3600)
+
+    def move_ra_as_pub(self, quantity):
+        self._logger.log_event(f"Moving in RA by {quantity}\"\n")
+        self._move_ra_as(quantity)
 
     def move_ra(self):
         quantity = int(self.vars["ra_precise"].get())

@@ -39,7 +39,8 @@ class CameraEncoder:
             print("Dummy effector chosen!")
         self._dithering_ra = dithering_ra
         self._processor = CameraImageProcessor(self._effector, plotter, ra_feedback, dec_feedback, vars_dict)
-        self._camera = ASICamera()
+        ASICamera.initialize_library()
+        self._camera = None
         self._killme = False
         self._thread = None
 
@@ -66,6 +67,7 @@ class CameraEncoder:
 
     def start(self):
         self._plotter.clear_plot()
+        self._camera = ASICamera(0)
         self._camera.connect_and_prepare_camera(roi=(400, 512))
         image_buffer = self._camera.capture_image()
         self._processor.init(image_buffer, time.time())

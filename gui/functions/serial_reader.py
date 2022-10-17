@@ -129,6 +129,10 @@ class SerialReader:
                 else:
                     self._receive_new_data_from_serial()
 
+            except SerialException:
+                print(f"Serial exception occured, I guess we should leave now...")
+                return
+
             except Exception as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
