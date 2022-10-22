@@ -45,7 +45,7 @@ class SessionPlanGUI:
 
         self._mover = mover
 
-        self._move_time_s = 1
+        self._move_time_s = 2
         self._camera = None
 
         self._camera_id = 0
@@ -132,7 +132,7 @@ class SessionPlanGUI:
             return
 
         time_struct = gmtime()
-        day_dir = strftime("%Y-%m-%d", time_struct)
+        day_dir = os.path.join(self._image_dir_var.get(), strftime("%Y-%m-%d", time_struct))
         hour_dir = os.path.join(day_dir, strftime("%H_%M_%S", time_struct))
 
         exposure_s = int(self._exposure_var.get())
@@ -148,6 +148,7 @@ class SessionPlanGUI:
         increment_as = 15*increment_s
         self._camera.connect_and_prepare_camera(exposure_ms=interval_ms, gain=gain, roi=None)
 
+
         if not os.path.isdir(day_dir):
             os.mkdir(day_dir)
 
@@ -157,7 +158,7 @@ class SessionPlanGUI:
         failure_counter = 0
 
         for i in range(0, multiplicity):
-            filename = os.path.join(f"{hour_dir}", "capture_{i:04d}.tiff")
+            filename = os.path.join(f"{hour_dir}", f"capture_{i:04d}.tiff")
             print(f"Capturing to file {filename}...")
             st = time.time()
             if not self._camera.capture_file(filename):
@@ -182,6 +183,7 @@ class SessionPlanGUI:
             diff_time = max(0, min(diff_time, exposure_s))
 
             while diff_time < exposure_s:
+                print("Sleeping 1s...")
                 time.sleep(1)
                 diff_time += 1
 
@@ -190,6 +192,7 @@ class SessionPlanGUI:
             imarray = np.array(im)
             self._ax.imshow(np.log(imarray))
             self._canvas.draw()
+            print(f"Sleeping {self._move_time_s}")
             time.sleep(self._move_time_s)
 
     def _connect(self):
