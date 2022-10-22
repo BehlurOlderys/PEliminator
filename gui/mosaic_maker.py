@@ -9,6 +9,41 @@ from functions.widgets.dir_chooser import DirChooser, LabeledInput
 from functions.widgets.application import SimpleGuiApplication
 
 import glob
+import subprocess
+DETACHED_PROCESS = 8
+
+dss_path = "C:\\Program Files\\DeepSkyStacker (64 bit)\\DeepSkyStackerCL.exe"
+
+
+def execute_and_print(comm):
+    with subprocess.Popen(comm,
+                          stdout=subprocess.PIPE,
+                          bufsize=1, universal_newlines=True) as p:
+        for line in p.stdout:
+            print(line, end='')
+
+
+def call_dss_with_file_list(file_list_path, reference_path, result_name):
+    print(f"Calling dss stacking for {file_list_path} into result {result_name} using {reference_path} as reference")
+    """
+    copy&paste from 
+    https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
+    """
+    execute_and_print([dss_path, "/R", f"/O:{result_name}", file_list_path])
+    print("Finished registration!")
+
+    reference_path_info = reference_path.split(".fts")[0] + ".Info.txt"
+    with open(reference_path_info, "r") as info:
+        info_content = info.readlines()
+
+    info_content[0] = "OverallQuality = 9999.99\n"
+
+    with open(reference_path_info, "w") as info:
+        info.writelines(info_content)
+    print("Changed quality to enforce reference")
+
+    execute_and_print([dss_path, "/S", f"/O:{result_name}", file_list_path])
+    print("Finished stacking!")
 
 
 def calculate_number_of_hstrips(span_y_as, increment_as):
@@ -27,6 +62,7 @@ def split_image_in_horizontal_stripes(image_path, n, pad=0):
 
 
 out_map = {}
+
 
 def save_fragments(fragments, index, out_dir):
     global out_map
@@ -54,18 +90,34 @@ def save_fragments(fragments, index, out_dir):
 class MosaicMakerGUI(SimpleGuiApplication):
     def __init__(self, *args, **kwargs):
         super(MosaicMakerGUI, self).__init__(*args, **kwargs)
+
         self._input_chooser = DirChooser(frame=self._main_frame,
                                          dir_desc="Input images directory",
-                                         initial_dir="C:/Users/Florek/Desktop/SharpCap Captures/2022-10-17/16_47_55"#os.getcwd()
+                                         initial_dir="C:\\Users\\Florek\\Desktop\\SharpCap Captures\\2022-10-17\\16_47_55"#os.getcwd()
                                          ).pack(side=tk.TOP)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(
             side=tk.TOP, ipady=10, fill=tk.BOTH)
-        self._images_per_list_input = LabeledInput(frame=self._main_frame, desc="Images per list", initial_value=20, from_=1, to=999, width=3)
+        self._images_per_list_input = LabeledInput(frame=self._main_frame, desc="Images per list", initial_value=24, from_=1, to=999, width=3)
         self._images_per_list_input.pack(side=tk.LEFT)
+
         self._split_button = ttk.Button(self._main_frame,
                                         style="B.TButton", text="Create lists", command=self._create_lists)
         self._split_button.pack(side=tk.LEFT)
+
+        self._stack_button = ttk.Button(self._main_frame,
+                                        style="B.TButton", text="Stack lists",
+                                        command=self._stack_lists, state=tk.DISABLED)
+        self._stack_button.pack(side=tk.LEFT)
+
+        self._lists = []
+
+    def _stack_lists(self):
+        in_dir = self._input_chooser.get_dir()
+        out_dir = os.path.join(in_dir, "output")
+        for i, flist in enumerate(self._lists):#i in range(0, 1):
+            print(flist)
+            call_dss_with_file_list(*flist, f"result_file{i}")
 
     def _create_lists(self):
         in_dir = self._input_chooser.get_dir()
@@ -88,18 +140,23 @@ class MosaicMakerGUI(SimpleGuiApplication):
                 files = [(f, list_of_files[f]) for f in one_list]
                 # print(f"For ref = {r} list = {files}")
                 new_list = []
+                new_list.append(f"1\treflight\t{list_of_files[r]}")
                 for i, f in files:
-                    if i == r:
-                        new_list.append(f"1\treflight\t{f}")
-                    else:
+                    if i != r:
                         new_list.append(f"1\tlight\t{f}")
 
                 new_list_nls="\n".join(new_list)
                 new_file_content = template_str.replace("<<list>>", new_list_nls)
                 print(new_file_content)
                 print("======================\n")
-                with open(os.path.join(out_dir, f"list_{r}.txt"), "w") as out_list:
+                new_list_name = f"list_{r}.txt"
+                new_list_path = os.path.join(out_dir, new_list_name)
+                with open(new_list_path, "w") as out_list:
                     out_list.write(new_file_content)
+
+                self._lists.append((new_list_path, list_of_files[r]))
+
+            self._stack_button.configure(state=tk.NORMAL)
 
 
     def _split(self):
@@ -141,7 +198,6 @@ class MosaicMakerGUI(SimpleGuiApplication):
         list_of_files = glob.glob(os.path.join(in_dir, '*cal.fts'))
 
         number_of_files = len(list_of_files)
-
 
 
         number_of_stacks = int(number_of_files + number_of_strips)
