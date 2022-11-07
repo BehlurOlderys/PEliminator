@@ -1,19 +1,15 @@
 from multiprocessing import Process, Queue
-from processes.test_add_process1 import TestAddingGui1
-from processes.test_add_process2 import TestAddingGui2
+from processes.guiding_process import GuidingProcessGUI
 
 
-def printer(in_queue):
-    gui = TestAddingGui2(in_queue=in_queue)
+def guider(serial_queue):
+    gui = GuidingProcessGUI(out_queue=serial_queue)
     gui.run()
 
 
 if __name__ == '__main__':
-    q = Queue()
-    p = Process(target=printer, args=(q,))
+    serial_write_queue = Queue()
+    p = Process(target=guider, args=(serial_write_queue,))
     p.start()
-
-    test1 = TestAddingGui1(q)
-    test1.run()
-    q.put('KILL_ME_PLEASE')
+    # serial_write_queue.put('KILL_ME_PLEASE')
     p.join()
