@@ -3,8 +3,9 @@ from tkinter import ttk
 
 
 class BaseGuiApplication:
-    def __init__(self, geometry="800x640", *args, **kwargs):
+    def __init__(self, geometry="800x640", title="MyApp", *args, **kwargs):
         self._root = tk.Tk()
+        self._root.title(title)
         self._root.geometry(geometry)
 
         self._style = ttk.Style()
