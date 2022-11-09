@@ -11,10 +11,12 @@ class LabeledInput(PeBaseWidget):
         gain_label.pack(side=tk.LEFT)
         gain_spin = ttk.Spinbox(self._frame, textvariable=self._value_var, from_=from_, to=to, width=width, style="B.TSpinbox")
         gain_spin.pack(side=tk.LEFT)
+        self._addons = []
 
     def add_on_right(self, w, **kwargs):
         tmp = w(self._frame, **kwargs)
         tmp.pack(side=tk.LEFT)
+        self._addons.append(tmp)
         return self
 
     def set_value(self, v):
