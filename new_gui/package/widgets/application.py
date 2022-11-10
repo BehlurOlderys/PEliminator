@@ -14,6 +14,9 @@ class BaseGuiApplication:
         self._style.configure('TButton', font=('calibre', 10, 'bold'), background='#333333', foreground='white')
         self._style.map('TButton', background=[('active', '#444444')])
         self._style.configure("B.TFrame", background="#222222")
+        self._style.configure("C.TFrame", background="#772222")
+        self._style.configure("D.TFrame", background="#222277")
+        self._style.configure("E.TFrame", background="#227722")
         self._style.configure("B.TCombobox", font=('calibre', 10, 'bold'), background='#222222', foreground='white',
                               fieldbackground='#333333')
 
