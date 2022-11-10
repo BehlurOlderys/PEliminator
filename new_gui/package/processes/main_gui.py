@@ -36,7 +36,7 @@ class MainGui(SimpleGuiApplication):
                                           command=self._open_guiding, style="B.TButton")
         self._guiding_button.pack(side=tk.LEFT)
 
-        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, ipady=10)
+        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
         survey_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         survey_frame.pack(side=tk.TOP)

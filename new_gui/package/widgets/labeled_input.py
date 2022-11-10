@@ -6,7 +6,7 @@ import tkinter as tk
 class LabeledInput(PeBaseWidget):
     def __init__(self, desc="Label: ", initial_value=0, from_=0, to=999, width=3, **kwargs):
         super(LabeledInput, self).__init__(**kwargs)
-        self._value_var = tk.StringVar(value=initial_value)
+        self._value_var = tk.StringVar(value=min(to, max(from_, initial_value)))
         gain_label = ttk.Label(self._frame, text=desc, style="B.TLabel")
         gain_label.pack(side=tk.LEFT)
         gain_spin = ttk.Spinbox(self._frame, textvariable=self._value_var, from_=from_, to=to, width=width, style="B.TSpinbox")
