@@ -2,6 +2,7 @@ from .child_process import ChildProcessGUI
 from package.widgets.dir_chooser import DirChooser
 from package.widgets.labeled_input import LabeledInput
 from package.utils.image_consumer import ImageConsumer
+from package.widgets.running_plot import RunningPlot
 from package.utils.zwo_asi_camera_grabber import ASICamera
 from tkinter import ttk
 import tkinter as tk
@@ -76,8 +77,19 @@ class GuidingProcessGUI(ChildProcessGUI):
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
-        bottom_fill_frame = ttk.Frame(self._main_frame, style="B.TFrame")
-        bottom_fill_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        plot_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        plot_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        self._guiding_plot = RunningPlot(frame=plot_frame)
+        self._guiding_plot.pack(side=tk.LEFT)
+
+        self._lolvalue = 10
+        self._lolbutton = ttk.Button(plot_frame, text="LOL", style="B.TButton", command=self._lol)
+        self._lolbutton.pack(side=tk.TOP)
+
+    def _lol(self):
+        self._guiding_plot.add_point(self._lolvalue, 4, -3)
+        self._lolvalue += 10
+
 
     def _clear_selection(self):
         self._calculate_button.configure(state=tk.DISABLED)

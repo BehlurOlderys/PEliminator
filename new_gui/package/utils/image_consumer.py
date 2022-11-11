@@ -18,7 +18,8 @@ class ImageConsumer:
 
     def stop(self):
         self._kill = True
-        self._thread.join()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join()
 
     def _run(self):
         while not self._kill:
