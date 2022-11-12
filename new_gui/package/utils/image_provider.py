@@ -3,6 +3,7 @@ import glob
 import os
 from PIL import Image
 import numpy as np
+import time
 
 
 class ImageProvider:
@@ -32,7 +33,7 @@ class TimedFileImageProvider(ImageProvider):
 
         im_frame = Image.open(image_path)
         np_frame = np.array(im_frame)
-        self._queue.put(np_frame)
+        self._queue.put((np_frame, time.time()))
 
     def _provide_next_image(self):
         yield from self._files

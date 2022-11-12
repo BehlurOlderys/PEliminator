@@ -5,11 +5,12 @@ IMAGE_QUEUE_TIMEOUT_S = 5
 
 
 class ImageConsumer:
-    def __init__(self, queue, callback):
+    def __init__(self, queue, display_callback, calculate_callback):
         self._image_queue = queue
         self._thread = None
         self._kill = False
-        self._callback = callback
+        self._display_callback = display_callback
+        self._calculate_callback = calculate_callback
 
     def start(self):
         self._kill = False
@@ -24,14 +25,12 @@ class ImageConsumer:
     def _run(self):
         while not self._kill:
             print("Waiting for new image...")
-            image = self._image_queue.get(timeout=IMAGE_QUEUE_TIMEOUT_S)
+            image, time = self._image_queue.get(timeout=IMAGE_QUEUE_TIMEOUT_S)
             if image is None:
                 print("Returning from handle images thread")
                 return
             if self._kill:
                 return
-            c = 255 / np.log(1 + np.max(image))
-            log_image = c * (np.log(image + 1))
-            log_image = np.array(log_image, dtype=np.uint8)
 
-            self._callback(log_image)
+            self._calculate_callback((image, time))
+            self._display_callback(image)

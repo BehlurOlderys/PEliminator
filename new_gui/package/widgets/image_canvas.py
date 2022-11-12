@@ -45,12 +45,12 @@ class ImageCanvasWithRectangle(ImageCanvas):
         [p.remove() for p in reversed(self._ax.patches)]
         self._canvas.draw()
 
-    def _click_action(self, event):
-        if not event.inaxes == self._ax:
-            return
-        ix, iy = event.xdata, event.ydata
+    def set_rectangle(self, rect):
+        self._rect = rect
+        self._update_patch()
+
+    def _update_patch(self):
         w = self._fragment_size
-        self._rect = (ix - w / 2, iy - w / 2)
         rect = mpatches.Rectangle(self._rect, w, w,
                                   fill=False,
                                   color=self._border_color,
@@ -59,5 +59,13 @@ class ImageCanvasWithRectangle(ImageCanvas):
         [p.remove() for p in reversed(self._ax.patches)]
         self._ax.add_patch(rect)
         self._canvas.draw()
+
+    def _click_action(self, event):
+        if not event.inaxes == self._ax:
+            return
+        ix, iy = event.xdata, event.ydata
+        w = self._fragment_size
+        self._rect = (ix - w / 2, iy - w / 2)
+        self._update_patch()
         if self._callback is not None:
-            self._callback()
+            self._callback(self._rect)

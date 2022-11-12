@@ -9,11 +9,20 @@ import tkinter as tk
 from package.utils.image_provider import TimedFileImageProvider
 from queue import Queue
 from package.widgets.image_canvas import ImageCanvasWithRectangle
+import numpy as np
+from package.utils.star_position_calculator import StarPositionCalculator
 
 
+RECTANGLE_SIZE = 60
 NO_IMAGE_FILE = "data/no_image.png"
 empty_camera_list_string = "<no zwo cameras here>"
 initial_test_dir = "C:/Users/Florek/Desktop/workspace/PEliminator/gui/data/png_do_testow/Capture_00050"
+
+
+def log_image(image):
+    c = 255 / np.log(1 + np.max(image))
+    log_image = c * (np.log(image + 1))
+    return np.array(log_image, dtype=np.uint8)
 
 
 class GuidingProcessGUI(ChildProcessGUI):
@@ -24,8 +33,6 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._serial_in = serial_in_queue
         self._image_queue = Queue()
         self._sim_provider = None
-        self._image_consumer = ImageConsumer(queue=self._image_queue,
-                                             callback=lambda x: self._image_canvas.update(x, cmap="gist_heat"))
         self._camera = None
         self._camera_id = 0
         self._available_cameras = ASICamera.get_cameras_list()
@@ -61,6 +68,7 @@ class GuidingProcessGUI(ChildProcessGUI):
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
         self._image_canvas = ImageCanvasWithRectangle(frame=image_frame,
+                                                      fragment_size=RECTANGLE_SIZE,
                                                       callback=self._new_selection,
                                                       initial_image_path=NO_IMAGE_FILE)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH)
@@ -74,6 +82,10 @@ class GuidingProcessGUI(ChildProcessGUI):
                                             state=tk.DISABLED,
                                             command=self._clear_selection, style="B.TButton")
         self._clear_selection_button.pack(side=tk.TOP)
+        self._guiding_button = ttk.Button(image_frame, text="Send guiding commands",
+                                            state=tk.DISABLED,
+                                            command=self._estimate, style="B.TButton")
+        self._guiding_button.pack(side=tk.TOP)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
@@ -86,25 +98,44 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._lolbutton = ttk.Button(plot_frame, text="LOL", style="B.TButton", command=self._lol)
         self._lolbutton.pack(side=tk.TOP)
 
+        self._star_position_calculator = StarPositionCalculator(display_callback=self._handle_new_rect,
+                                                                movement_callback=self._handle_new_movement,
+                                                                rect_size=RECTANGLE_SIZE)
+        self._image_consumer = ImageConsumer(queue=self._image_queue,
+                                             calculate_callback=self._star_position_calculator.calculate,
+                                             display_callback=lambda x: self._image_canvas.update(log_image(x),
+                                                                                                  cmap="gist_heat"))
+
+    def _handle_new_rect(self, r):
+        self._image_canvas.set_rectangle(r)
+
+    def _handle_new_movement(self, p):
+        self._guiding_plot.add_point(p)
+
     def _lol(self):
-        self._guiding_plot.add_point(self._lolvalue, 4, -3)
+        self._guiding_plot.add_point((self._lolvalue, 4, -3))
         self._lolvalue += 10
 
+    def _estimate(self):
+        pass
 
     def _clear_selection(self):
         self._calculate_button.configure(state=tk.DISABLED)
         self._clear_selection_button.configure(state=tk.DISABLED)
         self._image_canvas.clear_rectangle()
 
-    def _new_selection(self):
+    def _new_selection(self, rectangle):
         self._calculate_button.configure(state=tk.NORMAL)
         self._clear_selection_button.configure(state=tk.NORMAL)
+        self._star_position_calculator.set_rect(rectangle)
 
     def _start_calculating(self):
         self._calculate_button.configure(text="Stop calculating", command=self._stop_calculating)
+        self._star_position_calculator.start()
 
     def _stop_calculating(self):
         self._calculate_button.configure(text="Start calculating", command=self._start_calculating)
+        self._star_position_calculator.stop()
 
 
     def _killme(self):
