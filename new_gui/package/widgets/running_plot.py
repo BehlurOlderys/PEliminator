@@ -26,6 +26,18 @@ class RunningPlot(PeBaseWidget):
         self._ax.set_facecolor("#222222")
         self._canvas.draw()
 
+    def clear(self):
+        self._xdata = []
+        self._ydata = []
+        self._tdata = []
+
+        self._lines[0].set_xdata(self._tdata)
+        self._lines[0].set_ydata(self._xdata)
+        self._lines[1].set_xdata(self._tdata)
+        self._lines[1].set_ydata(self._ydata)
+
+        self._canvas.draw()
+
     def add_point(self, p):
         t, x, y = p
         self._xdata.append(x)

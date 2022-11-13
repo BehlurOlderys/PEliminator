@@ -25,12 +25,15 @@ class ImageConsumer:
     def _run(self):
         while not self._kill:
             print("Waiting for new image...")
-            image, time = self._image_queue.get(timeout=IMAGE_QUEUE_TIMEOUT_S)
-            if image is None:
+            data = self._image_queue.get(timeout=IMAGE_QUEUE_TIMEOUT_S)
+            if data is None:
                 print("Returning from handle images thread")
                 return
             if self._kill:
                 return
 
+            image, time = data
+
             self._calculate_callback((image, time))
             self._display_callback(image)
+            print("Image consumed!")

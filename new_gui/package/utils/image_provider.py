@@ -45,4 +45,5 @@ class TimedFileImageProvider(ImageProvider):
 
     def stop(self):
         print("Stopping image provider")
+        self._queue.put(None)
         self._timer.cancel()

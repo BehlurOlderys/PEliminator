@@ -16,7 +16,7 @@ from package.utils.star_position_calculator import StarPositionCalculator
 RECTANGLE_SIZE = 60
 NO_IMAGE_FILE = "data/no_image.png"
 empty_camera_list_string = "<no zwo cameras here>"
-initial_test_dir = "C:/Users/Florek/Desktop/workspace/PEliminator/gui/data/png_do_testow/Capture_00050"
+initial_test_dir = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_gui\\test_data\\Capture_00497"
 
 
 def log_image(image):
@@ -50,6 +50,16 @@ class GuidingProcessGUI(ChildProcessGUI):
 
         self._choose_camera_button = ttk.Button(connect_frame, text="Connect", command=self._connect, style="B.TButton")
         self._choose_camera_button.pack(side=tk.LEFT)
+
+        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+
+        params_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        params_frame.pack(side=tk.TOP)
+        self._focal_spin = LabeledInput(frame=params_frame, desc="Focal length [mm]", from_=10)
+        self._focal_spin.pack(side=tk.LEFT)
+        self._pixel_spin = LabeledInput(frame=params_frame,
+                                        desc="Pixel size [um]", from_=0.1, to=20.0, increment=0.01, width=6)
+        self._pixel_spin.pack(side=tk.LEFT)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
@@ -94,10 +104,6 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._guiding_plot = RunningPlot(frame=plot_frame)
         self._guiding_plot.pack(side=tk.LEFT)
 
-        self._lolvalue = 10
-        self._lolbutton = ttk.Button(plot_frame, text="LOL", style="B.TButton", command=self._lol)
-        self._lolbutton.pack(side=tk.TOP)
-
         self._star_position_calculator = StarPositionCalculator(display_callback=self._handle_new_rect,
                                                                 movement_callback=self._handle_new_movement,
                                                                 rect_size=RECTANGLE_SIZE)
@@ -110,11 +116,11 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._image_canvas.set_rectangle(r)
 
     def _handle_new_movement(self, p):
-        self._guiding_plot.add_point(p)
-
-    def _lol(self):
-        self._guiding_plot.add_point((self._lolvalue, 4, -3))
-        self._lolvalue += 10
+        scale = float(self._pixel_spin.get_value()) * 206.3 / float(self._focal_spin.get_value())
+        t, x, y = p
+        x = x*scale
+        y = y*scale
+        self._guiding_plot.add_point((t, x, y))
 
     def _estimate(self):
         pass
@@ -130,6 +136,7 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._star_position_calculator.set_rect(rectangle)
 
     def _start_calculating(self):
+        self._guiding_plot.clear()
         self._calculate_button.configure(text="Stop calculating", command=self._stop_calculating)
         self._star_position_calculator.start()
 

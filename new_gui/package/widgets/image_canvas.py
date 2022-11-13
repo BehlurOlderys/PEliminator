@@ -25,7 +25,7 @@ class ImageCanvas(PeBaseWidget):
 
     def update(self, image, **kwargs):
         self._ax.imshow(image, **kwargs)
-        self._canvas.draw()
+        self._canvas.draw_idle()
 
 
 class ImageCanvasWithRectangle(ImageCanvas):
@@ -43,7 +43,7 @@ class ImageCanvasWithRectangle(ImageCanvas):
     def clear_rectangle(self):
         self._rect = None
         [p.remove() for p in reversed(self._ax.patches)]
-        self._canvas.draw()
+        self._canvas.draw_idle()
 
     def set_rectangle(self, rect):
         self._rect = rect
@@ -58,7 +58,7 @@ class ImageCanvasWithRectangle(ImageCanvas):
 
         [p.remove() for p in reversed(self._ax.patches)]
         self._ax.add_patch(rect)
-        self._canvas.draw()
+        self._canvas.draw_idle()
 
     def _click_action(self, event):
         if not event.inaxes == self._ax:
