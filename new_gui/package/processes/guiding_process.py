@@ -2,6 +2,7 @@ from .child_process import ChildProcessGUI
 from package.widgets.dir_chooser import DirChooser
 from package.widgets.labeled_input import LabeledInput
 from package.utils.image_consumer import ImageConsumer
+from package.utils.error_handler import ErrorHandler
 from package.widgets.running_plot import RunningPlot
 from package.utils.zwo_asi_camera_grabber import ASICamera
 from tkinter import ttk
@@ -55,11 +56,29 @@ class GuidingProcessGUI(ChildProcessGUI):
 
         params_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         params_frame.pack(side=tk.TOP)
-        self._focal_spin = LabeledInput(frame=params_frame, desc="Focal length [mm]", from_=10)
+        self._focal_spin = LabeledInput(frame=params_frame, desc="Focal length [mm]", from_=10, initial_value=650)
         self._focal_spin.pack(side=tk.LEFT)
         self._pixel_spin = LabeledInput(frame=params_frame,
-                                        desc="Pixel size [um]", from_=0.1, to=20.0, increment=0.01, width=6)
+                                        desc="Pixel size [um]",
+                                        from_=0.1, to=20.0,
+                                        increment=0.01,
+                                        initial_value=2.9,
+                                        width=6)
         self._pixel_spin.pack(side=tk.LEFT)
+        self._ra_microsteps_spin = LabeledInput(frame=params_frame,
+                                        desc="RA \" per step",
+                                        from_=0.01, to=5.0,
+                                        increment=0.01,
+                                        initial_value=0.30,
+                                        width=7)
+        self._ra_microsteps_spin.pack(side=tk.LEFT)
+        self._dec_microsteps_spin = LabeledInput(frame=params_frame,
+                                        desc="DEC \" per step",
+                                        from_=0.01, to=5.0,
+                                        increment=0.01,
+                                        initial_value=0.60,
+                                        width=7)
+        self._dec_microsteps_spin.pack(side=tk.LEFT)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
@@ -94,7 +113,11 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._clear_selection_button.pack(side=tk.TOP)
         self._guiding_button = ttk.Button(image_frame, text="Send guiding commands",
                                             state=tk.DISABLED,
-                                            command=self._estimate, style="B.TButton")
+                                            command=self._start_guide, style="B.TButton")
+        self._guiding_button.pack(side=tk.TOP)
+        self._camera_angle = LabeledInput(frame=image_frame, desc="Camera angle (deg)", from_=0, to=359)
+        self._camera_angle.pack(side=tk.LEFT)
+
         self._guiding_button.pack(side=tk.TOP)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
@@ -111,6 +134,15 @@ class GuidingProcessGUI(ChildProcessGUI):
                                              calculate_callback=self._star_position_calculator.calculate,
                                              display_callback=lambda x: self._image_canvas.update(log_image(x),
                                                                                                   cmap="gist_heat"))
+        self._commander = ErrorHandler(read_queue=self._serial_in,
+                                       write_queue=self._serial_out,
+                                       scale_getter=self._read_micro_spins,
+                                       angle_getter=lambda: float(self._camera_angle.get_value()))
+
+    def _read_micro_spins(self):
+        sx = float(self._ra_microsteps_spin.get_value())
+        sy = float(self._dec_microsteps_spin.get_value())
+        return sx, sy
 
     def _handle_new_rect(self, r):
         self._image_canvas.set_rectangle(r)
@@ -121,9 +153,15 @@ class GuidingProcessGUI(ChildProcessGUI):
         x = x*scale
         y = y*scale
         self._guiding_plot.add_point((t, x, y))
+        self._commander.handle_error(x, y)
 
-    def _estimate(self):
-        pass
+    def _start_guide(self):
+        self._commander.start()
+        self._guiding_button.configure(text="Stop sending commands")
+
+    def _stop_guide(self):
+        self._commander.stop()
+        self._guiding_button.configure(text="Start sending commands")
 
     def _clear_selection(self):
         self._calculate_button.configure(state=tk.DISABLED)
@@ -138,11 +176,13 @@ class GuidingProcessGUI(ChildProcessGUI):
     def _start_calculating(self):
         self._guiding_plot.clear()
         self._calculate_button.configure(text="Stop calculating", command=self._stop_calculating)
+        self._guiding_button.configure(state=tk.NORMAL)
         self._star_position_calculator.start()
 
     def _stop_calculating(self):
         self._calculate_button.configure(text="Start calculating", command=self._start_calculating)
         self._star_position_calculator.stop()
+        self._guiding_button.configure(state=tk.DISABLED)
 
 
     def _killme(self):
