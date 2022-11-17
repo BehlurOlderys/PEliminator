@@ -16,6 +16,8 @@ from package.utils.star_position_calculator import StarPositionCalculator
 from multiprocessing import Event, Process
 from package.processes.camera_diagnostics import DiagnosticsGUI
 
+
+CAMERA_TEMPERATURE_UPDATE_TIME_S = 10
 RECTANGLE_SIZE = 60
 NO_IMAGE_FILE = "data/no_image.png"
 empty_camera_list_string = "<no zwo cameras here>"
@@ -23,7 +25,7 @@ initial_test_dir = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_gui\
 
 
 def diagnostics_gui(queue, ke):
-    gui = DiagnosticsGUI(queue=queue, kill_event=ke)
+    gui = DiagnosticsGUI(queue=queue, update_s=CAMERA_TEMPERATURE_UPDATE_TIME_S, kill_event=ke)
     gui.run()
 
 
@@ -154,7 +156,7 @@ class GuidingProcessGUI(ChildProcessGUI):
                                        scale_getter=self._read_micro_spins,
                                        angle_getter=lambda: float(self._camera_angle.get_value()))
         self._add_task(timeout_s=1, f=self._check_if_diagnostics_alive)
-        self._add_task(timeout_s=1, f=self._get_camera_temp)
+        self._add_task(timeout_s=CAMERA_TEMPERATURE_UPDATE_TIME_S, f=self._get_camera_temp)
 
     def _get_camera_temp(self):
         if self._diagnostics_queue is not None and self._camera is not None:
