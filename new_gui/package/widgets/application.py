@@ -1,5 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
+import time
+
+
+
 
 
 class BaseGuiApplication:
@@ -29,8 +33,43 @@ class BaseGuiApplication:
         self._root.mainloop()
 
 
+class AfterQueueTask:
+    def __init__(self, timeout_s, f, *args, **kwargs):
+        self._timeout_s = timeout_s
+        self._f = f
+        self._args = args
+        self._kwargs = kwargs
+        self._time = time.time
+
+    def start(self):
+        self._time = time.time()
+
+    def try_to_run(self):
+        end_time = time.time()
+        interval = end_time - self._time
+        if interval > self._timeout_s:
+            self._time = end_time
+            self._f(*self._args, **self._kwargs)
+
+
+AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS = 1000
+
+
 class SimpleGuiApplication(BaseGuiApplication):
     def __init__(self, *args, **kwargs):
         super(SimpleGuiApplication, self).__init__(*args, **kwargs)
         self._main_frame = ttk.Frame(self._root, style="B.TFrame")
         self._main_frame.pack(expand=True, fill='both')
+        self._after_queue = []
+
+    def _add_task(self, timeout_s, f, *args, **kwargs):
+        self._after_queue.append(AfterQueueTask(timeout_s, f, *args, **kwargs))
+
+    def _call_after_queue(self):
+        self._root.after(AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS, self._call_after_queue)
+        [t.try_to_run() for t in self._after_queue]
+
+    def run(self):
+        [t.start() for t in self._after_queue]
+        self._root.after(AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS, self._call_after_queue)
+        super(SimpleGuiApplication, self).run()

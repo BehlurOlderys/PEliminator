@@ -9,7 +9,7 @@ import tkinter as tk
 guiding_process_key = "guiding"
 survey_process_key = "survey"
 
-child_alive_check_timeout_ms = 1000
+child_alive_check_timeout_s = 1
 
 
 def guiding(serial_out_queue, serial_in_queue, ke):
@@ -28,6 +28,8 @@ class MainGui(SimpleGuiApplication):
         self._serial_out = serial_out_queue
         self._serial_in = serial_in_queue
         self._root.protocol('WM_DELETE_WINDOW', self._kill_me_and_children)
+        super(MainGui, self)._add_task(timeout_s=child_alive_check_timeout_s,
+                                       f=self._check_if_children_alive)
 
         guiding_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         guiding_frame.pack(side=tk.TOP)
@@ -52,10 +54,6 @@ class MainGui(SimpleGuiApplication):
 
         self._processes = {}
 
-    def run(self):
-        self._root.after(child_alive_check_timeout_ms, self._check_if_children_alive)
-        super(MainGui, self).run()
-
     def _kill_me_and_children(self):
         self._root.destroy()
         for k, (p, e) in self._processes.items():
@@ -72,8 +70,6 @@ class MainGui(SimpleGuiApplication):
                 print(f"Process >> {k} << is dead and joined!")
                 del self._processes[k]
                 self._start_process_buttons[k].configure(state=tk.NORMAL)
-
-        self._root.after(child_alive_check_timeout_ms, self._check_if_children_alive)
 
     def _open_guiding(self):
         print("Opening guiding...")
