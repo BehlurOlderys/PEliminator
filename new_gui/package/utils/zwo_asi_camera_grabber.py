@@ -26,6 +26,12 @@ class ASICamera:
     def get_controls(self):
         return self._camera.get_controls()
 
+    def set_exposure_us(self, exposure_us):
+        self._camera.set_control_value(asi.ASI_EXPOSURE, exposure_us)
+
+    def get_exposure_us(self):
+        return self._camera.get_control_value(asi.ASI_EXPOSURE)
+
     def connect_and_prepare_camera(self, exposure_ms=50, gain=0, roi=(256, 512)):
         camera_info = self._camera.get_camera_property()
         print(camera_info)
