@@ -12,14 +12,17 @@ class DiagnosticsGUI(ChildProcessGUI):
         self._queue = queue
         self._update_s = update_s
 
-        self._temperature_plot = RunningPlot1D(frame=self._main_frame, max_span=1000)
-        self._temperature_plot.pack(side=tk.LEFT)
+        self._temperature_plot = RunningPlot1D(frame=self._main_frame, max_span=10000)
+        self._temperature_plot.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         self._temperature_plot.clear()
+        self._initial_tim = time.time()
         self._add_task(self._update_s, self._update)
 
     def _update(self):
         try:
             tem = self._queue.get(timeout=1.0)
-            self._temperature_plot.add_point((time.time(), tem))
+            tim = time.time() - self._initial_tim
+            print(f"Adding to plot point {tem}, {tim}")
+            self._temperature_plot.add_point((tim, tem))
         except Exception:
             print("No new temperature info for diagnostics!")

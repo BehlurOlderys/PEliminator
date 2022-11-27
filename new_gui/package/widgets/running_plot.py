@@ -12,16 +12,17 @@ class RunningPlot1D(PeBaseWidget):
         self._ax = data_figure.subplots(1, 1)
         data_figure.subplots_adjust(bottom=0.2)
         self._canvas = FigureCanvasTkAgg(data_figure, self._frame)
-        self._canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True)
+        self._canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
         self._lines = self._ax.plot(0, 0, 'r', linewidth=2.0)
         self._xdata = [0]
         self._tdata = [0]
         self._max_span_t = max_span
+        self._min_t = 0
         self._max_t = max_span
         self._max_value = 1
         self._min_value = -1
 
-        self._ax.set_xlim(0, self._max_span_t)
+        self._ax.set_xlim(self._min_t, self._max_t)
         self._ax.set_facecolor("#222222")
         self._canvas.draw_idle()
 
@@ -44,9 +45,12 @@ class RunningPlot1D(PeBaseWidget):
         self._max_value = max(self._max_value, x+1)
         self._min_value = min(self._min_value, x-1)
         self._max_t = max(self._max_t, t)
+        self._min_t = min(self._min_t, t)
 
+        actual_max = max(self._min_t + self._max_span_t, self._max_t)
+        actual_min = max(self._min_t, self._max_t-self._max_span_t)
         self._ax.set_ylim(self._min_value, self._max_value)
-        self._ax.set_xlim(right=self._max_t, left=max(0, self._max_t-self._max_span_t))
+        self._ax.set_xlim(left=actual_min, right=actual_max)
         self._canvas.draw_idle()
 
 

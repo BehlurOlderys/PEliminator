@@ -1,6 +1,7 @@
 from package.widgets.application import SimpleGuiApplication
 from .guiding_process import GuidingProcessGUI
 from .survey_process import SurveyProcessGUI
+from .acquisition_process import AcquisitionProcessGUI
 from multiprocessing import Process, Event
 from tkinter import ttk
 import tkinter as tk
@@ -8,17 +9,23 @@ import tkinter as tk
 
 guiding_process_key = "guiding"
 survey_process_key = "survey"
+acq_process_key = "acquisition"
 
 child_alive_check_timeout_s = 1
 
 
-def guiding(serial_out_queue, serial_in_queue, ke):
+def guiding(ke, serial_out_queue, serial_in_queue):
     gui = GuidingProcessGUI(serial_out_queue=serial_out_queue, serial_in_queue=serial_in_queue, kill_event=ke)
     gui.run()
 
 
-def survey(serial_out_queue, serial_in_queue, ke):
+def survey(ke, serial_out_queue, serial_in_queue):
     gui = SurveyProcessGUI(serial_out_queue=serial_out_queue, serial_in_queue=serial_in_queue, kill_event=ke)
+    gui.run()
+
+
+def acquisition(ke):
+    gui = AcquisitionProcessGUI(kill_event=ke)
     gui.run()
 
 
@@ -47,9 +54,19 @@ class MainGui(SimpleGuiApplication):
                                          command=self._open_survey, style="B.TButton")
         self._survey_button.pack(side=tk.LEFT)
 
+        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+
+        acquisition_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        acquisition_frame.pack(side=tk.TOP)
+
+        self._acq_button = ttk.Button(acquisition_frame, text="Open acquisition...",
+                                         command=self._open_acq, style="B.TButton")
+        self._acq_button.pack(side=tk.LEFT)
+
         self._start_process_buttons = {
             guiding_process_key: self._guiding_button,
-            survey_process_key: self._survey_button
+            survey_process_key: self._survey_button,
+            acq_process_key: self._acq_button
         }
 
         self._processes = {}
@@ -71,20 +88,22 @@ class MainGui(SimpleGuiApplication):
                 del self._processes[k]
                 self._start_process_buttons[k].configure(state=tk.NORMAL)
 
-    def _open_guiding(self):
-        print("Opening guiding...")
-        if guiding_process_key not in self._processes.keys():
+    def _open_process(self, button, func, key, args: list = []):
+        print(f"Opening {key}...")
+        if key not in self._processes.keys():
             e = Event()
-            p = Process(target=guiding, args=(self._serial_out, self._serial_in, e, ))
+            p = Process(target=func, args=(e, *args,))
             p.start()
-            self._processes[guiding_process_key] = (p, e)
-            self._guiding_button.configure(state=tk.DISABLED)
+            self._processes[key] = (p, e)
+            button.configure(state=tk.DISABLED)
+
+    def _open_guiding(self):
+        self._open_process(button=self._guiding_button, func=guiding, key=guiding_process_key,
+                           args=(self._serial_out, self._serial_in))
+
+    def _open_acq(self):
+        self._open_process(button=self._acq_button, func=acquisition, key=acq_process_key)
 
     def _open_survey(self):
-        print("Opening survey...")
-        if survey_process_key not in self._processes.keys():
-            e = Event()
-            p = Process(target=survey, args=(self._serial_out, self._serial_in, e,))
-            p.start()
-            self._processes[survey_process_key] = (p, e)
-            self._survey_button.configure(state=tk.DISABLED)
+        self._open_process(button=self._survey_button, func=survey, key=survey_process_key,
+                           args=(self._serial_out, self._serial_in))
