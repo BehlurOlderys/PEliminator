@@ -5,6 +5,15 @@ import matplotlib.pyplot as plt
 asi_lib_path = "C:\\ASI SDK\\lib\\x64\\ASICamera2.dll"
 asi_initialized = False
 
+image_types_by_name = {
+    "raw8": asi.ASI_IMG_RAW8,
+    "rgb24": asi.ASI_IMG_RGB24,
+    "raw16": asi.ASI_IMG_RAW16,
+    "y8": asi.ASI_IMG_Y8
+}
+
+
+image_types_by_value = {v: k for k, v in image_types_by_name.items()}
 
 class ASICamera:
     def __init__(self, camera_index):
@@ -30,7 +39,34 @@ class ASICamera:
         self._camera.set_control_value(asi.ASI_EXPOSURE, exposure_us)
 
     def get_exposure_us(self):
-        return self._camera.get_control_value(asi.ASI_EXPOSURE)
+        return self._camera.get_control_value(asi.ASI_EXPOSURE)[0]
+
+    def set_gain(self, value):
+        self._camera.set_control_value(asi.ASI_GAIN, value)
+
+    def get_gain(self):
+        return self._camera.get_control_value(asi.ASI_GAIN)[0]
+
+    def get_supported_image_types(self):
+        camera_info = self._camera.get_camera_property()
+        supported = camera_info['SupportedVideoFormat']
+        print(f"Supported = {supported}")
+        return [image_types_by_value[s] for s in supported]
+
+    def set_image_type(self, new_type):
+        print(f"Trying to set new type {new_type} for images!")
+        if new_type in image_types_by_name.keys():
+            self._camera.set_image_type(image_types_by_name[new_type])
+
+    def translate_image_type(self, value):
+        return image_types_by_value[value]
+
+    def get_image_type(self):
+        return self._camera.get_image_type()
+
+    def print_info(self):
+        camera_info = self._camera.get_camera_property()
+        print(camera_info)
 
     def connect_and_prepare_camera(self, exposure_ms=50, gain=0, roi=(256, 512)):
         camera_info = self._camera.get_camera_property()

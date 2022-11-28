@@ -8,12 +8,12 @@ import matplotlib.patches as mpatches
 
 
 class ImageCanvas(PeBaseWidget):
-    def __init__(self, initial_image_path=None, **kwargs):
+    def __init__(self, initial_image_path=None, dpi=72, **kwargs):
         super(ImageCanvas, self).__init__(**kwargs)
-        data_figure = plt.Figure(dpi=72, facecolor="#222222")
+        data_figure = plt.Figure(dpi=dpi, facecolor="#222222")
         self._ax = data_figure.add_subplot(111)
         self._canvas = FigureCanvasTkAgg(data_figure, self._frame)
-        self._canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True)
+        self._canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         if initial_image_path is not None:
             print("Displaying initial image")
             im_frame = Image.open(initial_image_path)
@@ -22,6 +22,7 @@ class ImageCanvas(PeBaseWidget):
         self._ax.set_frame_on(False)
         self._ax.axis("image")
         self._ax.axis("off")
+        self._ax.set_aspect('auto')
 
     def update(self, image, **kwargs):
         self._ax.imshow(image, **kwargs)
