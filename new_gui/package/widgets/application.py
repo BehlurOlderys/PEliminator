@@ -59,7 +59,7 @@ class SimpleGuiApplication(BaseGuiApplication):
     def __init__(self, *args, **kwargs):
         super(SimpleGuiApplication, self).__init__(*args, **kwargs)
         self._main_frame = ttk.Frame(self._root, style="B.TFrame")
-        self._main_frame.pack(expand=True, fill='both')
+        self._main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._after_queue = []
 
     def _add_task(self, timeout_s, f, *args, **kwargs):

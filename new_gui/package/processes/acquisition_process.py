@@ -3,10 +3,11 @@ from package.utils.zwo_asi_camera_grabber import ASICamera
 from tkinter import ttk
 import tkinter as tk
 import matplotlib.image as mpimg
+from multiprocessing import Process
 import numpy as np
 
 from package.widgets.value_controller import ValueController
-from package.widgets.image_canvas import ImageCanvas
+from package.widgets.image_canvas import PhotoImage
 
 empty_camera_list_string = "<no zwo cameras here>"
 NO_IMAGE_FILE = "data/no_image.png"
@@ -39,8 +40,19 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         controls_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         controls_frame.pack(side=tk.TOP)
 
-        self._still_button = ttk.Button(controls_frame, text="Get still image", command=self._get_still, style="B.TButton")
+        self._capture_frame = ttk.Frame(controls_frame, style="B.TFrame")
+        self._capture_frame.pack(side=tk.TOP)
+        self._still_button = ttk.Button(self._capture_frame,
+                                        text="Get still image",
+                                        command=self._get_still,
+                                        style="B.TButton")
         self._still_button.pack(side=tk.LEFT)
+        self._start_capturing_button = ttk.Button(self._capture_frame,
+                                        text="Start capturing",
+                                        command=self._start_capturing,
+                                        style="B.TButton")
+        self._start_capturing_button.pack(side=tk.LEFT)
+
 
         self._exp_us_controller = ValueController(frame=controls_frame,
                                                   setter_fun=lambda x: self._set_exposure_us(camera, x),
@@ -80,8 +92,11 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         image_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
-        self._image_canvas = ImageCanvas(frame=image_frame, dpi=72, initial_image_path=NO_IMAGE_FILE)
+        self._image_canvas = PhotoImage(frame=image_frame, initial_image_path=NO_IMAGE_FILE)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    def _start_capturing(self):
+        print("Starting continuous capture!")
 
     def _get_still(self):
         if self._camera is not None:

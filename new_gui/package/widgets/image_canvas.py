@@ -2,13 +2,37 @@ from .pe_base_widget import PeBaseWidget
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-from PIL import Image
+from tkinter import ttk
 import numpy as np
+from PIL import ImageTk, Image
+import time
 import matplotlib.patches as mpatches
 
 
+class PhotoImage(PeBaseWidget):
+    def __init__(self, initial_image_path=None, **kwargs):
+        super(PhotoImage, self).__init__(**kwargs)
+        img = ImageTk.PhotoImage(Image.open(initial_image_path))
+        self._frame.pack(fill=tk.BOTH, expand=True)
+        self._panel = ttk.Label(self._frame, image=img, style="B.TLabel")
+        self._panel.image=img
+        self._panel.pack(fill=tk.BOTH, expand=True)
+
+    def update(self, image, **kwargs):
+        start = time.time()
+        if len(image.shape) == 3:
+            image = image[:, :, ::-1]  # Convert BGR to RGB
+        image = Image.fromarray(image)
+        min_size = min(self._frame.winfo_width(), self._frame.winfo_height())
+        image.resize(size=(min_size, min_size))
+        image = ImageTk.PhotoImage(image)
+        self._panel.configure(image=image)
+        self._panel.image = image
+        print(f"Time elapsed on image update = {time.time()-start}s")
+
+
 class ImageCanvas(PeBaseWidget):
-    def __init__(self, initial_image_path=None, dpi=72, **kwargs):
+    def __init__(self, initial_image_path=None, dpi=None, **kwargs):
         super(ImageCanvas, self).__init__(**kwargs)
         data_figure = plt.Figure(dpi=dpi, facecolor="#222222")
         self._ax = data_figure.add_subplot(111)
@@ -22,7 +46,6 @@ class ImageCanvas(PeBaseWidget):
         self._ax.set_frame_on(False)
         self._ax.axis("image")
         self._ax.axis("off")
-        self._ax.set_aspect('auto')
 
     def update(self, image, **kwargs):
         self._ax.imshow(image, **kwargs)
