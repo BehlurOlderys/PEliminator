@@ -19,12 +19,17 @@ class PhotoImage(PeBaseWidget):
         self._panel.pack(fill=tk.BOTH, expand=True)
 
     def update(self, image, **kwargs):
+        print(f"Acquired image with shape: {image.shape}")
         start = time.time()
         if len(image.shape) == 3:
+            h, w, _ = image.shape
             image = image[:, :, ::-1]  # Convert BGR to RGB
+        else:
+            h, w = image.shape
         image = Image.fromarray(image)
-        min_size = min(self._frame.winfo_width(), self._frame.winfo_height())
-        image.resize(size=(min_size, min_size))
+        new_height = self._frame.winfo_height()
+        new_width = int(w*new_height/h)
+        image = image.resize(size=(new_width, new_height))
         image = ImageTk.PhotoImage(image)
         self._panel.configure(image=image)
         self._panel.image = image

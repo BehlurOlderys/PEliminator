@@ -1,16 +1,42 @@
+import threading
+
 from .child_process import ChildProcessGUI
 from package.utils.zwo_asi_camera_grabber import ASICamera
 from tkinter import ttk
 import tkinter as tk
-import matplotlib.image as mpimg
-from multiprocessing import Process
-import numpy as np
+import time
 
 from package.widgets.value_controller import ValueController
 from package.widgets.image_canvas import PhotoImage
+from package.widgets.labeled_input import LabeledInput
 
 empty_camera_list_string = "<no zwo cameras here>"
 NO_IMAGE_FILE = "data/no_image.png"
+
+
+def capturing(interval_s, multiplicity, camera: ASICamera, canvas: PhotoImage):
+    interval_s = 0.04
+    interval_us = 20*1000
+    camera.set_exposure_us(int(interval_us))
+    multiplicity = 10000
+    refresh_rate_hz = 1.0
+    min_refresh_rate_hz = 0.001 #1000s
+    min_refresh_time_s = 0.2
+    refresh_time_s = max(min_refresh_time_s, 1.0/max(min_refresh_rate_hz, refresh_rate_hz))
+    print(f"Using refresh time = {refresh_time_s}s")
+    refresh_counter_threshold = refresh_time_s//interval_s
+    mark_time = time.time()
+    average = 0
+    for i in range(0, multiplicity):
+        filename = f"Capture_{i}.tif"
+        print(f"Capturing image {i}/{multiplicity}")
+        im = camera.capture_image()
+        latest_time = time.time()
+        average += (latest_time - mark_time)
+        mark_time = latest_time
+        if 0 == i % refresh_counter_threshold:
+            print(f"Average fps = {refresh_counter_threshold/average}s")
+            canvas.update(im)
 
 
 class AcquisitionProcessGUI(ChildProcessGUI):
@@ -36,7 +62,7 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         self._choose_camera_button = ttk.Button(connect_frame, text="Connect", command=self._connect, style="B.TButton")
         self._choose_camera_button.pack(side=tk.LEFT)
 
-    def _add_controls(self, camera):
+    def _add_controls(self, camera: ASICamera):
         controls_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         controls_frame.pack(side=tk.TOP)
 
@@ -47,12 +73,13 @@ class AcquisitionProcessGUI(ChildProcessGUI):
                                         command=self._get_still,
                                         style="B.TButton")
         self._still_button.pack(side=tk.LEFT)
+        self._capture_exp_spin = LabeledInput(frame=self._capture_frame, desc="Interval [s]")
+        self._capture_exp_spin.pack(side=tk.LEFT)
         self._start_capturing_button = ttk.Button(self._capture_frame,
                                         text="Start capturing",
                                         command=self._start_capturing,
                                         style="B.TButton")
         self._start_capturing_button.pack(side=tk.LEFT)
-
 
         self._exp_us_controller = ValueController(frame=controls_frame,
                                                   setter_fun=lambda x: self._set_exposure_us(camera, x),
@@ -78,9 +105,15 @@ class AcquisitionProcessGUI(ChildProcessGUI):
 
 
         params = {
-            "gain": ("Gain", lambda x: camera.set_gain(int(x)), camera.get_gain)
+            "gain": ("Gain", lambda x: camera.set_gain(int(x)), camera.get_gain),
+            "bandwidth": ("BandWidth", lambda x: camera.set_bandwidth(int(x)), camera.get_bandwidth),
+            "highspeed": ("HighSpeedMode", lambda x: camera.set_high_speed_mode(int(x)), camera.get_high_speed_mode),
         }
-        self._controls = {}
+
+        self._controls = {
+            "exposure_us": self._exp_us_controller,
+            "exposure_ms": self._exp_ms_controller,
+        }
         for key, param in params.items():
             desc, setter, getter = param
             self._controls[key] = ValueController(frame=controls_frame,
@@ -95,8 +128,14 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         self._image_canvas = PhotoImage(frame=image_frame, initial_image_path=NO_IMAGE_FILE)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+    def _update_controls(self):
+        [v.self_update() for v in self._controls.values()]
+
     def _start_capturing(self):
-        print("Starting continuous capture!")
+        interval = float(self._capture_exp_spin.get_value())
+        print(f"Starting continuous capture with interval {interval}.s!")
+        t = threading.Thread(target=capturing, args=(2, 100, self._camera, self._image_canvas,), daemon=True)
+        t.start()
 
     def _get_still(self):
         if self._camera is not None:
@@ -138,7 +177,9 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         self._camera_id = self._available_cameras.index(camera_string)
         print(f"Starting camera {camera_string} which has index {self._camera_id}...")
         self._camera = ASICamera(self._camera_id)
+        self._camera.print_info()
         self._choose_camera_button.configure(state=tk.DISABLED)
         self._add_controls(self._camera)
+        self._update_controls()
 
 

@@ -47,6 +47,22 @@ class ASICamera:
     def get_gain(self):
         return self._camera.get_control_value(asi.ASI_GAIN)[0]
 
+    def set_bandwidth(self, value):
+        self._camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, value)
+
+    def get_bandwidth(self):
+        r = self._camera.get_control_value(asi.ASI_BANDWIDTHOVERLOAD)[0]
+        print(f"bandwidth oveload = {r}")
+        return r
+
+    def set_high_speed_mode(self, value):
+        self._camera.set_control_value(asi.ASI_HIGH_SPEED_MODE, 1)
+
+    def get_high_speed_mode(self):
+        r = self._camera.get_control_value(asi.ASI_HIGH_SPEED_MODE)[0]
+        print(f"high speed mode = {r}")
+        return r
+
     def get_supported_image_types(self):
         camera_info = self._camera.get_camera_property()
         supported = camera_info['SupportedVideoFormat']
@@ -66,7 +82,11 @@ class ASICamera:
 
     def print_info(self):
         camera_info = self._camera.get_camera_property()
+        print("CAMERA INFO:")
         print(camera_info)
+        print("CAMERA CONTROLS:")
+        for kk, v in self._camera.get_controls().items():
+            print(f"{kk}:{v}")
 
     def connect_and_prepare_camera(self, exposure_ms=50, gain=0, roi=(256, 512)):
         camera_info = self._camera.get_camera_property()

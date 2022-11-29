@@ -40,5 +40,8 @@ class ValueController(PeBaseWidget):
     def _get_value(self):
         self._value_var.set(self._getter())
 
+    def self_update(self):
+        self._get_value()
+
     def update(self, v):
         self._value_var.set(v)
