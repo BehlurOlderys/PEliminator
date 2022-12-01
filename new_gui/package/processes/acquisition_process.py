@@ -39,6 +39,7 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         self._choose_camera_button.pack(side=tk.LEFT)
         self._add_task(1, self._check_new_images)
         self._image_queue = multiprocessing.Queue()
+        self._kill_capture_event = multiprocessing.Event()
 
     def _check_new_images(self):
         queue_size = self._image_queue.qsize()
@@ -119,10 +120,18 @@ class AcquisitionProcessGUI(ChildProcessGUI):
     def _start_capturing(self):
         interval = float(self._capture_exp_spin.get_value())
         print(f"Starting continuous capture with interval {interval}.s!")
-        p = multiprocessing.Process(target=capturing, args=(2, 100, self._camera_id, self._image_queue,))
-        p.daemon = True
-        p.start()
-        self._start_capturing_button.configure(state=tk.DISABLED)
+        self._capture_process = multiprocessing.Process(target=capturing,
+                                                        args=(2, 100, self._camera_id, self._image_queue,
+                                                              self._kill_capture_event))
+        self._capture_process.start()
+        self._start_capturing_button.configure(text="Stop capturing", command=self._stop_capturing)
+
+    def _stop_capturing(self):
+        print("Sending kill event for capture!")
+        self._kill_capture_event.set()
+        self._capture_process.join()
+        if self._camera is not None:
+            self._start_capturing_button.configure(text="Stop capturing", command=self._stop_capturing)
 
     def _get_still(self):
         if self._camera is not None:

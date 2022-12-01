@@ -3,10 +3,10 @@ from package.utils.zwo_asi_camera_grabber import ASICamera
 import time
 
 
-def capturing(interval_s, multiplicity, camera_id, image_queue: multiprocessing.Queue):
+def capturing(interval_s, multiplicity, camera_id, image_queue: multiprocessing.Queue, kill_event):
     ASICamera.initialize_library()
-    interval_s = 0.04
-    interval_us = 20*1000
+    interval_s = 0.1
+    interval_us = 200*1000
     camera = ASICamera(camera_id)
     camera.set_bandwidth(100)
     camera.set_image_type("raw8")
@@ -22,14 +22,18 @@ def capturing(interval_s, multiplicity, camera_id, image_queue: multiprocessing.
     start_time = time.time()
     average = 0
     for i in range(0, multiplicity):
+        if kill_event.is_set():
+            print("Got kill command, returning!")
+            return
         filename = f"Capture_{i}.tif"
         # print(f"Capturing image {i}/{multiplicity}, time={time.time()-start_time}")
         im = camera.capture_image()
         latest_time = time.time()
         average += (latest_time - mark_time)
         mark_time = latest_time
-        if 0 == i % refresh_counter_threshold:
-            print(f"Average fps = {refresh_counter_threshold/average}s")
-            average = 0
-            image_queue.put(im)
+
+        print(f"Average fps = {refresh_counter_threshold/average}s")
+        average = 0
+
+        image_queue.put(im)
 
