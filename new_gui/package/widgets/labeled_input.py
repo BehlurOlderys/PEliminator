@@ -1,9 +1,9 @@
-from .pe_base_widget import PeBaseWidget
+from .pe_base_widget import AppendablePeBaseWidget
 from tkinter import ttk
 import tkinter as tk
 
 
-class LabeledInput(PeBaseWidget):
+class LabeledInput(AppendablePeBaseWidget):
     def __init__(self, desc="Label: ", initial_value=0, from_=0, to=999, width=3, increment=1, **kwargs):
         super(LabeledInput, self).__init__(**kwargs)
         self._value_var = tk.StringVar(value=min(to, max(from_, initial_value)))
@@ -17,13 +17,6 @@ class LabeledInput(PeBaseWidget):
                                 width=width,
                                 style="B.TSpinbox")
         gain_spin.pack(side=tk.LEFT)
-        self._addons = []
-
-    def add_on_right(self, w, **kwargs):
-        tmp = w(self._frame, **kwargs)
-        tmp.pack(side=tk.LEFT)
-        self._addons.append(tmp)
-        return self
 
     def set_value(self, v):
         self._value_var.set(v)

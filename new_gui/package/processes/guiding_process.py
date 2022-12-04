@@ -4,6 +4,7 @@ from package.widgets.labeled_input import LabeledInput
 from package.utils.image_consumer import ImageConsumer
 from package.utils.error_handler import ErrorHandler
 from package.widgets.running_plot import RunningPlot2D
+from package.widgets.camera_chooser import CameraChooser
 from package.utils.zwo_asi_camera_grabber import ASICamera
 from tkinter import ttk
 import tkinter as tk
@@ -20,7 +21,6 @@ from package.processes.camera_diagnostics import DiagnosticsGUI
 CAMERA_TEMPERATURE_UPDATE_TIME_S = 10
 RECTANGLE_SIZE = 60
 NO_IMAGE_FILE = "data/no_image.png"
-empty_camera_list_string = "<no zwo cameras here>"
 initial_test_dir = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_gui\\test_data\\Capture_00497"
 
 
@@ -46,28 +46,13 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._diagnostics_process = None
         self._diagnostics_kill_event = Event()
         self._diagnostics_queue = multiprocessing.Queue()
-        self._camera = None
-        self._camera_id = 0
-        self._available_cameras = ASICamera.get_cameras_list()
-        if not self._available_cameras:
-            self._available_cameras = [empty_camera_list_string]
 
-        self._camera_choice = tk.StringVar(value=self._available_cameras[0])
-
-        connect_frame = ttk.Frame(self._main_frame, style="B.TFrame")
-        connect_frame.pack(side=tk.TOP)
-
-        self._diagnostic_button = ttk.Button(connect_frame, text="Camera diagnostics...",
+        self._camera_chooser = CameraChooser(frame=self._main_frame, on_connect=self._connect)
+        self._diagnostic_button = self._camera_chooser.add_and_return(ttk.Button, text="Camera diagnostics...",
                                              state=tk.DISABLED,
                                              command=self._diagnostics, style="B.TButton")
         self._diagnostic_button.pack(side=tk.RIGHT)
-
-        self._combobox = ttk.Combobox(connect_frame, textvariable=self._camera_choice,
-                                      values=self._available_cameras, style="B.TCombobox")
-        self._combobox.pack(side=tk.RIGHT)
-
-        self._choose_camera_button = ttk.Button(connect_frame, text="Connect", command=self._connect, style="B.TButton")
-        self._choose_camera_button.pack(side=tk.LEFT)
+        self._camera_chooser.pack(side=tk.TOP)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
@@ -159,8 +144,8 @@ class GuidingProcessGUI(ChildProcessGUI):
         self._add_task(timeout_s=CAMERA_TEMPERATURE_UPDATE_TIME_S, f=self._get_camera_temp)
 
     def _get_camera_temp(self):
-        if self._diagnostics_queue is not None and self._camera is not None:
-            self._diagnostics_queue.put(self._camera.get_camera_temperature())
+        if self._diagnostics_queue is not None and self._camera_chooser.get_camera() is not None:
+            self._diagnostics_queue.put(self._camera_chooser.get_camera().get_camera_temperature())
 
     def _check_if_diagnostics_alive(self):
         if self._diagnostics_process is None:
@@ -249,13 +234,5 @@ class GuidingProcessGUI(ChildProcessGUI):
         print("Simulation ended successfully!")
         self._sim_button.configure(text="Start simulation", command=self._start_simulation)
 
-    def _connect(self):
-        camera_string = self._camera_choice.get()
-        if empty_camera_list_string == camera_string:
-            print("Nothing to connect here...")
-            return
-        self._camera_id = self._available_cameras.index(camera_string)
-        print(f"Starting camera {camera_string} which has index {self._camera_id}...")
-        self._camera = ASICamera(self._camera_id)
-        self._choose_camera_button.configure(state=tk.DISABLED)
+    def _connect(self, camera: ASICamera, camera_id: int):
         self._diagnostic_button.configure(state=tk.NORMAL)

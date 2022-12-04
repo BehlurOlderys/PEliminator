@@ -36,6 +36,10 @@ class BaseGuiApplication:
 class AfterQueueTask:
     def __init__(self, timeout_s, f, *args, **kwargs):
         self._timeout_s = timeout_s
+        if "timeout_ms" in kwargs:
+            self._timeout_s = float(kwargs.pop("timeout_ms") / 1000)
+
+        print(f"Using actual task timeout: {self._timeout_s}")
         self._f = f
         self._args = args
         self._kwargs = kwargs
@@ -52,7 +56,7 @@ class AfterQueueTask:
             self._f(*self._args, **self._kwargs)
 
 
-AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS = 1000
+AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS = 100
 
 
 class SimpleGuiApplication(BaseGuiApplication):

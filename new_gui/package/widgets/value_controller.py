@@ -1,10 +1,10 @@
-from .pe_base_widget import PeBaseWidget
+from .pe_base_widget import AppendablePeBaseWidget
 from tkinter import ttk
 import tkinter as tk
 from math import log10
 
 
-class ValueController(PeBaseWidget):
+class ValueController(AppendablePeBaseWidget):
     def __init__(self, getter_fun, setter_fun, desc="Parameter: ", from_=0, to=999, increment=1, **kwargs):
         super(ValueController, self).__init__(**kwargs)
         self._getter = getter_fun
@@ -26,19 +26,15 @@ class ValueController(PeBaseWidget):
         self._set_button.pack(side=tk.LEFT)
         self._get_button = ttk.Button(self._frame, text='GET', command=self._get_value)
         self._get_button.pack(side=tk.LEFT)
-        self._addons = []
-
-    def add_on_right(self, w, **kwargs):
-        tmp = w(self._frame, **kwargs)
-        tmp.pack(side=tk.LEFT)
-        self._addons.append(tmp)
-        return self
 
     def _set_value(self):
         self._setter(self._value_var.get())
 
     def _get_value(self):
         self._value_var.set(self._getter())
+
+    def get_current(self):
+        return self._value_var.get()
 
     def self_update(self):
         self._get_value()
