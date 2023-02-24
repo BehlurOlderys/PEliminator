@@ -10,22 +10,36 @@ import matplotlib.patches as mpatches
 
 
 class PhotoImage(PeBaseWidget):
-    def __init__(self, initial_image_path=None, **kwargs):
+    def __init__(self, initial_image=None, initial_image_path=None, **kwargs):
         super(PhotoImage, self).__init__(**kwargs)
-        img = ImageTk.PhotoImage(Image.open(initial_image_path))
+        if initial_image is not None:
+            img = ImageTk.PhotoImage(initial_image)
+        elif initial_image_path is not None:
+            img = ImageTk.PhotoImage(Image.open(initial_image_path))
+        else:
+            raise AssertionError("Missing mandatory argument!")
         self._frame.pack(fill=tk.BOTH, expand=True)
         self._panel = ttk.Label(self._frame, image=img, style="B.TLabel")
         self._panel.image=img
         self._panel.pack(fill=tk.BOTH, expand=True)
 
-    def update(self, image, **kwargs):
+    def update_with_pil(self, image: Image, **kwargs):
+        print(f"Image size = {image.size()}")
+        # new_height = self._frame.winfo_height()
+        # new_width = int(w * new_height / h)
+        # image = image.resize(size=(new_width, new_height))
+        # image = ImageTk.PhotoImage(image)
+        # self._panel.configure(image=image)
+        # self._panel.image = image
+
+    def update_with_np(self, image, **kwargs):
         print(f"Acquired image with shape: {image.shape}")
         start = time.time()
-        if len(image.shape) == 3:
-            h, w, _ = image.shape
-            image = image[:, :, ::-1]  # Convert BGR to RGB
-        else:
-            h, w = image.shape
+        # if len(image.shape) == 3:
+        #     h, w, _ = image.shape
+        #     # image = image[:, :, ::-1]  # Convert BGR to RGB
+        # else:
+        h, w, *_ = image.shape
         image = Image.fromarray(image)
         new_height = self._frame.winfo_height()
         new_width = int(w*new_height/h)

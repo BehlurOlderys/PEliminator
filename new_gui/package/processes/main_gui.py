@@ -2,6 +2,7 @@ from package.widgets.application import SimpleGuiApplication
 from .guiding_process import GuidingProcessGUI
 from .survey_process import SurveyProcessGUI
 from .acquisition_process import AcquisitionProcessGUI
+from .remote_process import RemoteProcessGUI
 from multiprocessing import Process, Event
 from tkinter import ttk
 import tkinter as tk
@@ -10,12 +11,18 @@ import tkinter as tk
 guiding_process_key = "guiding"
 survey_process_key = "survey"
 acq_process_key = "acquisition"
+remote_process_key = "remote"
 
 child_alive_check_timeout_s = 1
 
 
 def guiding(ke, serial_out_queue, serial_in_queue):
     gui = GuidingProcessGUI(serial_out_queue=serial_out_queue, serial_in_queue=serial_in_queue, kill_event=ke)
+    gui.run()
+
+
+def remote(ke):
+    gui = RemoteProcessGUI(kill_event=ke)
     gui.run()
 
 
@@ -63,10 +70,19 @@ class MainGui(SimpleGuiApplication):
                                          command=self._open_acq, style="B.TButton")
         self._acq_button.pack(side=tk.LEFT)
 
+        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+
+        remote_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        remote_frame.pack(side=tk.TOP)
+        self._remote_button = ttk.Button(remote_frame, text="Open remote camera...",
+                                         command=self._open_remote, style="B.TButton")
+        self._remote_button.pack(side=tk.LEFT)
+
         self._start_process_buttons = {
             guiding_process_key: self._guiding_button,
             survey_process_key: self._survey_button,
-            acq_process_key: self._acq_button
+            acq_process_key: self._acq_button,
+            remote_process_key: self._remote_button
         }
 
         self._processes = {}
@@ -107,3 +123,6 @@ class MainGui(SimpleGuiApplication):
     def _open_survey(self):
         self._open_process(button=self._survey_button, func=survey, key=survey_process_key,
                            args=(self._serial_out, self._serial_in))
+
+    def _open_remote(self):
+        self._open_process(button=self._remote_button, func=remote, key=remote_process_key)

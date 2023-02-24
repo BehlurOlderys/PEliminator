@@ -27,6 +27,8 @@ def capturing(image_queue: multiprocessing.Queue, kill_event: multiprocessing.Ev
             exit(0)
 
         im = camera.capture_image()
+        if len(im.shape) == 3:
+            im = im[:, :, ::-1]
         if save_file:
             filename = f"Capture_{i}.tif"
             pass  # TODO: save file

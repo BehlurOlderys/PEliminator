@@ -16,6 +16,7 @@ import numpy as np
 from package.utils.star_position_calculator import StarPositionCalculator
 from multiprocessing import Event, Process
 from package.processes.camera_diagnostics import DiagnosticsGUI
+from package.processes.capturing_process import capturing
 
 
 CAMERA_TEMPERATURE_UPDATE_TIME_S = 10

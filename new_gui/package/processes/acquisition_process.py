@@ -44,16 +44,14 @@ class AcquisitionProcessGUI(ChildProcessGUI):
             queue_size = self._image_queue.qsize()
             print(f"Image queue size = {queue_size}")
 
-
             if queue_size > 0:
                 im = self._image_queue.get()
-                self._image_canvas.update(im)
+                self._image_canvas.update_with_np(im)
 
                 current = time.time()
                 elapsed = current - self._last_time
                 print(f"Elapsed for checking = {elapsed}")
                 self._last_time = current
-
 
     def _on_camera_select(self, camera: ASICamera, camera_id: int):
         self._add_controls(camera)
@@ -164,10 +162,9 @@ class AcquisitionProcessGUI(ChildProcessGUI):
     def _get_still(self):
         if self._camera_chooser.get_camera() is not None:
             image = self._camera_chooser.get_camera().capture_image()
-            # print(f"Captured image with shape: {image.shape}")
-            # if len(image.shape) == 3:
-            #     image = image[:, :, ::-1]
-            self._image_canvas.update(image=image)
+            if len(image.shape) == 3:
+                image = image[:, :, ::-1]
+            self._image_canvas.update_with_np(image=image)
 
     def _get_exposure_ms(self, camera: ASICamera):
         exposure_us = camera.get_exposure_us()
