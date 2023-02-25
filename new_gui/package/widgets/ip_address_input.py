@@ -3,13 +3,13 @@ from tkinter import ttk
 
 
 class IPAddressInput:
-    def __init__(self, frame, on_connect):
+    def __init__(self, frame, on_connect, initial="localhost"):
         """
 
         :param frame:
         :param on_connect: Should be a function with two arguments: host and port
         """
-        self._address = tk.StringVar(value="localhost")
+        self._address = tk.StringVar(value=initial)
         self._port = tk.StringVar(value="8080")
 
         address_frame = ttk.Frame(frame, style="B.TFrame")

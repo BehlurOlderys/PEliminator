@@ -48,11 +48,14 @@ class CameraRequests(AscomRequests):
         self._address += f"camera/{camera_no}"
 
     def _get_request(self, endpoint, query_params=None, headers=None, stream=False):
+        print(f"GET request for {self._address}/{endpoint}...")
         headers = headers if headers else {}
         query = self._get_common_query()
         if query_params is not None:
             query.update(query_params)
-        return requests.get(f"{self._address}/{endpoint}", params=query, headers=headers, stream=stream)
+        r = requests.get(f"{self._address}/{endpoint}", params=query, headers=headers, stream=stream)
+        print(f"...returned code {r.status_code}")
+        return r
 
     def _get_image_from_stream(self, **kwargs):
         CHUNK_SIZE = 4096
@@ -82,6 +85,14 @@ class CameraRequests(AscomRequests):
             if query_params is not None:
                 query.update(query_params)
             return requests.put(f"{self._address}/{endpoint}", data=json.dumps(query))
+
+    def get_imagesize(self):
+        """
+        :return: array [HEIGHT, WIDTH]
+        """
+        numx = int(self._get_request("numx").json()["Value"])
+        numy = int(self._get_request("numy").json()["Value"])
+        return [numy, numx]
 
     def get_image_and_save_file(self):
         headers = {"Content-type": "application/octet-stream"}
@@ -124,12 +135,13 @@ class CameraRequests(AscomRequests):
         r = self._get_request("imageready").json()
         return r["Value"]
 
-    def get_one_image(self, exposure_s, image_type):
+    def get_one_image(self, exposure_s, image_type, image_size):
         error_counter = 0
         error_allowed = 10  # TODO!!!! THIS MAY BE DANGEORUS!
         max_iter = 10
         # TODO!!!! above constants!
-        shape = [960, 1280]  # TODO! Get those!
+        print(f"Using image size: {image_size}")
+        shape = image_size
 
         state = self.get_camerastate()["Value"]
         str_state = ascom_states[state]
@@ -157,5 +169,7 @@ class CameraRequests(AscomRequests):
             else:
                 raise ValueError('Unsupported image type')
                 return None
-            img_array = img_array.reshape(shape)[:, :, ::-1]  # Convert BGR to RGB
+            img_array = img_array.reshape(shape)
+            if "RGB" in image_type:
+                img_array = img_array.reshape(shape)[:, :, ::-1]  # Convert BGR to RGB
             return img_array

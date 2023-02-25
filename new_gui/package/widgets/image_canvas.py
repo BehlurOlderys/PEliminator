@@ -13,11 +13,13 @@ class PhotoImage(PeBaseWidget):
     def __init__(self, initial_image=None, initial_image_path=None, **kwargs):
         super(PhotoImage, self).__init__(**kwargs)
         if initial_image is not None:
+            print("initial image")
             img = ImageTk.PhotoImage(initial_image)
         elif initial_image_path is not None:
+            print("initial image path")
             img = ImageTk.PhotoImage(Image.open(initial_image_path))
         else:
-            raise AssertionError("Missing mandatory argument!")
+            raise AssertionError("Missing mandatory argument or given null!")
         self._frame.pack(fill=tk.BOTH, expand=True)
         self._panel = ttk.Label(self._frame, image=img, style="B.TLabel")
         self._panel.image=img
