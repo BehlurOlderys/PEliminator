@@ -86,6 +86,16 @@ class CameraRequests(AscomRequests):
                 query.update(query_params)
             return requests.put(f"{self._address}/{endpoint}", data=json.dumps(query))
 
+    def get_gain(self):
+        return int(self._get_request("gain").json()["Value"][0])
+
+    def set_init(self):
+        r = self._put_request("init")
+        return r.status_code == 200
+
+    def set_gain(self, value):
+        self._put_request("gain", query_params={"Gain": value})
+
     def get_imagesize(self):
         """
         :return: array [HEIGHT, WIDTH]
@@ -140,36 +150,22 @@ class CameraRequests(AscomRequests):
         error_allowed = 10  # TODO!!!! THIS MAY BE DANGEORUS!
         max_iter = 10
         # TODO!!!! above constants!
+        image_size = image_size[0:2]
         print(f"Using image size: {image_size}")
-        shape = image_size
-
         state = self.get_camerastate()["Value"]
         str_state = ascom_states[state]
         if str_state == "IDLE" or (str_state == "ERROR" and error_counter < error_allowed):
             if str_state == "ERROR":
                 error_counter += 1
             self.put_startexposure(exposure_s)
-            time.sleep(exposure_s+0.2)
+            time.sleep(exposure_s+0.3)
             iter_count = 1
             ready = self.is_image_ready()
             while not ready and iter_count < max_iter:
-                time.sleep(0.1)
+                time.sleep(0.5)
                 iter_count += 1
                 ready = self.is_image_ready()
             if not ready:
                 return None
-            data = self.get_image_bytes().content
-            if image_type == "RAW8" or image_type == "Y8":
-                img_array = np.frombuffer(data, dtype=np.uint8)
-            elif image_type == "RAW16":
-                img_array = np.frombuffer(data, dtype=np.uint16)
-            elif image_type == "RGB24":
-                img_array = np.frombuffer(data, dtype=np.uint8)
-                shape.append(3)
-            else:
-                raise ValueError('Unsupported image type')
-                return None
-            img_array = img_array.reshape(shape)
-            if "RGB" in image_type:
-                img_array = img_array.reshape(shape)[:, :, ::-1]  # Convert BGR to RGB
-            return img_array
+            print(f"Image type = {image_type}")
+            return self.get_image_bytes().content

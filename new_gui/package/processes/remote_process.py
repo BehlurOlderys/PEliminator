@@ -6,14 +6,24 @@ from package.widgets.ip_address_input import IPAddressInput
 from package.processes.camera_requester import CameraRequests
 from tkinter import ttk
 import tkinter as tk
-import time
+import requests
+import numpy as np
+import PIL
+
+
+image_types_map = {
+    "Y8": {"astype": np.uint8, "mode": "L"},
+    "RAW8": {"astype": np.uint8, "mode": "L"},
+    "RAW16": {"astype": np.uint16, "mode": "I;16"},
+    "RGB24": {"astype": np.uint8, "mode": "RGB"},
+}
 
 
 class RemoteProcessGUI(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
 
-        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.0.129")
+        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.0.59")
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
         self._requester = CameraRequests(camera_no=0)
@@ -26,10 +36,16 @@ class RemoteProcessGUI(ChildProcessGUI):
         if self._connected is False:
             address = f"http://{host_name}:{port_number}"
             print(f"Connecting to {address}")
-            self._requester.update_address(address)
-            self._current_shape = self._requester.get_imagesize()
-            self._connected = True
-            self._add_controls()
+            try:
+                self._requester.update_address(address)
+                if self._requester.set_init():
+                    self._current_shape = self._requester.get_imagesize()
+                    self._add_controls()
+                    self._connected = True
+                else:
+                    print("Init failed!")
+            except requests.exceptions.ConnectionError:
+                tk.messagebox.showerror('Connection error', f"Could not connect to {address}")
 
     def _add_controls(self):
         controls_frame = ttk.Frame(self._main_frame, style="B.TFrame")
@@ -52,7 +68,7 @@ class RemoteProcessGUI(ChildProcessGUI):
 
         self._start_capturing_button = ttk.Button(self._capture_frame,
                                                   text="Start capturing",
-                                                  # command=self._start_capturing,
+                                                  command=self._start_capturing,
                                                   style="B.TButton")
         self._start_capturing_button.pack(side=tk.LEFT)
 
@@ -75,11 +91,11 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._type_combobox.bind("<<ComboboxSelected>>",
                                  lambda event: self._requester.set_readout_mode(event.widget.current()))
 
-        # self._controls["Gain"] = ValueController(frame=controls_frame,
-        #                                          setter_fun=setter,
-        #                                          getter_fun=getter,
-        #                                          desc=desc)
-        # self._controls["Gain"].pack(side=tk.TOP)
+        self._controls["Gain"] = ValueController(frame=controls_frame,
+                                                 setter_fun=lambda x: self._requester.set_gain(x),
+                                                 getter_fun=lambda: self._requester.get_gain(),
+                                                 desc="Gain")
+        self._controls["Gain"].pack(side=tk.TOP)
 
 
         # params = {
@@ -106,18 +122,49 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._image_canvas = PhotoImage(frame=image_frame, initial_image=initial_image)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+    def _start_capturing(self):
+        number = self._capture_spin.get_value()
+        exposure = self._exposure_s
+        self._requester._put_request("capture", query_params={"Number": number, "Duration": exposure})
+
     def _get_last(self):
         print("Downloading last available image")
 
-    def _single(self):
+    def _get_np_array_for_single(self, image_type):
+        """
+        Will return 8b or 16b np array of bytes send from camera
+        :return:
+        """
+        type_info = image_types_map[image_type]
+        imagebytes = self._requester.get_one_image(self._exposure_s, image_type, self._current_shape)
+        shape = self._current_shape
+        img_dtype = type_info["astype"]
+
+        npimg = np.frombuffer(imagebytes, dtype=img_dtype)
+        npimg = npimg.reshape(shape)
+        return npimg
+
+    def _single_save(self, npimg, typeinfo, filename="last.png"):
+        image = PIL.Image.fromarray(npimg, mode=typeinfo["mode"])
+        image.save(filename)
+
+    def _single(self, save=False):
         image_type = self._type_combobox.get()
         print(f"Image type = {image_type}")
-        image_array = self._requester.get_one_image(self._exposure_s, image_type, self._current_shape)
-        print(f"Image = {image_array}")
-        self._image_canvas.update_with_np(image_array)
-    #     img2 = ImageTk.PhotoImage(Image.fromarray(img_array))
-    #     panel.configure(image=img2)
-    #     panel.image = img2
+        npimg = self._get_np_array_for_single(image_type)
+        type_info = image_types_map[image_type]
+
+        if save:
+            self._single_save(npimg, type_info, "last.png")
+
+        # CAREFUL! Below line make image downgraded into 8 bit from 16!
+        # Just for sake of displaying it correcly:
+        if type_info["astype"] == np.uint16:
+            img8b = np.zeros_like(npimg)
+            np.floor_divide(npimg, 256, out=img8b, casting='unsafe')
+            npimg = img8b.astype(np.uint8)
+        image = PIL.Image.fromarray(npimg, mode="L")
+        self._image_canvas.update_with_pil_image(image)
 
     def _set_exposure_s(self, value):
         try:

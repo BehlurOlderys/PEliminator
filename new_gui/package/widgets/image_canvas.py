@@ -25,30 +25,24 @@ class PhotoImage(PeBaseWidget):
         self._panel.image=img
         self._panel.pack(fill=tk.BOTH, expand=True)
 
-    def update_with_pil(self, image: Image, **kwargs):
-        print(f"Image size = {image.size()}")
-        # new_height = self._frame.winfo_height()
-        # new_width = int(w * new_height / h)
-        # image = image.resize(size=(new_width, new_height))
-        # image = ImageTk.PhotoImage(image)
-        # self._panel.configure(image=image)
-        # self._panel.image = image
+    def update_with_pil_image(self, pilimage):
+        w, h = pilimage.size
+        new_height = self._frame.winfo_height()
+        new_width = int(w * new_height / h)
 
-    def update_with_np(self, image, **kwargs):
+        print(f"W={w}, H={h}, new = {new_width}x{new_height}")
+        pilimage = pilimage.resize(size=(new_width, new_height))
+        tkimage = ImageTk.PhotoImage(pilimage)
+        self._panel.configure(image=tkimage)
+        self._panel.image = tkimage
+
+    def update_with_np(self, image, mode=None, **kwargs):
         print(f"Acquired image with shape: {image.shape}")
         start = time.time()
-        # if len(image.shape) == 3:
-        #     h, w, _ = image.shape
-        #     # image = image[:, :, ::-1]  # Convert BGR to RGB
-        # else:
         h, w, *_ = image.shape
-        image = Image.fromarray(image)
-        new_height = self._frame.winfo_height()
-        new_width = int(w*new_height/h)
-        image = image.resize(size=(new_width, new_height))
-        image = ImageTk.PhotoImage(image)
-        self._panel.configure(image=image)
-        self._panel.image = image
+        print(f"From array with mode")
+        image = Image.fromarray(image, mode)
+        self.update_with_pil_image(image)
         print(f"Time elapsed on image update = {time.time()-start}s")
 
 
