@@ -113,6 +113,27 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._image_canvas = PhotoImage(frame=image_frame, initial_image=initial_image)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+        image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
+        image_controls_frame.pack(side=tk.LEFT)
+
+        self._stretch_button = ttk.Button(image_controls_frame,
+                                       text="Stretch histogram",
+                                       command=self._stretch_hist,
+                                       style="B.TButton")
+        self._stretch_button.pack(side=tk.TOP)
+
+        self._log_button = ttk.Button(image_controls_frame,
+                                          text="Logarithm image",
+                                          command=self._log_image,
+                                          style="B.TButton")
+        self._log_button.pack(side=tk.TOP)
+
+    def _log_image(self):
+        self._image_canvas.log_image()
+
+    def _stretch_hist(self):
+        self._image_canvas.stretch_image()
+
     def _start_capturing(self):
         number = self._capture_spin.get_value()
         exposure = self._exposure_s
@@ -128,7 +149,7 @@ class RemoteProcessGUI(ChildProcessGUI):
             if self._connected:
                 server_status = self._requester.is_alive()
                 server_alive = "YES" if server_status else "NO"
-                print(f"Server alive?: {server_alive}")
+                # print(f"Server alive?: {server_alive}")
                 if not server_alive:
                     self._connected = False
             return

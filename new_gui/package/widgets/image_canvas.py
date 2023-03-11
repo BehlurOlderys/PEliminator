@@ -12,20 +12,55 @@ import matplotlib.patches as mpatches
 class PhotoImage(PeBaseWidget):
     def __init__(self, initial_image=None, initial_image_path=None, **kwargs):
         super(PhotoImage, self).__init__(**kwargs)
+        self._current_image = None
         if initial_image is not None:
             print("initial image")
+            self._current_image = initial_image
             img = ImageTk.PhotoImage(initial_image)
         elif initial_image_path is not None:
             print("initial image path")
             img = ImageTk.PhotoImage(Image.open(initial_image_path))
         else:
             raise AssertionError("Missing mandatory argument or given null!")
+
         self._frame.pack(fill=tk.BOTH, expand=True)
         self._panel = ttk.Label(self._frame, image=img, style="B.TLabel")
         self._panel.image=img
         self._panel.pack(fill=tk.BOTH, expand=True)
 
+    def _normalize_image(self, im):
+        min_v = np.amin(im)
+        max_v = np.amax(im)
+        span = max_v - min_v
+        return np.divide(np.subtract(im, min_v), span)
+
+    def stretch_image(self):
+        if self._current_image is not None:
+            w, h = self._current_image.size
+            np_shape = [h, w]
+            np_image = np.array(self._current_image.getdata())
+            normalized_after = np.multiply(self._normalize_image(np_image), 255)
+            log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
+            self.update_with_pil_image(log_image)
+        else:
+            print("There is no current image...")
+
+    def log_image(self):
+        if self._current_image is not None:
+            w, h = self._current_image.size
+            np_shape = [h, w]
+            print("Calculating logarithm with np")
+            np_image = np.array(self._current_image.getdata())
+            normalized_before = np.add(self._normalize_image(np_image), 1.0)
+            logarithmized = np.log(normalized_before)
+            normalized_after = np.multiply(self._normalize_image(logarithmized), 255)
+            log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
+            self.update_with_pil_image(log_image)
+        else:
+            print("There is no current image...")
+
     def update_with_pil_image(self, pilimage):
+        self._current_image = pilimage
         w, h = pilimage.size
         new_height = self._frame.winfo_height()
         new_width = int(w * new_height / h)
@@ -37,10 +72,9 @@ class PhotoImage(PeBaseWidget):
         self._panel.image = tkimage
 
     def update_with_np(self, image, mode=None, **kwargs):
-        print(f"Acquired image with shape: {image.shape}")
+        print(f"Updating with image of shape: {image.shape}")
         start = time.time()
         h, w, *_ = image.shape
-        print(f"From array with mode")
         image = Image.fromarray(image, mode)
         self.update_with_pil_image(image)
         print(f"Time elapsed on image update = {time.time()-start}s")
