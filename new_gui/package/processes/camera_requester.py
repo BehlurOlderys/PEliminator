@@ -37,6 +37,7 @@ class AscomRequests:
         old_address_suffix = "/".join(self._address.split(":")[-1].split("/")[1:])
         new_address = address + "/" + old_address_suffix
         self._address = new_address
+        print(f"New address = {self._address}")
 
     def _get_common_query(self):
         return {"ClientID": self._cid, "ClientTransactionID": self._rc.get_new_count()}
@@ -45,15 +46,24 @@ class AscomRequests:
 class CameraRequests(AscomRequests):
     def __init__(self, camera_no, **kwargs):
         super(CameraRequests, self).__init__(**kwargs)
-        self._address += f"camera/{camera_no}"
+        self._camera_no = camera_no
+        self._append_address()
+
+    def _append_address(self):
+        self._camera_address = self._address + f"camera/{self._camera_no}"
+
+    def update_address(self, address):
+        super(CameraRequests, self).update_address(address)
+        self._append_address()
+        print(f"Using camera address: {self._camera_address}")
 
     def _get_request(self, endpoint, query_params=None, headers=None, stream=False):
-        print(f"GET request for {self._address}/{endpoint}...")
+        print(f"GET request for {self._camera_address}/{endpoint}...")
         headers = headers if headers else {}
         query = self._get_common_query()
         if query_params is not None:
             query.update(query_params)
-        r = requests.get(f"{self._address}/{endpoint}", params=query, headers=headers, stream=stream)
+        r = requests.get(f"{self._camera_address}/{endpoint}", params=query, headers=headers, stream=stream)
         print(f"...returned code {r.status_code}")
         return r
 
@@ -67,13 +77,6 @@ class CameraRequests(AscomRequests):
         buf = io.BytesIO(r.content)
         return Image.open(buf)
 
-        # buf = io.BytesIO()
-        # for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-        #     buf.write(chunk)
-        #
-        # buf.seek(0)
-        # return Image.open(buf)
-
         with open("latest.tif", 'wb') as image_file:
             for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
                 print(f"chunk!")
@@ -84,7 +87,7 @@ class CameraRequests(AscomRequests):
             query = self._get_common_query()
             if query_params is not None:
                 query.update(query_params)
-            return requests.put(f"{self._address}/{endpoint}", data=json.dumps(query))
+            return requests.put(f"{self._camera_address}/{endpoint}", data=json.dumps(query))
 
     def get_gain(self):
         return int(self._get_request("gain").json()["Value"][0])
@@ -122,11 +125,23 @@ class CameraRequests(AscomRequests):
     def set_readout_mode(self, value):
         self._put_request("readoutmode", {"ReadoutMode": value})
 
+    def is_alive(self):
+        try:
+            status_address = f"{self._address}status"
+            r = requests.get(status_address)
+            return r.json()["server"] == "OK"
+        except Exception as e:
+            print(f"Is alive failed: {repr(e)}")
+            return False
+
     def get_camerastate(self):
-        return self._get_request("camerastate").json()
+        return self._get_request("camerastate")
 
     def put_startexposure(self, duration_s):
         return self._put_request("startexposure", {"Duration": duration_s, "Light": True, "Save": True}).json()
+
+    def put_capture(self, duration_s, images_no):
+        self._put_request("capture", query_params={"Number": images_no, "Duration": duration_s})
 
     def get_image_bytes(self):
         headers = {"Content-type": "application/octet-stream"}
@@ -152,7 +167,9 @@ class CameraRequests(AscomRequests):
         # TODO!!!! above constants!
         image_size = image_size[0:2]
         print(f"Using image size: {image_size}")
-        state = self.get_camerastate()["Value"]
+        get_cs = self.get_camerastate().json()
+        print(f"Get cs = {get_cs}")
+        state = get_cs["Value"]
         str_state = ascom_states[state]
         if str_state == "IDLE" or (str_state == "ERROR" and error_counter < error_allowed):
             if str_state == "ERROR":

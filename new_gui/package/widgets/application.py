@@ -3,9 +3,6 @@ from tkinter import ttk
 import time
 
 
-
-
-
 class BaseGuiApplication:
     def __init__(self, geometry="800x640", title="MyApp", *args, **kwargs):
         self._root = tk.Tk()
@@ -23,7 +20,6 @@ class BaseGuiApplication:
         self._style.configure("E.TFrame", background="#227722")
         self._style.configure("B.TCombobox", font=('calibre', 10, 'bold'), background='#222222', foreground='white',
                               fieldbackground='#333333')
-
         self._style.configure("B.TSpinbox",
                               font=('calibre', 10, 'bold'), background='#333333', foreground='white',
                               fieldbackground='#333333')
