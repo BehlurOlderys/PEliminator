@@ -24,9 +24,9 @@ class RemoteProcessGUI(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
 
-        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.0.59")
+        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="localhost")
 
-        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=5)
         self._requester = CameraRequests(camera_no=0)
         self._connected = False
         self._exposure_s = 1
@@ -34,6 +34,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._current_shape = [768, 1024]  # [H, W]
         self._capturing = False
         self._add_task(1, self._check_capture_progress, timeout_ms=1000)
+        self._temp_counter = 0
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -54,63 +55,71 @@ class RemoteProcessGUI(ChildProcessGUI):
         controls_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         controls_frame.pack(side=tk.TOP)
 
-        self._capture_frame = ttk.Frame(controls_frame, style="B.TFrame")
-        self._capture_frame.pack(side=tk.TOP)
-        self._trigger_button = ttk.Button(self._capture_frame,
-                                       text="Trigger single capture",
-                                       command=self._single,
-                                       style="B.TButton")
-        self._trigger_button.pack(side=tk.LEFT)
-        self._last_button = ttk.Button(self._capture_frame,
-                                        text="Get last image",
-                                        command=self._get_last,
-                                        style="B.TButton")
-        self._last_button.pack(side=tk.LEFT)
-        self._capture_spin = LabeledInput(frame=self._capture_frame, desc="Frames number", from_=1)
-        self._capture_spin.pack(side=tk.LEFT)
+        image_params_frame = ttk.Frame(controls_frame, style="B.TFrame")
+        image_params_frame.pack(side=tk.TOP)
 
-        self._exp_ms_controller = LabeledInput(frame=self._capture_frame,
-                                               desc="Exposure [ms]", to=(10 * 1000 * 1000 - 1),
+        self._exp_ms_controller = LabeledInput(frame=image_params_frame,
+                                               desc="Exp.[ms]", to=(10 * 1000 * 1000 - 1),
                                                width=8, callback=self._set_exposure_ms)
-        self._exp_ms_controller.pack(side=tk.TOP)
-        self._exp_s_controller = LabeledInput(frame=self._capture_frame,
-                                              desc="Exposure [s]", to=(10 * 1000 - 1),
+        self._exp_ms_controller.pack(side=tk.LEFT)
+        self._exp_s_controller = LabeledInput(frame=image_params_frame,
+                                              desc="Exp.[s]", to=(10 * 1000 - 1),
                                               width=6, callback=self._set_exposure_s)
-        self._exp_s_controller.pack(side=tk.TOP)
+        self._exp_s_controller.pack(side=tk.LEFT)
         self._exp_s_controller.set_value(self._exposure_s)
 
+        self._temperature_label = ttk.Label(image_params_frame, style="B.TLabel")
+        self._temperature_label.pack(side=tk.RIGHT)
+        self._update_temp()
+
         image_types = self._requester.get_camera_readout_modes()
-
-        continuous_capturing_frame = ttk.Frame(controls_frame, style="B.TFrame")
-        continuous_capturing_frame.pack(side=tk.TOP)
-
-        self._capture_pb = CaptureProgressBar(frame=continuous_capturing_frame)
-        self._capture_pb.pack(side=tk.RIGHT)
-
-        self._start_capturing_button = ttk.Button(continuous_capturing_frame,
-                                                  text="Start capturing",
-                                                  command=self._start_capturing,
-                                                  style="B.TButton")
-        self._start_capturing_button.pack(side=tk.LEFT)
-
-        self._type_combobox = ttk.Combobox(controls_frame, values=image_types, style="B.TCombobox", )
-        self._type_combobox.pack(side=tk.TOP)
+        self._type_combobox = ttk.Combobox(image_params_frame, values=image_types, style="B.TCombobox", )
+        self._type_combobox.pack(side=tk.RIGHT)
         current_type = self._requester.get_current_readout_mode()
         print(f"Current type= {current_type}")
         self._type_combobox.current(newindex=current_type)
         self._type_combobox.bind("<<ComboboxSelected>>",
                                  lambda event: self._requester.set_readout_mode(event.widget.current()))
 
-        self._controls["Gain"] = ValueController(frame=controls_frame,
+        self._controls["Gain"] = ValueController(frame=image_params_frame,
                                                  setter_fun=lambda x: self._requester.set_gain(x),
                                                  getter_fun=lambda: self._requester.get_gain(),
                                                  desc="Gain")
-        self._controls["Gain"].pack(side=tk.TOP)
+        self._controls["Gain"].pack(side=tk.LEFT)
 
-        image_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        continuous_capturing_frame = ttk.Frame(controls_frame, style="B.TFrame")
+        continuous_capturing_frame.pack(side=tk.TOP)
+
+        self._capture_spin = LabeledInput(frame=continuous_capturing_frame, desc="Frames", from_=1)
+        self._capture_spin.pack(side=tk.LEFT)
+
+        self._start_capturing_button = ttk.Button(continuous_capturing_frame,
+                                                  text="Start",
+                                                  command=self._start_capturing,
+                                                  style="B.TButton")
+        self._start_capturing_button.pack(side=tk.LEFT)
+
+        self._capture_pb = CaptureProgressBar(frame=continuous_capturing_frame)
+        self._capture_pb.pack(side=tk.LEFT)
+
+        ttk.Separator(continuous_capturing_frame, orient=tk.HORIZONTAL,
+                      style="B.TSeparator").pack(side=tk.LEFT, ipadx=50)
+
+        self._trigger_button = ttk.Button(continuous_capturing_frame,
+                                       text="One shot",
+                                       command=self._single,
+                                       style="B.TButton")
+        self._trigger_button.pack(side=tk.LEFT)
+        self._last_button = ttk.Button(continuous_capturing_frame,
+                                        text="Last image",
+                                        command=self._get_last,
+                                        style="B.TButton")
+        self._last_button.pack(side=tk.LEFT)
+
+        image_frame = ttk.Frame(controls_frame, style="B.TFrame")
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
         initial_image = self._requester.get_last_image()
-        self._image_canvas = PhotoImage(frame=image_frame, initial_image=initial_image)
+        self._image_canvas = PhotoImage(frame=image_frame, initial_image=initial_image, initial_image_path="last.png")
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
@@ -127,6 +136,10 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           command=self._log_image,
                                           style="B.TButton")
         self._log_button.pack(side=tk.TOP)
+
+    def _update_temp(self):
+        temp_string = f"T={self._requester.get_temperature()}°C"
+        self._temperature_label.configure(text=temp_string)
 
     def _log_image(self):
         self._image_canvas.log_image()
@@ -146,12 +159,18 @@ class RemoteProcessGUI(ChildProcessGUI):
 
     def _check_capture_progress(self):
         if not self._capturing:
+            self._temp_counter += 1
+            if self._temp_counter < 10:
+                return
+            self._temp_counter = 0
             if self._connected:
                 server_status = self._requester.is_alive()
                 server_alive = "YES" if server_status else "NO"
                 # print(f"Server alive?: {server_alive}")
                 if not server_alive:
                     self._connected = False
+                else: self._update_temp()
+
             return
 
         r = self._requester.get_camerastate()

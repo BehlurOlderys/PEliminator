@@ -92,6 +92,9 @@ class CameraRequests(AscomRequests):
     def get_gain(self):
         return int(self._get_request("gain").json()["Value"][0])
 
+    def get_temperature(self):
+        return self._get_request("ccdtemperature").json()["Value"]
+
     def set_init(self):
         r = self._put_request("init")
         return r.status_code == 200
