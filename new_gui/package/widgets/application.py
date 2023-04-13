@@ -15,7 +15,13 @@ class BaseGuiApplication:
         self._style.configure('TButton', font=('calibre', 10, 'bold'), background='#333333', foreground='white')
         self._style.map('TButton', background=[('active', '#444444')])
         self._style.configure("B.TFrame", background="#222222")
-        self._style.configure("C.TFrame", background="#772222")
+        self._style.configure("B.TCheckbutton",
+                              font=('calibre', 10, 'bold'),
+                              background='#333333',
+                              foreground='#999999')
+        self._style.map('B.TCheckbutton',
+              foreground=[('active', '#999999')],
+              background=[('active', '#555555')])
         self._style.configure("D.TFrame", background="#222277")
         self._style.configure("E.TFrame", background="#227722")
         self._style.configure("B.TCombobox", font=('calibre', 10, 'bold'), background='#222222', foreground='white',
@@ -24,6 +30,9 @@ class BaseGuiApplication:
                               font=('calibre', 10, 'bold'), background='#333333', foreground='white',
                               fieldbackground='#333333')
         self._style.configure("B.TLabel", background="#222222", foreground="white", font=('calibre', 10, 'bold'))
+
+    def maximize(self):
+        self._root.state('zoomed')
 
     def run(self):
         self._root.mainloop()

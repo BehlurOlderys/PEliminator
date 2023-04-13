@@ -74,14 +74,15 @@ class CameraRequests(AscomRequests):
             print(f"Response obtained: {r.status_code}")
             return None
 
+        print(r.content)
         buf = io.BytesIO(r.content)
         return Image.open(buf)
-
-        with open("latest.tif", 'wb') as image_file:
-            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-                print(f"chunk!")
-                image_file.write(chunk)
-        print(f"Saved image!")
+        #
+        # with open("latest.tif", 'wb') as image_file:
+        #     for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+        #         print(f"chunk!")
+        #         image_file.write(chunk)
+        # print(f"Saved image!")
 
     def _put_request(self, endpoint, query_params=None):
             query = self._get_common_query()

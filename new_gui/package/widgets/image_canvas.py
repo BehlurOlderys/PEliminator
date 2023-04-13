@@ -31,15 +31,21 @@ class PhotoImage(PeBaseWidget):
     def _normalize_image(self, im):
         min_v = np.amin(im)
         max_v = np.amax(im)
-        span = max_v - min_v
-        return np.divide(np.subtract(im, min_v), span)
+        return (im - min_v) / (max_v - min_v)
 
     def stretch_image(self):
         if self._current_image is not None:
             w, h = self._current_image.size
             np_shape = [h, w]
             np_image = np.array(self._current_image.getdata())
-            normalized_after = np.multiply(self._normalize_image(np_image), 255)
+
+            normalized_after = 255*self._normalize_image(np_image)
+
+            a = np.percentile(normalized_after, 5)
+            b = np.percentile(normalized_after, 95)
+            print(f"2A = {a}, 2B={b}")
+            # normalized_after = (normalized_after - a) / (b - a)
+
             log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
             self.update_with_pil_image(log_image)
         else:
@@ -63,6 +69,7 @@ class PhotoImage(PeBaseWidget):
         self._current_image = pilimage
         w, h = pilimage.size
         new_height = self._frame.winfo_height()
+        print(f"New height = {new_height}")
         new_width = int(w * new_height / h)
 
         print(f"W={w}, H={h}, new = {new_width}x{new_height}")
