@@ -1,6 +1,6 @@
 from .child_process import ChildProcessGUI
 from package.widgets.value_controller import ValueController
-from package.widgets.image_canvas import PhotoImage
+from package.widgets.image_canvas import PhotoImageWithRectangle
 from package.widgets.labeled_input import LabeledInput
 from package.widgets.ip_address_input import IPAddressInput
 from package.widgets.capture_progress_bar import CaptureProgressBar
@@ -114,7 +114,14 @@ class RemoteProcessGUI(ChildProcessGUI):
 
         image_frame = ttk.Frame(controls_frame, style="B.TFrame")
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
-        self._image_canvas = PhotoImage(frame=image_frame, initial_image_path="last.png")
+
+        def rect_callback(event):
+            print(f"clicked at ({event.x}, {event.y})")
+            self._image_canvas.set_rectangle((event.x, event.y))
+
+        self._image_canvas = PhotoImageWithRectangle(frame=image_frame,
+                                                     initial_image_path="last.png",
+                                                     callback=rect_callback)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
