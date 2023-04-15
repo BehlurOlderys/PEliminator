@@ -139,9 +139,6 @@ class RemoteProcessGUI(ChildProcessGUI):
     def _log_image(self):
         self._image_canvas.log_image()
 
-    def _stretch_hist(self):
-        self._image_canvas.stretch_image()
-
     def _start_capturing(self):
         number = self._capture_spin.get_value()
         exposure = self._exposure_s
@@ -206,6 +203,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         image.save(filename)
 
     def _single(self, save=False):
+        epsilon = 0.1
         image_type = self._type_combobox.get()
         print(f"Image type = {image_type}")
         npimg = self._get_np_array_for_single(image_type)
@@ -228,7 +226,11 @@ class RemoteProcessGUI(ChildProcessGUI):
         if16 = npimg.astype(np.float16)
         a = np.percentile(if16, 5)
         b = np.percentile(if16, 95)
-        normalized_not_clipped = (if16 - a) / (b - a)
+
+        if b - a < epsilon:
+            normalized_not_clipped = a*np.ones_like(if16)
+        else:
+            normalized_not_clipped = (if16 - a) / (b - a)
 
         img8b = np.clip(256*normalized_not_clipped, 0, 255).astype(np.uint8)
         print(f"a={a}, b={b}, span = {b - a}")

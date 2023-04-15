@@ -33,24 +33,6 @@ class PhotoImage(PeBaseWidget):
         max_v = np.amax(im)
         return (im - min_v) / (max_v - min_v)
 
-    def stretch_image(self):
-        if self._current_image is not None:
-            w, h = self._current_image.size
-            np_shape = [h, w]
-            np_image = np.array(self._current_image.getdata())
-
-            normalized_after = 255*self._normalize_image(np_image)
-
-            a = np.percentile(normalized_after, 5)
-            b = np.percentile(normalized_after, 95)
-            print(f"2A = {a}, 2B={b}")
-            # normalized_after = (normalized_after - a) / (b - a)
-
-            log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
-            self.update_with_pil_image(log_image)
-        else:
-            print("There is no current image...")
-
     def log_image(self):
         if self._current_image is not None:
             w, h = self._current_image.size
