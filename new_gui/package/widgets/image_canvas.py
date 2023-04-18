@@ -2,11 +2,13 @@ from .pe_base_widget import PeBaseWidget
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import tkinter as tk
-from tkinter import ttk
 import numpy as np
 from PIL import ImageTk, Image
 import time
 import matplotlib.patches as mpatches
+
+
+window_max_width = 1024
 
 
 class PhotoImage(PeBaseWidget):
@@ -25,11 +27,22 @@ class PhotoImage(PeBaseWidget):
             raise AssertionError("Missing mandatory argument or given null!")
 
         self._frame.pack(fill=tk.BOTH, expand=True)
-        self._canvas = tk.Canvas(self._frame, width=999, height=999)
+
+        w, h =self._current_image.size
+
+        self._canvas = tk.Canvas(self._frame, width=window_max_width, height=768, scrollregion=(0, 0, w, h))
         self._canvas.configure(bg='cyan')
-        self._canvas.pack(fill=tk.BOTH, expand=True)
-        print(f"Creating image...")
+
+        hbar = tk.Scrollbar(self._frame, orient=tk.HORIZONTAL)
+        hbar.pack(side=tk.BOTTOM, fill=tk.X)
+        hbar.config(command=self._canvas.xview)
+        vbar = tk.Scrollbar(self._frame, orient=tk.VERTICAL)
+        vbar.pack(side=tk.RIGHT, fill=tk.Y)
+        vbar.config(command=self._canvas.yview)
+        self._canvas.config(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
         self._image_container = self._canvas.create_image(0, 0, anchor="nw", image=self._img)
+        self._canvas.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+
 
     def _normalize_image(self, im):
         print("Photo image normalize")
@@ -55,14 +68,17 @@ class PhotoImage(PeBaseWidget):
     def update_with_pil_image(self, pilimage):
         print("Photo image update with pil")
         self._current_image = pilimage
-        w, h = pilimage.size
-        new_height = self._frame.winfo_height()
-        print(f"New height = {new_height}")
-        new_width = int(w * new_height / h)
-
-        print(f"W={w}, H={h}, new = {new_width}x{new_height}")
-        pilimage = pilimage.resize(size=(new_width, new_height))
+        # w, h = self._current_image.size
+        # new_width = int(w * new_height / h)
+        #
+        # print(f"W={w}, H={h}, new = {new_width}x{new_height}")
+        # pilimage = pilimage.resize(size=(new_width, new_height))
         self._img = ImageTk.PhotoImage(pilimage)
+        w, h = self._current_image.size
+        canvas_width = min(w, window_max_width)
+        print(f"Using canvas width = {canvas_width}")
+
+        self._canvas.configure(scrollregion=(0, 0, w, h), width=canvas_width, height=h)
         self._canvas.itemconfig(self._image_container, image=self._img)
 
     def update_with_np(self, image, mode=None, **kwargs):
@@ -81,27 +97,26 @@ class PhotoImageWithRectangle(PhotoImage):
         self._border_color = border_color
         self._rect = None
         self._callback = callback
-        self._canvas.bind("<Button-1>", self._callback)
+        self._canvas.bind("<Button-1>", self._click_action)
         self._patch = None
+
+    def get_fragment_size(self):
+        return self._fragment_size
 
     def get_rectangle(self):
         return self._rect
-
-    def clear_rectangle(self):
-        self._rect = None
-        [p.remove() for p in reversed(self._ax.patches)]
-        self._canvas.draw_idle()
 
     def set_rectangle(self, rect):
         self._rect = rect
         self._update_patch()
 
     def _update_patch(self):
-        w = self._fragment_size
+        h = self._fragment_size
         x, y = self._rect
         if self._patch is not None:
             self._canvas.delete(self._patch)
-        self._patch = self._canvas.create_rectangle(x-25, y-25, x+25, y+25)
+
+        self._patch = self._canvas.create_rectangle(x, y, x+h, y+h)
         # rect = mpatches.Rectangle(self._rect, w, w,
         #                           fill=False,
         #                           color=self._border_color,
@@ -112,15 +127,19 @@ class PhotoImageWithRectangle(PhotoImage):
         # self._canvas.draw_idle()
 
     def _click_action(self, event):
-        if not event.inaxes == self._ax:
-            return
-        ix, iy = event.xdata, event.ydata
+        ix, iy = event.x, event.y
+        _, _, srx, sry = tuple(map(int, self._canvas.cget("scrollregion").split(' ')))
+
+        trans = lambda x, y: tuple([int(a*y) for a in x])
+        region_x = trans(self._canvas.xview(), srx)
+        region_y = trans(self._canvas.yview(), sry)
+
+        print(f"Event data = {ix}, {iy}, region_x = {region_x}, sry={region_y}, canvas view= {self._canvas.xview()}, {self._canvas.yview()}")
         w = self._fragment_size
-        self._rect = (ix - w / 2, iy - w / 2)
+        self._rect = (region_x[0] + ix - w / 2, region_y[0] + iy - w / 2)
         self._update_patch()
         if self._callback is not None:
             self._callback(self._rect)
-
 
 
 class ImageCanvas(PeBaseWidget):
