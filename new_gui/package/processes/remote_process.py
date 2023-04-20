@@ -35,8 +35,6 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._capturing = False
         self._add_task(1, self._check_capture_progress, timeout_ms=1000)
         self._temp_counter = 0
-        self._cropped = tk.IntVar(value=0)
-        self._zoom = 1.0
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -123,12 +121,6 @@ class RemoteProcessGUI(ChildProcessGUI):
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
         image_controls_frame.pack(side=tk.LEFT)
 
-        self._crop_button = ttk.Checkbutton(image_controls_frame,
-                                       variable=self._cropped,
-                                       text="Crop image",
-                                       style="B.TCheckbutton")
-        self._crop_button.pack(side=tk.TOP)
-
         self._log_button = ttk.Button(image_controls_frame,
                                           text="Logarithm image",
                                           command=self._log_image,
@@ -146,24 +138,6 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           command=self._image_canvas.zoom_out,
                                           style="B.TButton")
         self._zoom_out_button.pack(side=tk.TOP)
-
-    # def _zoom_in(self):
-    #
-    #     # self._zoom *= 1.5
-    #     # print(f"New scale = {self._zoom}")
-    #     # image = self._image_canvas.get_current_pil_image()
-    #     # w, h = image.size
-    #     # image = image.resize((int(w*self._zoom), int(h*self._zoom)))
-    #     # self._image_canvas.update_with_pil_image(image)
-    #
-    # def _zoom_out(self):
-    #     self._image_canvas.zoom_out()
-    #     # self._zoom /= 1.5
-    #     # print(f"New scale = {self._zoom}")
-    #     # image = self._image_canvas.get_current_pil_image()
-    #     # w, h = image.size
-    #     # image = image.resize((int(w*self._zoom), int(h*self._zoom)))
-    #     # self._image_canvas.update_with_pil_image(image)
 
     def _update_temp(self):
         temp_string = f"T={self._requester.get_temperature()}°C"
@@ -249,15 +223,6 @@ class RemoteProcessGUI(ChildProcessGUI):
         # Just for sake of displaying it correcly:
         # if type_info["astype"] == np.uint16:
 
-        if self._cropped.get() > 0:
-            x, y = self._image_canvas.get_rectangle()
-            h = self._image_canvas.get_fragment_size()
-            yb = int(y)
-            ye = int(y+h)
-            xb = int(x)
-            xe = int(x+h)
-            npimg = npimg[yb:ye, xb:xe]
-
         if16 = npimg.astype(np.float16)
         a = np.percentile(if16, 5)
         b = np.percentile(if16, 95)
@@ -272,11 +237,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         print(f"img8b max={np.max(img8b)}, img8b min={np.min(img8b)}")
         npimg = img8b.astype(np.uint8)
 
-        # else:
-        #     pass
         image = PIL.Image.fromarray(npimg, mode="L")
-        w, h = image.size
-        image = image.resize((int(w * self._zoom), int(h * self._zoom)))
         self._image_canvas.update_with_pil_image(image)
 
     def _set_exposure_s(self, value):

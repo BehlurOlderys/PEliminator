@@ -61,16 +61,16 @@ class PhotoImage(PeBaseWidget):
 
         canvas_width = min(w, window_max_width)
         print(f"Using canvas width = {canvas_width}")
-        self._canvas.configure(scrollregion=(0, 0, w, h), width=canvas_width, height=h)
+        self._canvas.configure(scrollregion=(0, 0, new_width, new_height), width=canvas_width, height=h)
         self._canvas.itemconfig(self._image_container, image=self._img)
         print("... resizing done!")
 
     def zoom_in(self):
-        self._zoom = self._zoom * 1.4
+        self._zoom = round(self._zoom * 1.4, 2)
         self._resize_current()
 
     def zoom_out(self):
-        self._zoom = self._zoom / 1.4
+        self._zoom = round(self._zoom / 1.4, 2)
         self._resize_current()
 
     def _normalize_image(self, im):
@@ -107,40 +107,42 @@ class PhotoImage(PeBaseWidget):
 
 
 class PhotoImageWithRectangle(PhotoImage):
-    def __init__(self, fragment_size=50, border_color="black", callback=None, **kwargs):
+    def __init__(self, fragment_size=50, border_color="black", **kwargs):
         super(PhotoImageWithRectangle, self).__init__(**kwargs)
-        self._fragment_size = fragment_size
+        self._original_fragment_size = fragment_size
+        self._displayed_fragment_size = self._original_fragment_size
         self._border_color = border_color
-        self._rect = None
-        self._callback = callback
+        self._original_rect = None
+        self._displayed_rect = None
         self._canvas.bind("<Button-1>", self._click_action)
         self._patch = None
 
-    def get_fragment_size(self):
-        return self._fragment_size
+    def _resize_current(self):
+        super(PhotoImageWithRectangle, self)._resize_current()
 
-    def get_rectangle(self):
-        return self._rect
+        self._displayed_fragment_size = self._original_fragment_size * self._zoom
+
+        x, y = self._original_rect
+        x *= self._zoom
+        y *= self._zoom
+        self._displayed_rect = (x, y)
+
+        self._update_patch()
+        self._center_on_patch()
+
+    def _center_on_patch(self):
+        pass
 
     def set_rectangle(self, rect):
-        self._rect = rect
+        self._original_rect = rect
         self._update_patch()
 
     def _update_patch(self):
-        h = self._fragment_size
-        x, y = self._rect
+        h = self._displayed_fragment_size
+        x, y = self._displayed_rect
         if self._patch is not None:
             self._canvas.delete(self._patch)
-
         self._patch = self._canvas.create_rectangle(x, y, x+h, y+h)
-        # rect = mpatches.Rectangle(self._rect, w, w,
-        #                           fill=False,
-        #                           color=self._border_color,
-        #                           linewidth=2)
-        #
-        # [p.remove() for p in reversed(self._ax.patches)]
-        # self._ax.add_patch(rect)
-        # self._canvas.draw_idle()
 
     def _click_action(self, event):
         ix, iy = event.x, event.y
@@ -151,11 +153,10 @@ class PhotoImageWithRectangle(PhotoImage):
         region_y = trans(self._canvas.yview(), sry)
 
         print(f"Event data = {ix}, {iy}, region_x = {region_x}, sry={region_y}, canvas view= {self._canvas.xview()}, {self._canvas.yview()}")
-        w = self._fragment_size
-        self._rect = (region_x[0] + ix - w / 2, region_y[0] + iy - w / 2)
+        w = self._displayed_fragment_size
+        self._original_rect = (region_x[0] + ix - w / 2, region_y[0] + iy - w / 2)
+        self._displayed_rect = self._original_rect
         self._update_patch()
-        if self._callback is not None:
-            self._callback(self._rect)
 
 
 class ImageCanvas(PeBaseWidget):
