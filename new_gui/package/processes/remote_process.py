@@ -137,23 +137,33 @@ class RemoteProcessGUI(ChildProcessGUI):
 
         self._zoom_in_button = ttk.Button(image_controls_frame,
                                           text="Zoom image in (+)",
-                                          command=self._zoom_in,
+                                          command=self._image_canvas.zoom_in,
                                           style="B.TButton")
         self._zoom_in_button.pack(side=tk.TOP)
 
         self._zoom_out_button = ttk.Button(image_controls_frame,
                                           text="Zoom image out (-)",
-                                          command=self._zoom_out,
+                                          command=self._image_canvas.zoom_out,
                                           style="B.TButton")
         self._zoom_out_button.pack(side=tk.TOP)
 
-    def _zoom_in(self):
-        self._zoom *= 1.5
-        print(f"New scale = {self._zoom}")
-
-    def _zoom_out(self):
-        self._zoom /= 1.5
-        print(f"New scale = {self._zoom}")
+    # def _zoom_in(self):
+    #
+    #     # self._zoom *= 1.5
+    #     # print(f"New scale = {self._zoom}")
+    #     # image = self._image_canvas.get_current_pil_image()
+    #     # w, h = image.size
+    #     # image = image.resize((int(w*self._zoom), int(h*self._zoom)))
+    #     # self._image_canvas.update_with_pil_image(image)
+    #
+    # def _zoom_out(self):
+    #     self._image_canvas.zoom_out()
+    #     # self._zoom /= 1.5
+    #     # print(f"New scale = {self._zoom}")
+    #     # image = self._image_canvas.get_current_pil_image()
+    #     # w, h = image.size
+    #     # image = image.resize((int(w*self._zoom), int(h*self._zoom)))
+    #     # self._image_canvas.update_with_pil_image(image)
 
     def _update_temp(self):
         temp_string = f"T={self._requester.get_temperature()}°C"
@@ -207,7 +217,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         except Exception as e:
             print(f"Unknown exception happened on update for capturing: {repr(e)}")
 
-    def _get_np_array_for_single(self, image_type):
+    def _get_np_array_from_camera(self, image_type):
         """
         Will return 8b or 16b np array of bytes send from camera
         :return:
@@ -229,7 +239,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         epsilon = 0.1
         image_type = self._type_combobox.get()
         print(f"Image type = {image_type}")
-        npimg = self._get_np_array_for_single(image_type)
+        npimg = self._get_np_array_from_camera(image_type)
         type_info = image_types_map[image_type]
 
         if save:
@@ -266,9 +276,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         #     pass
         image = PIL.Image.fromarray(npimg, mode="L")
         w, h = image.size
-        image = image.resize((int(w*self._zoom), int(h*self._zoom)))
-        # np_image = np.array(image.getdata())
-        # print(f"npmax={np.max(np_image)}, npmin={np.min(np_image)}")
+        image = image.resize((int(w * self._zoom), int(h * self._zoom)))
         self._image_canvas.update_with_pil_image(image)
 
     def _set_exposure_s(self, value):

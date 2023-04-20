@@ -14,21 +14,23 @@ window_max_width = 1024
 class PhotoImage(PeBaseWidget):
     def __init__(self, initial_image=None, initial_image_path=None, **kwargs):
         super(PhotoImage, self).__init__(**kwargs)
-        self._current_image = None
+        self._displayed_image = None
+        self._original_image = None
+        self._zoom = 1.0
         if initial_image is not None:
             print("initial image")
-            self._current_image = initial_image
-            self._img = ImageTk.PhotoImage(initial_image)
+            self._original_image = initial_image
         elif initial_image_path is not None:
             print(f"initial image path: {initial_image_path}")
-            self._current_image = Image.open(initial_image_path)
-            self._img = ImageTk.PhotoImage(self._current_image)
+            self._original_image = Image.open(initial_image_path)
         else:
             raise AssertionError("Missing mandatory argument or given null!")
+        self._displayed_image = self._original_image
+        self._img = ImageTk.PhotoImage(self._displayed_image)
 
         self._frame.pack(fill=tk.BOTH, expand=True)
 
-        w, h =self._current_image.size
+        w, h =self._original_image.size
 
         self._canvas = tk.Canvas(self._frame, width=window_max_width, height=768, scrollregion=(0, 0, w, h))
         self._canvas.configure(bg='cyan')
@@ -43,6 +45,33 @@ class PhotoImage(PeBaseWidget):
         self._image_container = self._canvas.create_image(0, 0, anchor="nw", image=self._img)
         self._canvas.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
 
+    def _resize_current(self):
+        print(f"Resizing current image with zoom = {self._zoom}...")
+        w, h = self._original_image.size
+        new_width = int(w * self._zoom)
+        new_height = int(h * self._zoom)
+
+        if new_width != w or new_height != h:
+            print(f"Resizing: {w}x{h} -> {new_width}x{new_height}")
+            self._displayed_image = self._original_image.resize(size=(new_width, new_height))
+        else:
+            self._displayed_image = self._original_image
+
+        self._img = ImageTk.PhotoImage(self._displayed_image)
+
+        canvas_width = min(w, window_max_width)
+        print(f"Using canvas width = {canvas_width}")
+        self._canvas.configure(scrollregion=(0, 0, w, h), width=canvas_width, height=h)
+        self._canvas.itemconfig(self._image_container, image=self._img)
+        print("... resizing done!")
+
+    def zoom_in(self):
+        self._zoom = self._zoom * 1.4
+        self._resize_current()
+
+    def zoom_out(self):
+        self._zoom = self._zoom / 1.4
+        self._resize_current()
 
     def _normalize_image(self, im):
         print("Photo image normalize")
@@ -52,34 +81,21 @@ class PhotoImage(PeBaseWidget):
 
     def log_image(self):
         print("Photo image log")
-        if self._current_image is not None:
-            w, h = self._current_image.size
-            np_shape = [h, w]
-            print("Calculating logarithm with np")
-            np_image = np.array(self._current_image.getdata())
-            normalized_before = np.add(self._normalize_image(np_image), 1.0)
-            logarithmized = np.log(normalized_before)
-            normalized_after = np.multiply(self._normalize_image(logarithmized), 255)
-            log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
-            self.update_with_pil_image(log_image)
-        else:
-            print("There is no current image...")
+        w, h = self._original_image.size
+        np_shape = [h, w]
+        print("Calculating logarithm with np")
+        np_image = np.array(self._original_image.getdata())
+        normalized_before = np.add(self._normalize_image(np_image), 1.0)
+        logarithmized = np.log(normalized_before)
+        normalized_after = np.multiply(self._normalize_image(logarithmized), 255)
+        log_image = Image.fromarray(normalized_after.reshape(np_shape).astype(np.uint8))
+        self.update_with_pil_image(log_image)
 
     def update_with_pil_image(self, pilimage):
-        print("Photo image update with pil")
-        self._current_image = pilimage
-        # w, h = self._current_image.size
-        # new_width = int(w * new_height / h)
-        #
-        # print(f"W={w}, H={h}, new = {new_width}x{new_height}")
-        # pilimage = pilimage.resize(size=(new_width, new_height))
-        self._img = ImageTk.PhotoImage(pilimage)
-        w, h = self._current_image.size
-        canvas_width = min(w, window_max_width)
-        print(f"Using canvas width = {canvas_width}")
-
-        self._canvas.configure(scrollregion=(0, 0, w, h), width=canvas_width, height=h)
-        self._canvas.itemconfig(self._image_container, image=self._img)
+        print("Updating with new pil image")
+        self._original_image = pilimage
+        self._resize_current()
+        print("... updating done!")
 
     def update_with_np(self, image, mode=None, **kwargs):
         print(f"Updating with image of shape: {image.shape}")
