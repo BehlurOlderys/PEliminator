@@ -16,7 +16,7 @@ class DiagnosticsGUI(ChildProcessGUI):
         self._temperature_plot.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         self._temperature_plot.clear()
         self._initial_tim = time.time()
-        self._add_task(self._update_s, self._update)
+        self._add_task(self._update, timeout_s=self._update_s)
 
     def _update(self):
         try:

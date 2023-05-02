@@ -4,8 +4,9 @@ from package.widgets.image_canvas import PhotoImageWithRectangle
 from package.widgets.labeled_input import LabeledInput
 from package.widgets.ip_address_input import IPAddressInput
 from package.widgets.capture_progress_bar import CaptureProgressBar
-from package.processes.camera_requester import CameraRequests
+from package.processes.camera_requester import CameraRequests, get_diff_ms
 from tkinter import ttk
+from datetime import datetime
 import tkinter as tk
 import requests
 import numpy as np
@@ -25,7 +26,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
         self.maximize()
         self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.0.59")
-
+        self._continuous_imaging = False
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=5)
         self._requester = CameraRequests(camera_no=0)
         self._connected = False
@@ -33,7 +34,8 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._controls = {}
         self._current_shape = [768, 1024]  # [H, W]
         self._capturing = False
-        self._add_task(1, self._check_capture_progress, timeout_ms=1000)
+        self._add_task(self._check_capture_progress, timeout_ms=1000)
+        self._add_task(self._check_continuous, timeout_ms=500)
         self._temp_counter = 0
 
     def _connect(self, host_name, port_number):
@@ -107,9 +109,19 @@ class RemoteProcessGUI(ChildProcessGUI):
 
         self._trigger_button = ttk.Button(continuous_capturing_frame,
                                        text="One shot",
-                                       command=self._single,
+                                       command=self._get_one_shot_image,
                                        style="B.TButton")
         self._trigger_button.pack(side=tk.LEFT)
+        self._instant_button = ttk.Button(continuous_capturing_frame,
+                                       text="Instant image (max 5s)",
+                                       command=self._get_instant_image,
+                                       style="B.TButton")
+        self._instant_button.pack(side=tk.LEFT)
+        self._continuous_button = ttk.Button(continuous_capturing_frame,
+                                       text="Start continuous",
+                                       style="B.TButton")
+        self._continuous_button.pack(side=tk.LEFT)
+        self._continuous_button.configure(command=self._start_continuous_imaging)
 
         image_frame = ttk.Frame(controls_frame, style="B.TFrame")
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
@@ -153,6 +165,39 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._capturing = True
         self._capture_pb.reset(max_no=int(number))
 
+    def _start_continuous_imaging(self):
+        self._continuous_imaging = True
+        self._continuous_button.configure(text="Stop continuous",
+                                          command=self._stop_continuous_imaging,
+                                          style="SunkableButton.TButton")
+        r = self._requester.put_start_continuous_imaging()
+        print(f"Request to start continuous imaging returned: {r}")
+
+    def _stop_continuous_imaging(self):
+        self._continuous_imaging = False
+        self._continuous_button.configure(text="Start continuous",
+                                          command=self._start_continuous_imaging,
+                                          style="B.TButton")
+        r = self._requester.put_stop_continuous_imaging()
+        print(f"Request to stop continuous imaging returned: {r}")
+
+    def _check_continuous(self):
+        if not self._continuous_imaging:
+            return
+        print("Checking for continuous image available!")
+
+        before = datetime.now()
+        res = self._requester.is_alive()
+        after = datetime.now()
+        ms = get_diff_ms(after, before)
+        print(f"Is server alive: {res}. Response took {ms}ms to finish.")
+
+    def _get_one_shot_image(self):
+        return self._single(getter=lambda: self._requester.get_one_image(self._exposure_s, self._current_shape))
+
+    def _get_instant_image(self):
+        return self._single(getter=lambda: self._requester.put_instant_capture(self._exposure_s))
+
     def _update_image_when_capturing(self):
         self._image_canvas.update_with_pil_image(self._requester.get_last_image())
 
@@ -162,13 +207,13 @@ class RemoteProcessGUI(ChildProcessGUI):
             if self._temp_counter < 10:
                 return
             self._temp_counter = 0
-            if self._connected:
-                server_status = self._requester.is_alive()
-                server_alive = "YES" if server_status else "NO"
-                # print(f"Server alive?: {server_alive}")
-                if not server_alive:
-                    self._connected = False
-                else: self._update_temp()
+            # if self._connected:
+            #     server_status = self._requester.is_alive()
+            #     server_alive = "YES" if server_status else "NO"
+            #     # print(f"Server alive?: {server_alive}")
+            #     if not server_alive:
+            #         self._connected = False
+            #     else: self._update_temp()
 
             return
 
@@ -191,13 +236,13 @@ class RemoteProcessGUI(ChildProcessGUI):
         except Exception as e:
             print(f"Unknown exception happened on update for capturing: {repr(e)}")
 
-    def _get_np_array_from_camera(self, image_type):
+    def _get_np_array_from_camera(self, image_type, getter):
         """
         Will return 8b or 16b np array of bytes send from camera
         :return:
         """
         type_info = image_types_map[image_type]
-        imagebytes = self._requester.get_one_image(self._exposure_s, image_type, self._current_shape)
+        imagebytes = getter()
         shape = self._current_shape
         img_dtype = type_info["astype"]
 
@@ -205,19 +250,12 @@ class RemoteProcessGUI(ChildProcessGUI):
         npimg = npimg.reshape(shape)
         return npimg
 
-    def _single_save(self, npimg, typeinfo, filename="last.png"):
-        image = PIL.Image.fromarray(npimg, mode=typeinfo["mode"])
-        image.save(filename)
-
-    def _single(self, save=False):
+    def _single(self, getter):
         epsilon = 0.1
         image_type = self._type_combobox.get()
         print(f"Image type = {image_type}")
-        npimg = self._get_np_array_from_camera(image_type)
+        npimg = self._get_np_array_from_camera(image_type, getter=getter)
         type_info = image_types_map[image_type]
-
-        if save:
-            self._single_save(npimg, type_info, "last.png")
 
         # CAREFUL! Below line make image downgraded into 8 bit from 16!
         # Just for sake of displaying it correcly:

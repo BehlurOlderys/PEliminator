@@ -119,18 +119,17 @@ class PhotoImageWithRectangle(PhotoImage):
 
     def _resize_current(self):
         super(PhotoImageWithRectangle, self)._resize_current()
-
+        if self._original_rect is None:
+            return
         self._displayed_fragment_size = self._original_fragment_size * self._zoom
-
         x, y = self._original_rect
-        x *= self._zoom
-        y *= self._zoom
-        self._displayed_rect = (x, y)
+        self._displayed_rect = (x*self._zoom, y*self._zoom)
 
         self._update_patch()
         self._center_on_patch()
 
     def _center_on_patch(self):
+        # TODO
         pass
 
     def set_rectangle(self, rect):
@@ -154,7 +153,7 @@ class PhotoImageWithRectangle(PhotoImage):
 
         print(f"Event data = {ix}, {iy}, region_x = {region_x}, sry={region_y}, canvas view= {self._canvas.xview()}, {self._canvas.yview()}")
         w = self._displayed_fragment_size
-        self._original_rect = (region_x[0] + ix - w / 2, region_y[0] + iy - w / 2)
+        self._original_rect = (region_x[0] + ix - w / 2, region_x[0] + iy - w / 2)
         self._displayed_rect = self._original_rect
         self._update_patch()
 

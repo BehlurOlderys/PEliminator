@@ -1,10 +1,17 @@
 import requests
 import json
 import time
-import numpy as np
+from datetime import datetime
 from PIL import Image
 import io
 from package.ascom.ascom_camera import CameraState
+
+
+default_format = "%Y-%m-%d %H:%M:%S.%f"
+
+
+def get_diff_ms(a, b):
+    return (a - b).total_seconds() * 1000
 
 
 ascom_states = {
@@ -49,6 +56,12 @@ class CameraRequests(AscomRequests):
         self._camera_no = camera_no
         self._append_address()
 
+    def put_start_continuous_imaging(self):
+        return self._put_request(endpoint="startcontinuous")
+
+    def put_stop_continuous_imaging(self):
+        return self._put_request(endpoint="stopcontinuous")
+
     def _append_address(self):
         self._camera_address = self._address + f"camera/{self._camera_no}"
 
@@ -58,13 +71,27 @@ class CameraRequests(AscomRequests):
         print(f"Using camera address: {self._camera_address}")
 
     def _get_request(self, endpoint, query_params=None, headers=None, stream=False):
+        gui_before = datetime.now()
         print(f"GET request for {self._camera_address}/{endpoint}...")
         headers = headers if headers else {}
         query = self._get_common_query()
         if query_params is not None:
             query.update(query_params)
         r = requests.get(f"{self._camera_address}/{endpoint}", params=query, headers=headers, stream=stream)
+        gui_after = datetime.now()
         print(f"...returned code {r.status_code}")
+        if r.status_code == 200:
+            print(f"Received 200 with headers: {r.headers}")
+            timestamps = json.loads(r.headers['Timestamps'])
+            print(f"Timestamps = {timestamps}")
+
+            server_before = datetime.strptime(timestamps["before"], default_format)
+            server_after = datetime.strptime(timestamps["after"], default_format)
+
+            ms_bc = get_diff_ms(server_after, server_before)
+            ms_total = get_diff_ms(gui_after, gui_before)
+            print(f"server time={ms_bc}ms, total={ms_total}ms")
+
         return r
 
     def _get_image_from_stream(self, **kwargs):
@@ -77,18 +104,28 @@ class CameraRequests(AscomRequests):
         print(r.content)
         buf = io.BytesIO(r.content)
         return Image.open(buf)
-        #
-        # with open("latest.tif", 'wb') as image_file:
-        #     for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-        #         print(f"chunk!")
-        #         image_file.write(chunk)
-        # print(f"Saved image!")
 
     def _put_request(self, endpoint, query_params=None):
-            query = self._get_common_query()
-            if query_params is not None:
-                query.update(query_params)
-            return requests.put(f"{self._camera_address}/{endpoint}", data=json.dumps(query))
+        print(f"Requesting PUT on {endpoint}...")
+        gui_before = datetime.now()
+        query = self._get_common_query()
+        if query_params is not None:
+            query.update(query_params)
+        r = requests.put(f"{self._camera_address}/{endpoint}", data=json.dumps(query))
+        gui_after = datetime.now()
+        print(f"...returned code {r.status_code}")
+        if r.status_code == 200:
+            print(f"Received 200!")
+            timestamps = json.loads(r.headers['Timestamps'])
+            print(f"Timestamps = {timestamps}")
+
+            server_before = datetime.strptime(timestamps["before"], default_format)
+            server_after = datetime.strptime(timestamps["after"], default_format)
+
+            ms_bc = get_diff_ms(server_after, server_before)
+            ms_total = get_diff_ms(gui_after, gui_before)
+            print(f"server time={ms_bc}ms, total={ms_total}ms")
+        return r
 
     def get_gain(self):
         return int(self._get_request("gain").json()["Value"][0])
@@ -147,6 +184,10 @@ class CameraRequests(AscomRequests):
     def put_capture(self, duration_s, images_no):
         self._put_request("capture", query_params={"Number": images_no, "Duration": duration_s})
 
+    def put_instant_capture(self, duration_s):
+        res = self._put_request("instantcapture", query_params={"Light": True, "Duration": duration_s})
+        return res.content
+
     def get_image_bytes(self):
         headers = {"Content-type": "application/octet-stream"}
         return self._get_request("imagebytes", headers=headers)
@@ -164,7 +205,7 @@ class CameraRequests(AscomRequests):
         r = self._get_request("imageready").json()
         return r["Value"]
 
-    def get_one_image(self, exposure_s, image_type, image_size):
+    def get_one_image(self, exposure_s, image_size):
         error_counter = 0
         error_allowed = 10  # TODO!!!! THIS MAY BE DANGEORUS!
         max_iter = 10
@@ -188,5 +229,4 @@ class CameraRequests(AscomRequests):
                 ready = self.is_image_ready()
             if not ready:
                 return None
-            print(f"Image type = {image_type}")
             return self.get_image_bytes().content

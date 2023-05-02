@@ -3,6 +3,9 @@ from tkinter import ttk
 import time
 
 
+SUNKABLE_BUTTON = 'SunkableButton.TButton'
+
+
 class BaseGuiApplication:
     def __init__(self, geometry="800x640", title="MyApp", *args, **kwargs):
         self._root = tk.Tk()
@@ -11,9 +14,18 @@ class BaseGuiApplication:
 
         self._style = ttk.Style()
         self._style.theme_use('alt')
+
+        self._style.configure("SunkableButton.TButton",
+                              relief=tk.SUNKEN,
+                              font=('calibre', 10, 'bold'), background='#bb6644', foreground='#cccccc')
+        self._style.map('SunkableButton.TButton',
+                        relief=[('active', tk.SUNKEN)],
+                        background=[('active', '#cc7755')],
+                        foreground=[('active', 'white')])
         self._style.configure("B.TSeparator", background='#222222')
-        self._style.configure('TButton', font=('calibre', 10, 'bold'), background='#333333', foreground='white')
-        self._style.map('TButton', background=[('active', '#444444')])
+        self._style.configure('TButton', font=('calibre', 10, 'bold'), background='#333333', foreground='#cccccc')
+        self._style.map('TButton', background=[('active', '#444444')],
+                                  foreground=[('active', 'white')])
         self._style.configure("B.TFrame", background="#222222")
         self._style.configure("B.TCheckbutton",
                               font=('calibre', 10, 'bold'),
@@ -39,10 +51,13 @@ class BaseGuiApplication:
 
 
 class AfterQueueTask:
-    def __init__(self, timeout_s, f, *args, **kwargs):
-        self._timeout_s = timeout_s
+    def __init__(self, f, *args, **kwargs):
         if "timeout_ms" in kwargs:
             self._timeout_s = float(kwargs.pop("timeout_ms") / 1000)
+        elif "timeout_s" in kwargs:
+            self._timeout_s = kwargs.pop("timeout_s")
+        else:
+            raise RuntimeError("Did not provide timeout for task!")
 
         print(f"Using actual task timeout: {self._timeout_s}")
         self._f = f
@@ -71,8 +86,8 @@ class SimpleGuiApplication(BaseGuiApplication):
         self._main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._after_queue = []
 
-    def _add_task(self, timeout_s, f, *args, **kwargs):
-        self._after_queue.append(AfterQueueTask(timeout_s, f, *args, **kwargs))
+    def _add_task(self, f, *args, **kwargs):
+        self._after_queue.append(AfterQueueTask(f, *args, **kwargs))
 
     def _call_after_queue(self):
         self._root.after(AFTER_QUEUE_MIN_CHECK_TIMEOUT_MS, self._call_after_queue)

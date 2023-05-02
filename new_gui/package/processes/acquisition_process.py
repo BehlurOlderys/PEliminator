@@ -29,7 +29,7 @@ class AcquisitionProcessGUI(ChildProcessGUI):
         self._camera_chooser = CameraChooser(frame=self._main_frame, on_connect=self._on_camera_select)
         self._camera_chooser.pack(side=tk.TOP)
 
-        self._add_task(1, self._check_new_images, timeout_ms=100)
+        self._add_task(self._check_new_images, timeout_ms=100)
         self._image_queue = multiprocessing.Queue()
         self._kill_capture_event = multiprocessing.Event()
         self._capture_process = None
