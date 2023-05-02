@@ -56,6 +56,9 @@ class CameraRequests(AscomRequests):
         self._camera_no = camera_no
         self._append_address()
 
+    def get_continuous_image(self):
+        return self._get_request(endpoint="currentimage")
+
     def put_start_continuous_imaging(self):
         return self._put_request(endpoint="startcontinuous")
 
@@ -80,17 +83,20 @@ class CameraRequests(AscomRequests):
         r = requests.get(f"{self._camera_address}/{endpoint}", params=query, headers=headers, stream=stream)
         gui_after = datetime.now()
         print(f"...returned code {r.status_code}")
-        if r.status_code == 200:
-            print(f"Received 200 with headers: {r.headers}")
-            timestamps = json.loads(r.headers['Timestamps'])
-            print(f"Timestamps = {timestamps}")
+        if r.status_code != 200:
+            print(f"Received error response with code {r.status_code}: {r.text}")
+            return r
 
-            server_before = datetime.strptime(timestamps["before"], default_format)
-            server_after = datetime.strptime(timestamps["after"], default_format)
+        print(f"Received 200 with headers: {r.headers}")
+        timestamps = json.loads(r.headers['Timestamps'])
+        print(f"Timestamps = {timestamps}")
 
-            ms_bc = get_diff_ms(server_after, server_before)
-            ms_total = get_diff_ms(gui_after, gui_before)
-            print(f"server time={ms_bc}ms, total={ms_total}ms")
+        server_before = datetime.strptime(timestamps["before"], default_format)
+        server_after = datetime.strptime(timestamps["after"], default_format)
+
+        ms_bc = get_diff_ms(server_after, server_before)
+        ms_total = get_diff_ms(gui_after, gui_before)
+        print(f"server time={ms_bc}ms, total={ms_total}ms")
 
         return r
 
@@ -114,21 +120,27 @@ class CameraRequests(AscomRequests):
         r = requests.put(f"{self._camera_address}/{endpoint}", data=json.dumps(query))
         gui_after = datetime.now()
         print(f"...returned code {r.status_code}")
-        if r.status_code == 200:
-            print(f"Received 200!")
-            timestamps = json.loads(r.headers['Timestamps'])
-            print(f"Timestamps = {timestamps}")
+        if r.status_code != 200:
+            print(f"Received error response with code {r.status_code}: {r.text}")
+            return r
+        print(f"Received 200!")
+        timestamps = json.loads(r.headers['Timestamps'])
+        print(f"Timestamps = {timestamps}")
 
-            server_before = datetime.strptime(timestamps["before"], default_format)
-            server_after = datetime.strptime(timestamps["after"], default_format)
+        server_before = datetime.strptime(timestamps["before"], default_format)
+        server_after = datetime.strptime(timestamps["after"], default_format)
 
-            ms_bc = get_diff_ms(server_after, server_before)
-            ms_total = get_diff_ms(gui_after, gui_before)
-            print(f"server time={ms_bc}ms, total={ms_total}ms")
+        ms_bc = get_diff_ms(server_after, server_before)
+        ms_total = get_diff_ms(gui_after, gui_before)
+        print(f"server time={ms_bc}ms, total={ms_total}ms")
         return r
 
     def get_gain(self):
-        return int(self._get_request("gain").json()["Value"][0])
+        try:
+            return int(self._get_request("gain").json()["Value"][0])
+        except Exception:
+            print("Could not get gain!")
+            return None
 
     def get_temperature(self):
         return self._get_request("ccdtemperature").json()["Value"]

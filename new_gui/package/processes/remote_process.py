@@ -37,6 +37,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._add_task(self._check_capture_progress, timeout_ms=1000)
         self._add_task(self._check_continuous, timeout_ms=500)
         self._temp_counter = 0
+        self._last_good_image = datetime.now()
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -187,10 +188,22 @@ class RemoteProcessGUI(ChildProcessGUI):
         print("Checking for continuous image available!")
 
         before = datetime.now()
-        res = self._requester.is_alive()
+        res = self._requester.get_continuous_image()
         after = datetime.now()
         ms = get_diff_ms(after, before)
-        print(f"Is server alive: {res}. Response took {ms}ms to finish.")
+        print(f"Getting continuous image response: {res}. Response took {ms}ms to finish.")
+        if res.status_code == 418:
+            print("Server is busy, waiting more...")
+        elif res.status_code == 200:
+
+            print(f"Got real image! Headers = {res.headers}")
+            current_time = datetime.now()
+            ms = get_diff_ms(current_time, self._last_good_image)
+            print(f"Time passed from last image was: {ms}")
+            self._last_good_image = current_time
+            self._single(getter=lambda: res.content)
+        else:
+            print(f"Got error: {res.status_code}")
 
     def _get_one_shot_image(self):
         return self._single(getter=lambda: self._requester.get_one_image(self._exposure_s, self._current_shape))
