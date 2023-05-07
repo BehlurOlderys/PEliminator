@@ -1,12 +1,13 @@
 #include "Arduino.h"
 #include "Stepper.h"
-#include "EncoderFeedback.h"
 #include "Utilities.h"
+#include "Timing.h"
+
+static uint32_t const expected_step_interval = Timing::arduino_interval(19986U);
 
 struct TrackingController{
-  TrackingController(Stepper& stepper, EncoderFeedback& feed): 
+  TrackingController(Stepper& stepper): 
     _ra_stepper(stepper),
-    _feedback(feed),
     _steps_required(0),
     _last_timestamp(0),
     _paused(true),
@@ -20,13 +21,11 @@ struct TrackingController{
     _last_timestamp = micros();
     _steps_required = 0;
     _paused = false;
-    
-    _feedback.Reset();
+    _correction = 0;
     _ra_stepper.set_direction(STEP_DIRECTION_FORWARD);
   }
 
   void Reset(){
-    _feedback.Reset();
     _last_timestamp = micros();
     _steps_required = 0;
     _paused = false;
@@ -52,7 +51,6 @@ struct TrackingController{
     if ( current_interval >= expected_step_interval){
       _last_timestamp = current_timestamp;
       _steps_required++;
-//      _feedback.AddInterval(current_interval);
 
       if (_correction > 0){
         _steps_required++;
@@ -71,7 +69,6 @@ struct TrackingController{
     delayMicroseconds(5);
   }
   Stepper& _ra_stepper;
-  EncoderFeedback& _feedback;
   uint32_t _last_timestamp;
   int32_t _steps_required;
   bool _paused;

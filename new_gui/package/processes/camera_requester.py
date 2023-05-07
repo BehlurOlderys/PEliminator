@@ -137,9 +137,11 @@ class CameraRequests(AscomRequests):
 
     def get_gain(self):
         try:
-            return int(self._get_request("gain").json()["Value"][0])
-        except Exception:
-            print("Could not get gain!")
+            r = self._get_request("gain")
+            print(f"Response = {r} with headers {r.headers}\n and text {r.text}")
+            return int(r.json()["Value"])
+        except Exception as e:
+            print(f"Could not get gain: {e}")
             return None
 
     def get_temperature(self):
