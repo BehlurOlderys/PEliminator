@@ -211,7 +211,7 @@ class RemoteProcessGUI(ChildProcessGUI):
     def _get_instant_image(self):
         return self._single(getter=lambda: self._requester.put_instant_capture(self._exposure_s))
 
-    def _update_image_when_capturing(self):
+    def  _update_image_when_capturing(self):
         self._image_canvas.update_with_pil_image(self._requester.get_last_image())
 
     def _check_capture_progress(self):
@@ -228,6 +228,9 @@ class RemoteProcessGUI(ChildProcessGUI):
             #         self._connected = False
             #     else: self._update_temp()
 
+            return
+
+        if self._continuous_imaging:
             return
 
         r = self._requester.get_camerastate()

@@ -7,8 +7,8 @@ https://stackoverflow.com/questions/24072765/timer-cannot-restart-after-it-is-be
 
 class RepeatingTimer(object):
 
-    def __init__(self, interval, function, *args, **kwargs):
-        self._interval = interval
+    def __init__(self, interval_s, function, *args, **kwargs):
+        self._interval_s = interval_s
         self._function = function
         self._args = args
         self._kwargs = kwargs
@@ -22,5 +22,5 @@ class RepeatingTimer(object):
         self._timer.cancel()
 
     def start(self):
-        self._timer = Timer(self._interval, self._callback)
+        self._timer = Timer(self._interval_s, self._callback)
         self._timer.start()

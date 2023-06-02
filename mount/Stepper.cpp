@@ -12,7 +12,7 @@ Stepper::Stepper(uint8_t const step_pin, uint8_t const dir_pin, uint8_t const en
    _stepper_direction(STEP_DIRECTION_FORWARD),
    _motor_position(0),
    _desired_position(0),
-   _is_enabled(false),
+   _is_enabled(true),
    _is_slewing(false),
    _is_moving(false),
    _only_four_letters_name()
@@ -109,6 +109,12 @@ void Stepper::runnable_move(){
 }
 
 bool Stepper::runnable_slew_to_desired(){
+  if (!_is_enabled){
+    return;
+  }
+  if (!_is_slewing){
+    return;
+  }
   if (_desired_position != _motor_position){
     step_motor();
     return DESIRED_POSITION_NOT_REACHED;
@@ -117,7 +123,23 @@ bool Stepper::runnable_slew_to_desired(){
   return DESIRED_POSITION_REACHED;
 }
 
+void Stepper::step_motor_unsafe(){
+  if (!_is_enabled){
+    return;
+  }
+  if (_stepper_direction == STEP_DIRECTION_UNKNOWN){
+    return;
+  }
+  digitalWrite(_step_pin, HIGH);
+  delayMicroseconds(_delay_us);
+  digitalWrite(_step_pin, LOW);
+  delayMicroseconds(_delay_us);
+}
+
 void Stepper::step_motor(){
+  if (!_is_enabled){
+    return;
+  }
   if (_stepper_direction == STEP_DIRECTION_UNKNOWN){
     return;
   }

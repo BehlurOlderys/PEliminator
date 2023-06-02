@@ -41,6 +41,7 @@ struct Stepper{
   void stop_moving();
   void runnable_move();
   bool runnable_slew_to_desired();
+  void step_motor_unsafe();
   void step_motor();
 private:
   void enable_motor();

@@ -63,8 +63,10 @@ struct TrackingController{
     }
    
     if (_steps_required > 0){
-      _steps_required--;
-      _ra_stepper.step_motor();      
+      if (!_ra_stepper.is_slewing()){
+        _steps_required--;
+        _ra_stepper.step_motor_unsafe();    
+      }  
     }
     delayMicroseconds(5);
   }

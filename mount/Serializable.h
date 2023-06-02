@@ -91,7 +91,11 @@ void serialize_special_message(ESpecialIDs id, Serializer& s){
 
 struct SimpleSerialSerializer : Serializer{
   void Setup(){
-    Serial.begin(SERIAL_BAUDRATE);
+    Serial.begin(SERIAL_BAUDRATE);    
+    while (!Serial) {
+      delay(1);
+    }
+
   }
   void Flush(){
     Serial.write(_buffer, _used);
