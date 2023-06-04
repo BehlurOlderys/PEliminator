@@ -19,7 +19,8 @@ class RepeatingTimer(object):
         self._function(*self._args, **self._kwargs)
 
     def cancel(self):
-        self._timer.cancel()
+        if self._timer is not None:
+            self._timer.cancel()
 
     def start(self):
         self._timer = Timer(self._interval_s, self._callback)

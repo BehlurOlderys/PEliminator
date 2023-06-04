@@ -7,8 +7,9 @@ log = logging.getLogger("guiding")
 
 
 class ImageSaver(DataProcessor):
-    def __init__(self, prefix, save_path):
+    def __init__(self, image_member, prefix, save_path):
         super(ImageSaver, self).__init__("ImageSaver")
+        self._image_member = image_member
         self._prefix = prefix
         self._save_path = save_path
         if not os.path.isdir(self._save_path):
@@ -18,7 +19,11 @@ class ImageSaver(DataProcessor):
                 log.error(f"Could not create directory {self._save_path}: {repr(e)}")
 
     def _process_impl(self, data: GuidingData):
-        im = Image.fromarray((256*data.image).astype('uint8'))
+        imdata = getattr(data, self._image_member)
+        if imdata is None:
+            log.warning("Image saver received None data")
+            return data
+        im = Image.fromarray((256*imdata).astype('uint8'))
         no_ext = data.shortname.split(".")[0]
         image_new_path = os.path.join(self._save_path, self._prefix + "_" + no_ext + ".jpg")
 

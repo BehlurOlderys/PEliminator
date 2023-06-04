@@ -7,6 +7,7 @@ class GuidingData:
         self.start = None
         self.message = "OK"
         self.error = False
+        self.fragment = None
 
     def __repr__(self):
         return self.message

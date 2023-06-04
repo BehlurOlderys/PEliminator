@@ -9,6 +9,9 @@ from package.utils.guiding.time_watcher import TimeWatcher
 from package.utils.guiding.image_saver import ImageSaver
 from package.utils.guiding.guiding_data import GuidingData
 from package.utils.guiding.data_processor import PreProcessor, PostProcessor
+from package.utils.guiding.image_display import ImageDisplay
+from package.utils.guiding.fragment_extractor import FragmentExtractor
+from package.widgets.simple_canvas import SimpleCanvasRect
 from tkinter import ttk
 import tkinter as tk
 import glob
@@ -37,6 +40,7 @@ log.addHandler(console_handler)
 
 initial_test_dir = "C:\\Users\\Florek\\Desktop\\SharpCap Captures\\test_files"
 default_save_path = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_gui\\saved_images"
+fragments_save_path = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_gui\\fragments"
 
 guiding_type_prevalue = "Simulation"
 simulation_file_type_prevalue = "fits"
@@ -94,8 +98,10 @@ class DirectoryTimedImageProvider:
         log.info(f"Init TimedFileImageProvider with {len(self._files)} files in {self._directory}!")
         self._timer = RepeatingTimer(interval_s=self._delay_s, function=self._put_new)
         self._gen = None
+        self._busy = False
 
     def _put_new(self):
+        self._busy = True
         log.debug("Trying to put new image...")
         try:
             image_path = next(self._gen)
@@ -113,7 +119,7 @@ class DirectoryTimedImageProvider:
         short_name = image_path.split('\\')[-1]
 
         self._sink.put_image(GuidingData(np_image, time.time(), short_name))
-
+        self._busy = False
         log.info(f"...image {short_name} put successfully")
 
     def _provide_next_image(self):
@@ -126,6 +132,11 @@ class DirectoryTimedImageProvider:
 
     def stop(self):
         self._timer.cancel()
+        for i in range(0, 10):
+            if self._busy:
+                time.sleep(0.2)
+            else:
+                break
         log.debug("DirectoryTimedImageProvider stopped")
 
 
@@ -154,7 +165,13 @@ class AdvancedGuidingProcess(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(AdvancedGuidingProcess, self).__init__(title="Advanced guiding control", *args, **kwargs)
 
-        self._controls_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        self._buttons_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        self._buttons_frame.pack(side=tk.LEFT)
+
+        self._image_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        self._image_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+
+        self._controls_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._controls_frame.pack(side=tk.TOP)
         self._guiding_button = ttk.Button(self._controls_frame, text="Start guiding",
                                           command=self._start_guiding, style="B.TButton")
@@ -162,14 +179,14 @@ class AdvancedGuidingProcess(ChildProcessGUI):
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
-        self._guiding_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        self._guiding_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._guiding_frame.pack(side=tk.TOP)
 
         self._simulation_options_widgets = setup_simulation_options_frame(self._guiding_frame)
 
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
-        self._input_frame = ttk.Frame(self._main_frame, style="B.TFrame")
+        self._input_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._input_frame.pack(side=tk.TOP)
 
         self._color_combo = LabeledCombo("Color/Mono:", ["COLOR", "MONO"], prevalue=color_prevalue, frame=self._input_frame)
@@ -181,6 +198,11 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         self._pattern_combo = LabeledCombo("Bayer mask:", ["GBRG"], prevalue=pattern_prevalue, frame=self._input_frame)
         self._pattern_combo.pack(side=tk.TOP)
 
+        self._image_canvas = SimpleCanvasRect(frame=self._image_frame,
+                                          initial_image_path="last.png")
+        self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+
         provider_factory = image_providers_map[guiding_type_prevalue]
 
         self._image_provider = provider_factory(Guiding(
@@ -189,7 +211,8 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             NormalizedBWChanger(self._color_combo.get_value(),
                                 self._imtype_combo.get_value(),
                                 self._pattern_combo.get_value()),
-            ImageSaver("test", save_path=default_save_path),
+            ImageDisplay(self._image_canvas),
+            ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()
         ), initial_test_dir, 2, "fits")
 
@@ -209,7 +232,10 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             NormalizedBWChanger(self._color_combo.get_value(),
                                 self._imtype_combo.get_value(),
                                 self._pattern_combo.get_value()),
-            ImageSaver("test", save_path=default_save_path),
+            ImageDisplay(self._image_canvas),
+            FragmentExtractor(self._image_canvas),
+            ImageSaver("fragment", "test", save_path=fragments_save_path),
+            ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()
         ), initial_test_dir, 2, "fits")
         self._image_provider.start()

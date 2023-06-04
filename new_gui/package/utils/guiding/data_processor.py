@@ -8,7 +8,7 @@ class DataProcessor:
     def __init__(self, name):
         self._name = name
 
-    def process(self, data):
+    def process(self, data: GuidingData):
         if data is None:
             log.error(f"Processor {self._name} received None as data, returning...")
             return None

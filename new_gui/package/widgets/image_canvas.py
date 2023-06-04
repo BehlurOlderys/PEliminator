@@ -33,7 +33,7 @@ class PhotoImage(PeBaseWidget):
         w, h =self._original_image.size
 
         self._canvas = tk.Canvas(self._frame, width=window_max_width, height=768, scrollregion=(0, 0, w, h))
-        self._canvas.configure(bg='cyan')
+        self._canvas.configure(bg='black')
 
         hbar = tk.Scrollbar(self._frame, orient=tk.HORIZONTAL)
         hbar.pack(side=tk.BOTTOM, fill=tk.X)
