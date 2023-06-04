@@ -20,8 +20,17 @@ def get_mono_normalized_from_color_raw_gbrg(data):
     return bw_result
 
 
+def get_mono_normalized_from_mono_raw8(data):
+    st = time.time()
+    float01_data = data.astype(np.float32) / 256
+    en = time.time()
+    log.debug(f"RAW transform took {1000*(en-st)}ms")
+    return float01_data
+
+
 raw_transforming_map = {
-    "COLOR_RAW16_GBRG": get_mono_normalized_from_color_raw_gbrg
+    "COLOR_RAW16_GBRG": get_mono_normalized_from_color_raw_gbrg,
+    "MONO_RAW8_NONE": get_mono_normalized_from_mono_raw8
 }
 
 

@@ -10,6 +10,9 @@ guiding_type_prevalue = "Simulation"
 usb_camera_serial_prevalue = "COM1"
 simulation_file_type_prevalue = "fits"
 simulation_delay_s_prevalue = 2
+camera_exposure_s_prevalue = 1
+camera_gain_prevalue = 100
+
 initial_test_dir = "C:\\Users\\Florek\\Desktop\\SharpCap Captures\\test_files"
 
 
@@ -45,12 +48,20 @@ class GuidingOptions:
         else:
             log.warning(f"Value not handled: {self._current}")
 
+    def _setup_for_any_camera(self):
+        exposure = LabeledInput("Exposure [s]:", initial_value=camera_exposure_s_prevalue, frame=self._frame).pack(side=tk.TOP)
+        gain = LabeledInput("Gain:", initial_value=camera_gain_prevalue, frame=self._frame).pack(side=tk.TOP)
+
+        self._additional_widgets["exposure"] = exposure
+        self._additional_widgets["gain"] = gain
+
     def _setup_for_usb_camera(self):
         usb_combo = LabeledCombo("Choose serial port",
                                  ["COM1", "COM2", "COM3"],
                                  prevalue=usb_camera_serial_prevalue,
                                  frame=self._frame).pack(side=tk.TOP)
         self._additional_widgets["usb_combo"] = usb_combo
+        self._setup_for_any_camera()
 
     def _setup_for_simulation(self):
         delay_input = LabeledInput("Delay [s]:", initial_value=simulation_delay_s_prevalue, frame=self._frame).pack(side=tk.TOP)

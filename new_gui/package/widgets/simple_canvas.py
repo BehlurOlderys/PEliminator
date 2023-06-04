@@ -68,9 +68,25 @@ class SimpleCanvasRect(SimpleCanvas):
         self._patch = None
         self._rectsize = rectsize
         self._real_image_rect = None
+        self._enable = False
+
+    def disable_rect_info(self):
+        self._enable = False
+
+    def enable_rect_info(self):
+        self._enable = True
 
     def get_real_rect(self):
+        if not self._enable:
+            return None
         return self._real_image_rect
+
+    def move_real_rect(self, xy):
+        dx, dy = xy
+        if not self._enable:
+            return
+        x, y, s = self._real_image_rect
+        self._real_image_rect = dx+x, dy+y, s
 
     def _click_action(self, event):
         # patch size in canvas:

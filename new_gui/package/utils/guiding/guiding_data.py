@@ -10,6 +10,7 @@ class GuidingData:
         self.fragment = None
         self.fragment_rect = None
         self.calculated_center = None
+        self.position_delta = None
 
     def __repr__(self):
         return self.message

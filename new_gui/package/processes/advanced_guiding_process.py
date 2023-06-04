@@ -1,11 +1,11 @@
-import numpy as np
-
 from .child_process import ChildProcessGUI
-from package.utils.repeating_timer import RepeatingTimer
 from package.widgets.labeled_combo import LabeledCombo
+from package.utils.guiding.directory_timed_image_provider import DirectoryTimedImageProvider
 from package.utils.guiding.guiding_options import GuidingOptions
+from package.utils.guiding.delta_calculator import DeltaXYCalculator
 from package.utils.guiding.bw_transformations import NormalizedBWChanger
 from package.utils.guiding.time_watcher import TimeWatcher
+from package.utils.guiding.data_printer import DataPrinter
 from package.utils.guiding.image_saver import ImageSaver
 from package.utils.guiding.guiding_data import GuidingData
 from package.utils.guiding.data_processor import PreProcessor, PostProcessor
@@ -15,11 +15,6 @@ from package.utils.guiding.fragment_extractor import FragmentExtractor
 from package.widgets.simple_canvas import SimpleCanvasRect
 from tkinter import ttk
 import tkinter as tk
-import glob
-import os
-import time
-from PIL import Image
-from astropy.io import fits
 import logging
 import sys
 
@@ -52,18 +47,6 @@ imtype_prevalue = "RAW16"
 pattern_prevalue = "GBRG"
 
 
-def get_np_array_from_fits(filepath):
-    hdul = fits.open(filepath)
-    image_data = hdul[0].data
-    return image_data
-
-
-def get_np_array_from_png(filepath):
-    im_frame = Image.open(filepath)
-    return np.array(im_frame)
-
-
-
 class Guiding:
     def __init__(self, *processors):
 
@@ -83,68 +66,6 @@ class Guiding:
         log.info(f"Guiding result: {next_data}")
 
 
-image_openers_map = {
-    "fits": get_np_array_from_fits,
-    "png": get_np_array_from_png
-}
-
-
-class DirectoryTimedImageProvider:
-    def __init__(self, sink, config: GuidingOptions):
-        path = config.get_sim_path()
-        extension = config.get_sim_extension()
-        delay_s = int(config.get_sim_delay_s())
-        self._files = glob.glob(os.path.join(path, f"*.{extension}"))
-        self._delay_s = delay_s
-        self._directory = path
-        self._sink = sink
-        self._image_opener = image_openers_map.get(extension, None)
-        self._files = glob.glob(os.path.join(self._directory, f"*.{extension}"))
-        log.info(f"Init TimedFileImageProvider with {len(self._files)} files in {self._directory}!")
-        self._timer = RepeatingTimer(interval_s=self._delay_s, function=self._put_new)
-        self._gen = None
-        self._busy = False
-
-    def _put_new(self):
-        self._busy = True
-        log.debug("Trying to put new image...")
-        try:
-            image_path = next(self._gen)
-        except StopIteration:
-            log.info("End of images, stopping Provider")
-            self._timer.cancel()
-            return
-
-        try:
-            np_image = self._image_opener(image_path)
-
-        except Exception as e:
-            log.warning(f"Opening file {image_path} failed: {repr(e)}")
-            return
-        short_name = image_path.split('\\')[-1]
-
-        self._sink.put_image(GuidingData(np_image, time.time(), short_name))
-        self._busy = False
-        log.info(f"...image {short_name} put successfully")
-
-    def _provide_next_image(self):
-        yield from self._files
-
-    def start(self):
-        log.debug("DirectoryTimedImageProvider starts")
-        self._gen = self._provide_next_image()
-        self._timer.start()
-
-    def stop(self):
-        self._timer.cancel()
-        for i in range(0, 10):
-            if self._busy:
-                time.sleep(0.2)
-            else:
-                break
-        log.debug("DirectoryTimedImageProvider stopped")
-
-
 image_providers_map = {
     "Simulation": DirectoryTimedImageProvider
 }
@@ -162,9 +83,18 @@ class AdvancedGuidingProcess(ChildProcessGUI):
 
         self._controls_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._controls_frame.pack(side=tk.TOP)
-        self._guiding_button = ttk.Button(self._controls_frame, text="Start guiding",
-                                          command=self._start_guiding, style="B.TButton")
-        self._guiding_button.pack(side=tk.LEFT)
+
+        self._capture_button = ttk.Button(self._controls_frame, text="Start capturing",
+                                          command=self._start_capturing, style="B.TButton")
+        self._capture_button.pack(side=tk.LEFT)
+
+        self._calculations_button = ttk.Button(self._controls_frame, text="Start calculations",
+                                          command=self._start_calculations, style="B.TButton")
+        self._calculations_button.pack(side=tk.LEFT)
+
+        self._corrections_button = ttk.Button(self._controls_frame, text="Start corrections",
+                                          command=self._start_calculations, style="B.TButton")
+        self._corrections_button.pack(side=tk.LEFT)
 
         ttk.Separator(self._buttons_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
@@ -184,35 +114,36 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         self._imtype_combo = LabeledCombo("Image type:", ["RAW16", "RAW8", "RGB24"], prevalue=imtype_prevalue, frame=self._input_frame)
         self._imtype_combo.pack(side=tk.TOP)
 
-        self._pattern_combo = LabeledCombo("Bayer mask:", ["GBRG"], prevalue=pattern_prevalue, frame=self._input_frame)
+        self._pattern_combo = LabeledCombo("Bayer mask:", ["GBRG", "NONE"], prevalue=pattern_prevalue, frame=self._input_frame)
         self._pattern_combo.pack(side=tk.TOP)
 
         self._image_canvas = SimpleCanvasRect(frame=self._image_frame,
                                           initial_image_path="last.png")
         self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
-
-        self._image_provider = provider_factory(Guiding(
-            PreProcessor(),
-            TimeWatcher(),
-            NormalizedBWChanger(self._color_combo.get_value(),
-                                self._imtype_combo.get_value(),
-                                self._pattern_combo.get_value()),
-            ImageDisplay(self._image_canvas),
-            ImageSaver("image", "test", save_path=default_save_path),
-            PostProcessor()
-        ), self._guiding_options)
+        # provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
+        #
+        # self._image_provider = provider_factory(Guiding(
+        #     PreProcessor(),
+        #     TimeWatcher(),
+        #     NormalizedBWChanger(self._color_combo.get_value(),
+        #                         self._imtype_combo.get_value(),
+        #                         self._pattern_combo.get_value()),
+        #     ImageDisplay(self._image_canvas),
+        #     ImageSaver("image", "test", save_path=default_save_path),
+        #     PostProcessor()
+        # ), self._guiding_options)
 
     def _killme(self):
-        self._stop_guiding()
+        self._stop_corrections()
+        self._stop_calculations()
+        self._stop_capturing()
         super(AdvancedGuidingProcess, self)._killme()
 
-    def _start_guiding(self):
-        self._guiding_button.configure(text="Stop guiding",
-                                       command=self._stop_guiding,
-                                       style="SunkableButton.TButton")
-
+    def _start_capturing(self):
+        self._capture_button.configure(text="Stop capturing",
+                                           command=self._stop_capturing,
+                                           style="SunkableButton.TButton")
         provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
         self._image_provider = provider_factory(Guiding(
             PreProcessor(),
@@ -223,6 +154,9 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             ImageDisplay(self._image_canvas),
             FragmentExtractor(self._image_canvas),
             StarCenterCalculator(),
+            DataPrinter("calculated_center"),
+            DeltaXYCalculator("calculated_center", "position_delta"),
+            DataPrinter("position_delta"),
             # TODO:
             # AbsoluteShiftCalculator
             # MountMover
@@ -232,8 +166,33 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         ), self._guiding_options)
         self._image_provider.start()
 
-    def _stop_guiding(self):
-        self._guiding_button.configure(text="Start guiding",
-                                       command=self._start_guiding,
+    def _stop_capturing(self):
+        self._capture_button.configure(text="Start capturing",
+                                       command=self._start_capturing,
                                        style="B.TButton")
         self._image_provider.stop()
+
+    def _start_calculations(self):
+        self._calculations_button.configure(text="Stop calculations",
+                                       command=self._stop_calculations,
+                                       style="SunkableButton.TButton")
+        self._image_canvas.enable_rect_info()
+
+    def _stop_calculations(self):
+        self._calculations_button.configure(text="Start calculations",
+                                       command=self._start_calculations,
+                                       style="B.TButton")
+        self._image_canvas.disable_rect_info()
+
+    def _start_corrections(self):
+        self._corrections_button.configure(text="Stop corrections",
+                                           command=self._stop_corrections,
+                                           style="SunkableButton.TButton")
+
+    def _stop_corrections(self):
+        self._corrections_button.configure(text="Start corrections",
+                                       command=self._start_corrections,
+                                       style="B.TButton")
+
+
+

@@ -34,12 +34,21 @@ class StarCenterCalculator(DataProcessor):
         narrowed_w = int(h // 3)
         #TODO while in narrow coordinates calculate CoM and go back to
 
+        nx = f_x - narrowed_w//2
+        ny = f_y - narrowed_w//2
+        nfragment = image[ny:ny+narrowed_w, nx:nx+narrowed_w]
+        cmy, cmx = center_of_mass(nfragment)
+        log.debug(f"Refined star center in narrow fragment as: ({cmy, cmx})")
+
         # narrow_x0 = int(x0+mid_x-(narrowed_w//2))
         # narrow_y0 = int(y0+mid_y-(narrowed_w//2))
         # narrowed_fragment = image[narrow_y0:narrow_y0+narrowed_w, narrow_x0:narrow_x0+narrowed_w]
         # print(f"w = {w}, narrow_coords = ({narrow_x0},{narrow_y0}), Narrowed shape = {narrowed_fragment.shape}")
-        f_x_refined = f_x  # todo
-        f_y_refined = f_y  # todo
+
+        # Refined coordinates are starting from nx-ys in real image
+        f_x_refined = cmx + nx
+        f_y_refined = cmy + ny
+        log.debug(f"Refined star center in fragment as: ({f_x_refined, f_y_refined})")
 
         # final transform from fragment into whole image coordinates:
         real_x = f_x_refined + tx
