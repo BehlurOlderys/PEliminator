@@ -17,6 +17,7 @@ class FragmentExtractor(DataProcessor):
             return data
         log.debug(f"Obtained rect from canvas: {r}")
         x, y, h = r
+        data.fragment_rect = r
         data.fragment = data.image[y:y+h, x:x+h]
 
         return data

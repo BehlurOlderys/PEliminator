@@ -9,6 +9,7 @@ from package.utils.guiding.time_watcher import TimeWatcher
 from package.utils.guiding.image_saver import ImageSaver
 from package.utils.guiding.guiding_data import GuidingData
 from package.utils.guiding.data_processor import PreProcessor, PostProcessor
+from package.utils.guiding.star_center_calculator import StarCenterCalculator
 from package.utils.guiding.image_display import ImageDisplay
 from package.utils.guiding.fragment_extractor import FragmentExtractor
 from package.widgets.simple_canvas import SimpleCanvasRect
@@ -234,6 +235,10 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                 self._pattern_combo.get_value()),
             ImageDisplay(self._image_canvas),
             FragmentExtractor(self._image_canvas),
+            StarCenterCalculator(),
+            # TODO:
+            # AbsoluteShiftCalculator
+            # MountMover
             ImageSaver("fragment", "test", save_path=fragments_save_path),
             ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()

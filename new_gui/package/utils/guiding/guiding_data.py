@@ -8,6 +8,8 @@ class GuidingData:
         self.message = "OK"
         self.error = False
         self.fragment = None
+        self.fragment_rect = None
+        self.calculated_center = None
 
     def __repr__(self):
         return self.message
