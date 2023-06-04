@@ -3,7 +3,7 @@ import numpy as np
 from .child_process import ChildProcessGUI
 from package.utils.repeating_timer import RepeatingTimer
 from package.widgets.labeled_combo import LabeledCombo
-from package.widgets.dir_chooser import DirChooser
+from package.utils.guiding.guiding_options import GuidingOptions
 from package.utils.guiding.bw_transformations import NormalizedBWChanger
 from package.utils.guiding.time_watcher import TimeWatcher
 from package.utils.guiding.image_saver import ImageSaver
@@ -45,6 +45,7 @@ fragments_save_path = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_g
 
 guiding_type_prevalue = "Simulation"
 simulation_file_type_prevalue = "fits"
+usb_camera_serial_prevalue = "COM1" # TODO very dummy
 
 color_prevalue = "COLOR"
 imtype_prevalue = "RAW16"
@@ -89,7 +90,10 @@ image_openers_map = {
 
 
 class DirectoryTimedImageProvider:
-    def __init__(self, sink, path, delay_s, extension="fits"):
+    def __init__(self, sink, config: GuidingOptions):
+        path = config.get_sim_path()
+        extension = config.get_sim_extension()
+        delay_s = int(config.get_sim_delay_s())
         self._files = glob.glob(os.path.join(path, f"*.{extension}"))
         self._delay_s = delay_s
         self._directory = path
@@ -146,22 +150,6 @@ image_providers_map = {
 }
 
 
-def setup_simulation_options_frame(frame):
-    guiding_combo = LabeledCombo("Guiding type",
-                                 ["Simulation"],
-                                 prevalue=guiding_type_prevalue,
-                                 frame=frame)
-    guiding_combo.pack(side=tk.TOP)
-    file_type_combo = LabeledCombo("Input file type",
-                                 ["fits", "png", "tiff"],
-                                 prevalue=simulation_file_type_prevalue,
-                                 frame=frame).pack(side=tk.TOP)
-    path_chooser = DirChooser(frame=frame,
-                              initial_dir=initial_test_dir).pack(side=tk.TOP)
-
-    return guiding_combo, file_type_combo, path_chooser
-
-
 class AdvancedGuidingProcess(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(AdvancedGuidingProcess, self).__init__(title="Advanced guiding control", *args, **kwargs)
@@ -178,14 +166,14 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                           command=self._start_guiding, style="B.TButton")
         self._guiding_button.pack(side=tk.LEFT)
 
-        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+        ttk.Separator(self._buttons_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
         self._guiding_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._guiding_frame.pack(side=tk.TOP)
 
-        self._simulation_options_widgets = setup_simulation_options_frame(self._guiding_frame)
+        self._guiding_options = GuidingOptions(self._guiding_frame)
 
-        ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+        ttk.Separator(self._buttons_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
 
         self._input_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
         self._input_frame.pack(side=tk.TOP)
@@ -203,8 +191,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                           initial_image_path="last.png")
         self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-
-        provider_factory = image_providers_map[guiding_type_prevalue]
+        provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
 
         self._image_provider = provider_factory(Guiding(
             PreProcessor(),
@@ -215,7 +202,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             ImageDisplay(self._image_canvas),
             ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()
-        ), initial_test_dir, 2, "fits")
+        ), self._guiding_options)
 
     def _killme(self):
         self._stop_guiding()
@@ -226,7 +213,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                        command=self._stop_guiding,
                                        style="SunkableButton.TButton")
 
-        provider_factory = image_providers_map[guiding_type_prevalue]
+        provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
         self._image_provider = provider_factory(Guiding(
             PreProcessor(),
             TimeWatcher(),
@@ -242,7 +229,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             ImageSaver("fragment", "test", save_path=fragments_save_path),
             ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()
-        ), initial_test_dir, 2, "fits")
+        ), self._guiding_options)
         self._image_provider.start()
 
     def _stop_guiding(self):

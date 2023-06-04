@@ -6,6 +6,9 @@ class PeBaseWidget:
     def __init__(self, frame, **kwargs):
         self._frame = ttk.Frame(frame, style="B.TFrame")
 
+    def destroy(self):
+        self._frame.destroy()
+
     def pack(self, *args, **kwargs):
         self._frame.pack(*args, **kwargs)
         return self

@@ -23,6 +23,9 @@ class DirChooser(PeBaseWidget):
     def get_dir(self):
         return self._directory
 
+    def get_value(self):
+        return self._directory
+
     def _change_dir(self):
         new_dir = filedialog.askdirectory(title=self._dialog_text,
                                           initialdir=self._dir_var.get())
