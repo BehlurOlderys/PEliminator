@@ -81,12 +81,33 @@ class SimpleCanvasRect(SimpleCanvas):
             return None
         return self._real_image_rect
 
-    def move_real_rect(self, xy):
+    def set_real_rect_middle(self, xy):
         dx, dy = xy
         if not self._enable:
             return
+        h = self._rectsize * self._display_ratio
+        # Coordinates on image:
+        ix, iy = int(dx - self._rectsize / 2), int(dy - self._rectsize / 2)
+        print(f"=======> New rect coords = ({ix}, {iy}")
+        # Coordinates on canvas:
+        cw = self._canvas.winfo_width()
+        ch = self._canvas.winfo_height()
+
+        cx = int(ix * self._display_ratio)
+        cy = int(iy * self._display_ratio)
+
+        # normalize cx, cy so it does not go below 0:
+        cx = min(cw-h, max(0, cx))
+        cy = min(ch-h, max(0, cy))
+
+        # draw new or update old patch:
+        if self._patch is not None:
+            self._canvas.delete(self._patch)
+        self._patch = self._canvas.create_rectangle(cx, cy, cx+h, cy+h)
+
+        # Update on image rect coordinates:
         x, y, s = self._real_image_rect
-        self._real_image_rect = dx+x, dy+y, s
+        self._real_image_rect = ix, iy, s
 
     def _click_action(self, event):
         # patch size in canvas:
@@ -95,9 +116,11 @@ class SimpleCanvasRect(SimpleCanvas):
         # canvas coordinates of patch after centering on click site:
         cx, cy = event.x-h/2, event.y-h/2
 
-        # normalize cx, cy so it does not go below 0:
-        cx = max(0, cx)
-        cy = max(0, cy)
+        # normalize cx, cy so it does not go below 0 or above max:
+        cw = self._canvas.winfo_width()
+        ch = self._canvas.winfo_height()
+        cx = min(cw-h, max(0, cx))
+        cy = min(ch-h, max(0, cy))
 
         # real image coordinates of centered patch:
         rx = int(cx/self._display_ratio)
@@ -105,11 +128,7 @@ class SimpleCanvasRect(SimpleCanvas):
         self._real_image_rect = rx, ry, self._rectsize
         print(f"Real image rect left upper corner = ({rx}, {ry})")
 
-        # Display coordinates of patch:
-        x = cx
-        y = cy
-
         # draw new or update old patch:
         if self._patch is not None:
             self._canvas.delete(self._patch)
-        self._patch = self._canvas.create_rectangle(x, y, x+h, y+h)
+        self._patch = self._canvas.create_rectangle(cx, cy, cx+h, cy+h)

@@ -12,6 +12,7 @@ from package.utils.guiding.data_processor import PreProcessor, PostProcessor
 from package.utils.guiding.star_center_calculator import StarCenterCalculator
 from package.utils.guiding.image_display import ImageDisplay
 from package.utils.guiding.fragment_extractor import FragmentExtractor
+from package.utils.guiding.rectangle_mover import RectangleMover
 from package.widgets.simple_canvas import SimpleCanvasRect
 from tkinter import ttk
 import tkinter as tk
@@ -45,6 +46,7 @@ usb_camera_serial_prevalue = "COM1" # TODO very dummy
 color_prevalue = "COLOR"
 imtype_prevalue = "RAW16"
 pattern_prevalue = "GBRG"
+mover_history_size_prevalue = 5
 
 
 class Guiding:
@@ -56,6 +58,7 @@ class Guiding:
         [p.reset() for p in self._processors]
 
     def reset(self):
+        log.debug("Resetting all guiding calculators!")
         self._reset_state()
 
     def put_image(self, data: GuidingData):
@@ -157,6 +160,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             DataPrinter("calculated_center"),
             DeltaXYCalculator("calculated_center", "position_delta"),
             DataPrinter("position_delta"),
+            RectangleMover(self._image_canvas, history_size=mover_history_size_prevalue),
             # TODO:
             # AbsoluteShiftCalculator
             # MountMover
@@ -183,6 +187,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                        command=self._start_calculations,
                                        style="B.TButton")
         self._image_canvas.disable_rect_info()
+        self._image_provider.reset_calculation()
 
     def _start_corrections(self):
         self._corrections_button.configure(text="Stop corrections",

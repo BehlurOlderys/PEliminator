@@ -17,6 +17,12 @@ class DataProcessor:
         log.debug(f"Processor {self._name} starts processing...")
         return self._process_impl(data)
 
+    def reset(self):
+        self._reset_impl()
+
+    def _reset_impl(self):
+        pass
+
     def _process_impl(self, data):
         return data
 

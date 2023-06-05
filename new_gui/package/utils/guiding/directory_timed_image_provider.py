@@ -75,6 +75,10 @@ class DirectoryTimedImageProvider:
     def is_running(self):
         return self._running
 
+    def reset_calculation(self):
+        log.debug("Resetting Image Provider")
+        self._sink.reset()
+
     def start(self):
         log.debug("DirectoryTimedImageProvider starts")
         self._running = True
