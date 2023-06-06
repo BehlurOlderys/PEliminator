@@ -1,6 +1,7 @@
 from .child_process import ChildProcessGUI
 from package.widgets.labeled_combo import LabeledCombo
 from package.utils.guiding.directory_timed_image_provider import DirectoryTimedImageProvider
+from package.utils.guiding.usb_camera_image_provider import USBCameraImageProvider
 from package.utils.guiding.guiding_options import GuidingOptions
 from package.utils.guiding.delta_calculator import DeltaXYCalculator
 from package.utils.guiding.bw_transformations import NormalizedBWChanger
@@ -44,7 +45,6 @@ simulation_file_type_prevalue = "fits"
 usb_camera_serial_prevalue = "COM1" # TODO very dummy
 
 color_prevalue = "COLOR"
-imtype_prevalue = "RAW16"
 pattern_prevalue = "GBRG"
 mover_history_size_prevalue = 5
 
@@ -70,13 +70,16 @@ class Guiding:
 
 
 image_providers_map = {
-    "Simulation": DirectoryTimedImageProvider
+    "Simulation": DirectoryTimedImageProvider,
+    "USB Camera": USBCameraImageProvider
 }
 
 
 class AdvancedGuidingProcess(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(AdvancedGuidingProcess, self).__init__(title="Advanced guiding control", *args, **kwargs)
+
+        self._image_provider = None
 
         self._buttons_frame = ttk.Frame(self._main_frame, style="B.TFrame")
         self._buttons_frame.pack(side=tk.LEFT)
@@ -114,28 +117,12 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         self._color_combo = LabeledCombo("Color/Mono:", ["COLOR", "MONO"], prevalue=color_prevalue, frame=self._input_frame)
         self._color_combo.pack(side=tk.TOP)
 
-        self._imtype_combo = LabeledCombo("Image type:", ["RAW16", "RAW8", "RGB24"], prevalue=imtype_prevalue, frame=self._input_frame)
-        self._imtype_combo.pack(side=tk.TOP)
-
         self._pattern_combo = LabeledCombo("Bayer mask:", ["GBRG", "NONE"], prevalue=pattern_prevalue, frame=self._input_frame)
         self._pattern_combo.pack(side=tk.TOP)
 
         self._image_canvas = SimpleCanvasRect(frame=self._image_frame,
                                           initial_image_path="last.png")
         self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        # provider_factory = image_providers_map[self._guiding_options.get_guiding_type()]
-        #
-        # self._image_provider = provider_factory(Guiding(
-        #     PreProcessor(),
-        #     TimeWatcher(),
-        #     NormalizedBWChanger(self._color_combo.get_value(),
-        #                         self._imtype_combo.get_value(),
-        #                         self._pattern_combo.get_value()),
-        #     ImageDisplay(self._image_canvas),
-        #     ImageSaver("image", "test", save_path=default_save_path),
-        #     PostProcessor()
-        # ), self._guiding_options)
 
     def _killme(self):
         self._stop_corrections()
@@ -152,7 +139,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             PreProcessor(),
             TimeWatcher(),
             NormalizedBWChanger(self._color_combo.get_value(),
-                                self._imtype_combo.get_value(),
+                                self._guiding_options.get_image_type(),
                                 self._pattern_combo.get_value()),
             ImageDisplay(self._image_canvas),
             FragmentExtractor(self._image_canvas),
@@ -174,7 +161,8 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         self._capture_button.configure(text="Start capturing",
                                        command=self._start_capturing,
                                        style="B.TButton")
-        self._image_provider.stop()
+        if self._image_provider is not None:
+            self._image_provider.stop()
 
     def _start_calculations(self):
         self._calculations_button.configure(text="Stop calculations",
@@ -187,7 +175,8 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                        command=self._start_calculations,
                                        style="B.TButton")
         self._image_canvas.disable_rect_info()
-        self._image_provider.reset_calculation()
+        if self._image_provider is not None:
+            self._image_provider.reset_calculation()
 
     def _start_corrections(self):
         self._corrections_button.configure(text="Stop corrections",

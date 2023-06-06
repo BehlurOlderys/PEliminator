@@ -474,7 +474,7 @@ class AscomCamera(AscomDevice):
         pass
 
     @abstractmethod
-    def stoptexposure(self):
+    def stopexposure(self):
         """
         Stops the current exposure, if any. If an exposure is in progress, the readout process is initiated.
         Ignored if readout is already in process.

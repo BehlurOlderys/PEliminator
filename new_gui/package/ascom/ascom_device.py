@@ -3,21 +3,21 @@ from abc import ABC, abstractmethod
 
 class AscomDevice(ABC):
     # GETTERS:
-    
+
     @abstractmethod
     def get_connected(self):
         """
         Retrieves the connected state of the device
         """
         pass
-    
+
     @abstractmethod
     def get_name(self):
         """
         The name of the device
         """
         pass
-    
+
     @abstractmethod
     def get_interfaceversion(self):
         print("ASCOM DEVICE method")
@@ -29,7 +29,7 @@ class AscomDevice(ABC):
         number of devices.
         """
         pass
-    
+
     @abstractmethod
     def get_description(self):
         """
