@@ -1,6 +1,7 @@
 from .child_process import ChildProcessGUI
 from package.widgets.labeled_combo import LabeledCombo
 from package.widgets.labeled_input import LabeledInput
+from package.widgets.arrows_controls import ArrowsControls
 from package.utils.guiding.directory_timed_image_provider import DirectoryTimedImageProvider
 from package.utils.guiding.usb_camera_image_provider import USBCameraImageProvider
 from package.utils.guiding.guiding_options import GuidingOptions
@@ -15,6 +16,7 @@ from package.utils.guiding.star_center_calculator import StarCenterCalculator
 from package.utils.guiding.image_display import ImageDisplay
 from package.utils.guiding.fragment_extractor import FragmentExtractor
 from package.utils.guiding.rectangle_mover import RectangleMover
+from package.utils.serial_utils import get_available_com_ports
 from package.widgets.simple_canvas import SimpleCanvasRect
 from tkinter import ttk
 import numpy as np
@@ -44,6 +46,7 @@ fragments_save_path = "C:\\Users\\Florek\\Desktop\\workspace\\PEliminator\\new_g
 guiding_type_prevalue = "Simulation"
 simulation_file_type_prevalue = "fits"
 usb_camera_serial_prevalue = "COM1"  # TODO very dummy
+mount_mover_type_prevalue = "Dummy"
 
 color_prevalue = "COLOR"
 pattern_prevalue = "GBRG"
@@ -52,17 +55,17 @@ ra_threshold_as = 2.0
 dec_threshold_as = 2.0
 
 orientations_normal = {
-    "RA right->, DEC up": 0,
-    "RA down, DEC right->": 90,
-    "RA <-left, DEC down": 180,
-    "RA up, DEC <-left": 270
+    "RA <-left, DEC up": 0,
+    "RA up, DEC right->": 90,
+    "RA right->, DEC down": 180,
+    "RA down, DEC <-left": 270
 }
 
 orientations_flipped = {
-    "RA right->, DEC down": 0,
-    "RA down, DEC <-left": 90,
-    "RA <-left, DEC up": 180,
-    "RA up, DEC right->": 270
+    "RA <-left, DEC down": 0,
+    "RA up, DEC <-left": 90,
+    "RA right->, DEC up": 180,
+    "RA down, DEC right->": 270
 }
 
 
@@ -70,16 +73,16 @@ class OrientationMapper(DataProcessor):
     """
     using clockwise rotation = change signs in rotation matrix
     orientation = normal 0 deg:
-    error x > 0 -> need to move RA+
-    error x < 0 -> need to move RA-
+    error x > 0 -> need to move RA-
+    error x < 0 -> need to move RA+
     error y > 0 -> need to move DEC+
     error y < 0 -> need to move DEC-
 
     error = (ex, ey)
-    matrix =  | 1 0 |
-              | 0 1 |
+    matrix =  | -1  0 |
+              |  0  1 |
 
-    movement = (ra, dec)
+    movement = (-ra, dec)
 
     orientation = normal 90 deg:
     error x > 0 -> need to move DEC+
@@ -106,7 +109,7 @@ class OrientationMapper(DataProcessor):
             return data
 
         theta = (self._degrees_getter() / 180.) * np.pi
-        self._matrix = np.array([[np.cos(theta), np.sin(theta)],
+        self._matrix = np.array([[-np.cos(theta), np.sin(theta)],
                                  [-np.sin(theta), np.cos(theta)]])
 
         input = np.array(data.position_delta)
@@ -140,6 +143,12 @@ class MountMover(DataProcessor):
             self._move_dec_impl(arcseconds[1])
         return data
 
+    def move(self, axis, amount_as):
+        if axis == "RA":
+            self._move_ra_impl(amount_as)
+        if axis == "DEC":
+            self._move_dec_impl(amount_as)
+
     def _move_ra_impl(self, arcseconds):
         log.error("I hope not to see it...")
 
@@ -168,6 +177,12 @@ class MegaMountMover(MountMover):
 
     def _move_dec_impl(self, arcseconds):
         self._serial.send_line(f"MOVE_DEC_AS {arcseconds}")
+
+
+mount_movers_map = {
+    "Dummy": DummyMountMover,
+    "MegaUSB": MegaMountMover
+}
 
 
 class Guiding:
@@ -285,10 +300,43 @@ class AdvancedGuidingProcess(ChildProcessGUI):
         self._dec_spin = LabeledInput("Target DEC [deg]:", 30, -80, 80, width=3,
                                       frame=self._mount_frame).pack(side=tk.TOP)
 
+        ttk.Separator(self._buttons_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+        self._mover_frame = ttk.Frame(self._buttons_frame, style="B.TFrame")
+        self._mover_frame.pack(side=tk.TOP)
+        self._mover_combo = LabeledCombo("Mount type:", ["Dummy", "USB"], event_handler=self._change_mover,
+                                         prevalue=mount_mover_type_prevalue, frame=self._mover_frame).pack(side=tk.TOP)
+        self._mover_widgets = {}
+        ttk.Separator(self._buttons_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=10)
+
+        self._mover = mount_movers_map[mount_mover_type_prevalue]()
+        self._arrows = ArrowsControls(descriptions={
+            "UP": "DEC+", "DOWN": "DEC-", "LEFT": "RA+", "RIGHT": "RA-"
+        }, event_handlers={
+            "UP": lambda: self._mover.move("DEC", 100),
+            "DOWN": lambda: self._mover.move("DEC", -100),
+            "LEFT": lambda: self._mover.move("RA", 100),
+            "RIGHT": lambda: self._mover.move("RA", -100),
+        }, frame=self._buttons_frame).pack(side=tk.TOP)
+
         # RIGHT SIDE OF THE WINDOW:
         self._image_canvas = SimpleCanvasRect(frame=self._image_frame,
                                               initial_image_path="last.png")
         self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    def _change_mover(self, event):
+        value = event.widget.get()
+        if value == "USB":
+            available_ports = get_available_com_ports()
+            print(f"Available ports = {available_ports}")
+            serial_chooser = LabeledCombo(frame=self._mover_frame, desc="Serial port: ",
+                                        values=available_ports, prevalue=available_ports[0])
+            serial_chooser.pack(side=tk.TOP)
+            self._mover_widgets["serial_chooser"] = serial_chooser
+        elif value == "Dummy":
+            for w in self._mover_widgets.values():
+                w.destroy()
+
+
 
     def _killme(self):
         self._stop_corrections()
@@ -344,10 +392,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             RectangleMover(self._image_canvas, history_size=mover_history_size_prevalue),
             OrientationMapper(self._get_orientation_angle, self._get_flip_value),
             MovementArcsecondsCalculator(self._get_focal_length, self._get_pixel, self._get_dec),
-            DummyMountMover(),
-            # TODO:
-            # AbsoluteShiftCalculator
-            # MountMover
+            self._mover,
             ImageSaver("fragment", "test", save_path=fragments_save_path),
             ImageSaver("image", "test", save_path=default_save_path),
             PostProcessor()
