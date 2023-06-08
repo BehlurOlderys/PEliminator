@@ -83,8 +83,7 @@ private:
 };
 
 static const double RA_ARCSECONDS_PER_STEP  = 0.3006072;
-static const double DEC_ARCSECONDS_PER_STEP = 0.9619433;
-
+static const double DEC_ARCSECONDS_PER_STEP = 0.6012146;
 typedef void (*positionReachedCallback)();
 
 struct SlewingController

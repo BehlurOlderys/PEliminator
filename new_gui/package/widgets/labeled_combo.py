@@ -19,5 +19,9 @@ class LabeledCombo(AppendablePeBaseWidget):
         self._combobox.pack(side=tk.RIGHT)
         self._combobox.bind('<<ComboboxSelected>>', self._event_handler)
 
+    def set_list(self, values, prevalue):
+        self._combobox.config(values=values)
+        self._combobox.set(prevalue)
+
     def get_value(self):
         return self._value.get()

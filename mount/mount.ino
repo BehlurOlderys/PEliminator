@@ -528,6 +528,16 @@ void MovingDecDone(){
 //  serialize_special_message(SPECIAL_MOVE_DONE_ID, serializer);
 }
 
+void MoveRaAs(int32_t arcseconds){
+  int32_t steps = (int32_t)(((float)arcseconds) / RA_ARCSECONDS_PER_STEP);
+  ra_stepper.set_position_relative(steps);
+}
+
+void MoveDecAs(int32_t arcseconds){
+  int32_t steps = (int32_t)(((float)arcseconds) / DEC_ARCSECONDS_PER_STEP);
+  dec_stepper.set_position_relative(steps);
+}
+
 void MoveRaPlus(int32_t arcseconds){
 //  int32_t steps = (int32_t)(((float)arcseconds) / RA_ARCSECONDS_PER_STEP);
 //
@@ -607,14 +617,11 @@ void ReadSerial(){
     else if (strcmp("SET_DEC" ,command_name) == 0){
       position_manager.SetDec(command_argument);
     }
-    else if (strcmp("MOVE_RA+" ,command_name) == 0){
-      MoveRaPlus(command_argument);
+    else if (strcmp("MOVE_RA_AS" ,command_name) == 0){
+      MoveRaAs(command_argument);
     }
-    else if (strcmp("MOVE_RA-" ,command_name) == 0){
-      MoveRaMinus(command_argument);
-    }
-    else if (strcmp("MOVE_DEC+" ,command_name) == 0){
-      MoveDecPlus(command_argument);
+    else if (strcmp("MOVE_DEC_AS" ,command_name) == 0){
+      MoveDecAs(command_argument);
     }
     else if (strcmp("MOVE_DEC-" ,command_name) == 0){
       MoveDecMinus(command_argument);

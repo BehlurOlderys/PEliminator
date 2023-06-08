@@ -11,6 +11,8 @@ class GuidingData:
         self.fragment_rect = None
         self.calculated_center = None
         self.position_delta = None
+        self.movement_px = None
+        self.movement_as = None
 
     def __repr__(self):
         return self.message
