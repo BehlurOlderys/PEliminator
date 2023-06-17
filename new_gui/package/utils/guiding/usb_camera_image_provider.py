@@ -26,15 +26,17 @@ class USBCameraImageProvider:
         self._queue = queue.Queue(maxsize=2)
 
     def _process(self):
+        index = 0
         while self._running:
             if self._queue.empty():
                 time.sleep(0.1)
             else:
                 imagearray = self._queue.get_nowait()
                 log.debug("USB Camera: started processing queue item!")
-                self._sink.put_image(GuidingData(imagearray, time.time(), "no_name"))
+                self._sink.put_image(GuidingData(imagearray, time.time(), f"Capture_{index}"))
                 self._queue.task_done()
                 log.info(f"...image put successfully")
+                index += 1
         log.debug("USB Camera processing thread exiting...")
 
     def is_running(self):

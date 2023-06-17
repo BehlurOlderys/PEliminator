@@ -9,8 +9,17 @@ __pycache__/
 #unwanted directories
 gui/logs/*
 
+#open calc excel sheets (raw data is all that matter anyway)
+*.ods
+
 # pictures
 *.png
+*.tiff
+*.jpg
+*.tif
+
+# stl models (as they are generated from freecad project)
+*.stl
 
 # Distribution / packaging
 .Python

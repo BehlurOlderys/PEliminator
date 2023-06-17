@@ -25,7 +25,7 @@ class RemoteProcessGUI(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
         self.maximize()
-        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.0.59")
+        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.1.101")
         self._continuous_imaging = False
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=5)
         self._requester = CameraRequests(camera_no=0)
@@ -211,8 +211,10 @@ class RemoteProcessGUI(ChildProcessGUI):
     def _get_instant_image(self):
         return self._single(getter=lambda: self._requester.put_instant_capture(self._exposure_s))
 
-    def  _update_image_when_capturing(self):
-        self._image_canvas.update_with_pil_image(self._requester.get_last_image())
+    def _update_image_when_capturing(self):
+        npimg = self._requester.get_last_image()
+        pil_image = self._convert_16b_np_image_into_pil(npimg)
+        self._image_canvas.update_with_pil_image(pil_image)
 
     def _check_capture_progress(self):
         if not self._capturing:
@@ -266,8 +268,26 @@ class RemoteProcessGUI(ChildProcessGUI):
         npimg = npimg.reshape(shape)
         return npimg
 
-    def _single(self, getter):
+    def _convert_16b_np_image_into_pil(self, npimg):
         epsilon = 0.1
+
+        if16 = npimg.astype(np.float16)
+        a = np.percentile(if16, 5)
+        b = np.percentile(if16, 95)
+
+        if b - a < epsilon:
+            normalized_not_clipped = a * np.ones_like(if16)
+        else:
+            normalized_not_clipped = (if16 - a) / (b - a)
+
+        img8b = np.clip(256 * normalized_not_clipped, 0, 255).astype(np.uint8)
+        # print(f"a={a}, b={b}, span = {b - a}")
+        # print(f"img8b max={np.max(img8b)}, img8b min={np.min(img8b)}")
+        npimg = img8b.astype(np.uint8)
+
+        return PIL.Image.fromarray(npimg, mode="L")
+
+    def _single(self, getter):
         image_type = self._type_combobox.get()
         print(f"Image type = {image_type}")
         npimg = self._get_np_array_from_camera(image_type, getter=getter)
@@ -277,22 +297,9 @@ class RemoteProcessGUI(ChildProcessGUI):
         # Just for sake of displaying it correcly:
         # if type_info["astype"] == np.uint16:
 
-        if16 = npimg.astype(np.float16)
-        a = np.percentile(if16, 5)
-        b = np.percentile(if16, 95)
+        pil_image = self._convert_16b_np_image_into_pil(npimg)
 
-        if b - a < epsilon:
-            normalized_not_clipped = a*np.ones_like(if16)
-        else:
-            normalized_not_clipped = (if16 - a) / (b - a)
-
-        img8b = np.clip(256*normalized_not_clipped, 0, 255).astype(np.uint8)
-        print(f"a={a}, b={b}, span = {b - a}")
-        print(f"img8b max={np.max(img8b)}, img8b min={np.min(img8b)}")
-        npimg = img8b.astype(np.uint8)
-
-        image = PIL.Image.fromarray(npimg, mode="L")
-        self._image_canvas.update_with_pil_image(image)
+        self._image_canvas.update_with_pil_image(pil_image)
 
     def _set_exposure_s(self, value):
         try:

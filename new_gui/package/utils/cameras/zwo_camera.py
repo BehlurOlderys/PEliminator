@@ -115,6 +115,12 @@ class ZwoCamera(AscomCamera):
         self._store_imagebytes()
         return self._get_buffer()
 
+    def is_image_failed(self):
+        return self._camera.get_exposure_status() == 3
+
+    def is_camera_idle(self):
+        return self._camera.get_exposure_status() == 0
+
     def get_np_array_from_buffer(self, buffer):
         whbi = self._camera.get_roi_format()
         shape = [whbi[1], whbi[0]]

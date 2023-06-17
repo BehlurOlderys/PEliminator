@@ -16,7 +16,7 @@ from package.utils.guiding.star_center_calculator import StarCenterCalculator
 from package.utils.guiding.image_display import ImageDisplay
 from package.utils.guiding.fragment_extractor import FragmentExtractor
 from package.utils.guiding.rectangle_mover import RectangleMover
-from package.utils.serial_utils import get_available_com_ports
+from package.utils.serial_utils import get_available_com_ports, SerialWriter
 from package.widgets.simple_canvas import SimpleCanvasRect
 from tkinter import ttk
 import numpy as np
@@ -75,14 +75,14 @@ class OrientationMapper(DataProcessor):
     orientation = normal 0 deg:
     error x > 0 -> need to move RA-
     error x < 0 -> need to move RA+
-    error y > 0 -> need to move DEC+
-    error y < 0 -> need to move DEC-
+    error y > 0 -> need to move DEC-
+    error y < 0 -> need to move DEC+
 
     error = (ex, ey)
     matrix =  | -1  0 |
-              |  0  1 |
+              |  0  -1 |
 
-    movement = (-ra, dec)
+    movement = (-ra, -dec)
 
     orientation = normal 90 deg:
     error x > 0 -> need to move DEC+
@@ -110,7 +110,7 @@ class OrientationMapper(DataProcessor):
 
         theta = (self._degrees_getter() / 180.) * np.pi
         self._matrix = np.array([[-np.cos(theta), np.sin(theta)],
-                                 [-np.sin(theta), np.cos(theta)]])
+                                 [-np.sin(theta), -np.cos(theta)]])
 
         input = np.array(data.position_delta)
 
@@ -137,16 +137,18 @@ class MountMover(DataProcessor):
 
         log.debug(f"Got arcseconds: {data.movement_as}")
         arcseconds = data.movement_as
-        if arcseconds[0] > ra_threshold_as:
+        if abs(arcseconds[0]) > ra_threshold_as:
             self._move_ra_impl(arcseconds[0])
-        if arcseconds[1] > dec_threshold_as:
+        if abs(arcseconds[1]) > dec_threshold_as:
             self._move_dec_impl(arcseconds[1])
         return data
 
     def move(self, axis, amount_as):
         if axis == "RA":
+            log.info(f"Moving RA by {amount_as}")
             self._move_ra_impl(amount_as)
         if axis == "DEC":
+            log.info(f"Moving DEC by {amount_as}")
             self._move_dec_impl(amount_as)
 
     def _move_ra_impl(self, arcseconds):
@@ -168,20 +170,27 @@ class DummyMountMover(MountMover):
 
 
 class MegaMountMover(MountMover):
-    def __init__(self, serial):
+    def __init__(self, serial=None):
         super(MegaMountMover, self).__init__(name="MegaMountSerialMover")
         self._serial = serial
 
+    def set_serial(self, serial):
+        self._serial = serial
+
     def _move_ra_impl(self, arcseconds):
-        self._serial.send_line(f"MOVE_RA_AS {arcseconds}")
+        command = f"MOVE_RA_AS {int(arcseconds)}"
+        log.debug(f"Issuing a command: {command}")
+        self._serial.send_line(command)
 
     def _move_dec_impl(self, arcseconds):
-        self._serial.send_line(f"MOVE_DEC_AS {arcseconds}")
+        command = f"MOVE_DEC_AS {int(arcseconds)}"
+        log.debug(f"Issuing a command: {command}")
+        self._serial.send_line(command)
 
 
 mount_movers_map = {
     "Dummy": DummyMountMover,
-    "MegaUSB": MegaMountMover
+    "USB": MegaMountMover
 }
 
 
@@ -323,20 +332,26 @@ class AdvancedGuidingProcess(ChildProcessGUI):
                                               initial_image_path="last.png")
         self._image_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
+    def _change_serial(self, event):
+        port = event.widget.get()
+        if port == '<NONE>':
+            return
+        new_serial = SerialWriter(port)
+        self._mover.set_serial(new_serial)
+
     def _change_mover(self, event):
         value = event.widget.get()
         if value == "USB":
             available_ports = get_available_com_ports()
-            print(f"Available ports = {available_ports}")
+            self._mover = MegaMountMover(SerialWriter(available_ports[0]))
             serial_chooser = LabeledCombo(frame=self._mover_frame, desc="Serial port: ",
-                                        values=available_ports, prevalue=available_ports[0])
+                                          event_handler=self._change_serial,
+                                          values=available_ports, prevalue=available_ports[0])
             serial_chooser.pack(side=tk.TOP)
             self._mover_widgets["serial_chooser"] = serial_chooser
         elif value == "Dummy":
             for w in self._mover_widgets.values():
                 w.destroy()
-
-
 
     def _killme(self):
         self._stop_corrections()

@@ -33,6 +33,9 @@ class GuidingOptions:
         self._additional_widgets = {}
         self._choose_setup()
 
+    def get_capture_delay_s(self):
+        return 1
+
     def get_camera_vendor(self):
         return self._additional_widgets["vendor_combo"].get_value()
 
@@ -69,7 +72,9 @@ class GuidingOptions:
             log.warning(f"Value not handled: {self._current}")
 
     def _setup_for_any_camera(self):
-        exposure = LabeledInput("Exposure [s]:", initial_value=camera_exposure_s_prevalue, frame=self._frame).pack(side=tk.TOP)
+        exposure = LabeledInput("Exposure [s]:",
+                                width=7, increment=1, from_=0, to=999,
+                                initial_value=camera_exposure_s_prevalue, frame=self._frame).pack(side=tk.TOP)
         gain = LabeledInput("Gain:", initial_value=camera_gain_prevalue, frame=self._frame).pack(side=tk.TOP)
 
         self._additional_widgets["exposure"] = exposure

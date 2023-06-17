@@ -5,6 +5,7 @@ from datetime import datetime
 from PIL import Image
 import io
 from package.ascom.ascom_camera import CameraState
+import numpy as np
 
 
 default_format = "%Y-%m-%d %H:%M:%S.%f"
@@ -101,15 +102,14 @@ class CameraRequests(AscomRequests):
         return r
 
     def _get_image_from_stream(self, **kwargs):
-        CHUNK_SIZE = 4096
-        r = self._get_request(**kwargs)
+        r = self._get_request(**kwargs, stream=True)
         if r.status_code != 200:
             print(f"Response obtained: {r.status_code}")
             return None
 
-        print(r.content)
         buf = io.BytesIO(r.content)
-        return Image.open(buf)
+        im = np.array(Image.open(buf))
+        return im
 
     def _put_request(self, endpoint, query_params=None):
         print(f"Requesting PUT on {endpoint}...")
