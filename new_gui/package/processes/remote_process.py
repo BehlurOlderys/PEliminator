@@ -4,6 +4,7 @@ from package.widgets.image_canvas import PhotoImageWithRectangle
 from package.widgets.labeled_input import LabeledInput
 from package.widgets.ip_address_input import IPAddressInput
 from package.widgets.capture_progress_bar import CaptureProgressBar
+from package.widgets.simple_plot import SimplePlot
 from package.processes.camera_requester import CameraRequests, get_diff_ms
 from tkinter import ttk
 from datetime import datetime
@@ -11,6 +12,7 @@ import tkinter as tk
 import requests
 import numpy as np
 import PIL
+import matplotlib.pyplot as plt
 
 
 image_types_map = {
@@ -37,6 +39,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._add_task(self._check_capture_progress, timeout_ms=1000)
         self._add_task(self._check_continuous, timeout_ms=500)
         self._temp_counter = 0
+        self._current_raw_data = None
         self._last_good_image = datetime.now()
 
     def _connect(self, host_name, port_number):
@@ -134,6 +137,15 @@ class RemoteProcessGUI(ChildProcessGUI):
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
         image_controls_frame.pack(side=tk.LEFT)
 
+        self._hist_plot = SimplePlot((0, 0), frame=image_controls_frame)
+        self._hist_plot.pack(side=tk.TOP)
+
+        self._hist_button = ttk.Button(image_controls_frame,
+                                          text="Show image histogram",
+                                          command=self._hist_image,
+                                          style="B.TButton")
+        self._hist_button.pack(side=tk.TOP)
+
         self._log_button = ttk.Button(image_controls_frame,
                                           text="Logarithm image",
                                           command=self._log_image,
@@ -151,6 +163,14 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           command=self._image_canvas.zoom_out,
                                           style="B.TButton")
         self._zoom_out_button.pack(side=tk.TOP)
+
+    def _hist_image(self):
+        if self._current_raw_data is None:
+            print("No current data!")
+            return
+        print("Obtaining image histogram")
+        x, y = np.histogram(self._current_raw_data, bins=100)
+        self._hist_plot.replot((x, y[1:]))
 
     def _update_temp(self):
         temp_string = f"T={self._requester.get_temperature()}°C"
@@ -292,6 +312,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         print(f"Image type = {image_type}")
         npimg = self._get_np_array_from_camera(image_type, getter=getter)
         type_info = image_types_map[image_type]
+        self._current_raw_data = npimg
 
         # CAREFUL! Below line make image downgraded into 8 bit from 16!
         # Just for sake of displaying it correcly:
