@@ -12,7 +12,7 @@ window_max_width = 1024
 
 
 class PhotoImage(PeBaseWidget):
-    def __init__(self, initial_image=None, initial_image_path=None, **kwargs):
+    def __init__(self, initial_image=None, initial_image_path=None, update_handler=None, **kwargs):
         super(PhotoImage, self).__init__(**kwargs)
         self._displayed_image = None
         self._original_image = None
@@ -29,6 +29,7 @@ class PhotoImage(PeBaseWidget):
         self._img = ImageTk.PhotoImage(self._displayed_image)
 
         self._frame.pack(fill=tk.BOTH, expand=True)
+        self._update_handler = update_handler
 
         w, h =self._original_image.size
 
@@ -64,6 +65,8 @@ class PhotoImage(PeBaseWidget):
         self._canvas.configure(scrollregion=(0, 0, new_width, new_height), width=canvas_width, height=h)
         self._canvas.itemconfig(self._image_container, image=self._img)
         print("... resizing done!")
+        if self._update_handler is not None:
+            self._update_handler()
 
     def zoom_in(self):
         self._zoom = round(self._zoom * 1.4, 2)

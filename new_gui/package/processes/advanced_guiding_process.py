@@ -1,3 +1,5 @@
+import math
+
 from .child_process import ChildProcessGUI
 from package.widgets.labeled_combo import LabeledCombo
 from package.widgets.labeled_input import LabeledInput
@@ -7,6 +9,7 @@ from package.utils.guiding.usb_camera_image_provider import USBCameraImageProvid
 from package.utils.guiding.guiding_options import GuidingOptions
 from package.utils.guiding.delta_calculator import DeltaXYCalculator
 from package.utils.guiding.bw_transformations import NormalizedBWChanger
+from package.utils.guiding.movement_watchdog import MovementWatchdog
 from package.utils.guiding.time_watcher import TimeWatcher
 from package.utils.guiding.data_printer import DataPrinter
 from package.utils.guiding.image_saver import ImageSaver
@@ -130,13 +133,25 @@ class OrientationMapper(DataProcessor):
 class MountMover(DataProcessor):
     def __init__(self, name):
         super(MountMover, self).__init__(name=name)
+        self._enabled = True
+
+    def disable(self):
+        self._enabled = False
+
+    def enable(self):
+        self._enabled = True
 
     def _process_impl(self, data: GuidingData):
         if data.movement_as is None:
             return data
 
-        log.debug(f"Got arcseconds: {data.movement_as}")
+        if not self._enabled:
+            log.warning("Mover is disabled!")
+            return data
+
         arcseconds = data.movement_as
+        log.debug(f"Got arcseconds: {data.movement_as}")
+
         if abs(arcseconds[0]) > ra_threshold_as:
             self._move_ra_impl(arcseconds[0])
         if abs(arcseconds[1]) > dec_threshold_as:
@@ -407,6 +422,7 @@ class AdvancedGuidingProcess(ChildProcessGUI):
             RectangleMover(self._image_canvas, history_size=mover_history_size_prevalue),
             OrientationMapper(self._get_orientation_angle, self._get_flip_value),
             MovementArcsecondsCalculator(self._get_focal_length, self._get_pixel, self._get_dec),
+            MovementWatchdog(self._mover),
             self._mover,
             ImageSaver("fragment", "test", save_path=fragments_save_path),
             ImageSaver("image", "test", save_path=default_save_path),

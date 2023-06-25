@@ -23,11 +23,49 @@ image_types_map = {
 }
 
 
+class ImagePercentileNormalizer:
+    def __init__(self):
+        self._equalize = False
+        self._i16max = 65535
+        self._max = self._i16max
+        self._min = 0
+
+    def set_clipping(self, bounds):
+        pmin, pmax = bounds
+        self._min = self._i16max * pmin / 100.0
+        self._max = self._i16max * pmax / 100.0
+        print(f"Min = {self._min}, Max = {self._max}")
+        self._equalize = False
+
+    def set_equalize(self):
+        self._equalize = True
+
+    def normalize(self, npimg):
+        if16 = npimg.astype(np.float16)
+        if self._equalize:
+            a = np.percentile(if16, 5)
+            b = np.percentile(if16, 95)
+        else:
+            a = self._min
+            b = self._max
+
+        epsilon = 0.1
+        if b - a < epsilon:
+            normalized_not_clipped = a * np.ones_like(if16)
+        else:
+            normalized_not_clipped = (if16 - a) / (b - a)
+
+        min_clip = 0
+        max_clip = 256
+
+        return np.clip(max_clip * normalized_not_clipped, min_clip, max_clip-1).astype(np.uint8)
+
+
 class RemoteProcessGUI(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
         self.maximize()
-        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.1.101")
+        self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.1.102")
         self._continuous_imaging = False
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=5)
         self._requester = CameraRequests(camera_no=0)
@@ -41,6 +79,9 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._temp_counter = 0
         self._current_raw_data = None
         self._last_good_image = datetime.now()
+        self._normalizer = ImagePercentileNormalizer()
+        self._min_scale_var = tk.DoubleVar(value=0)
+        self._max_scale_var = tk.DoubleVar(value=100)
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -131,7 +172,8 @@ class RemoteProcessGUI(ChildProcessGUI):
         image_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
 
         self._image_canvas = PhotoImageWithRectangle(frame=image_frame,
-                                                     initial_image_path="last.png")
+                                                     initial_image_path="last.png",
+                                                     update_handler=self._new_image_handler)
         self._image_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
@@ -140,11 +182,28 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._hist_plot = SimplePlot((0, 0), frame=image_controls_frame)
         self._hist_plot.pack(side=tk.TOP)
 
-        self._hist_button = ttk.Button(image_controls_frame,
-                                          text="Show image histogram",
-                                          command=self._hist_image,
+        self._scale_frame = ttk.Frame(image_controls_frame, style="B.TFrame")
+        self._scale_frame.pack(side=tk.TOP)
+        self._min_scale_label = ttk.Entry(self._scale_frame, width=3, textvariable=self._min_scale_var)
+        self._min_scale_label.pack(side=tk.LEFT)
+        self._min_scale = ttk.Scale(self._scale_frame, variable=self._min_scale_var,
+                                    style="B.Horizontal.TScale", from_=0, to=100, orient=tk.HORIZONTAL)
+        self._min_scale.pack(side=tk.LEFT)
+        self._min_scale.bind("<ButtonRelease-1>", self._stretch)
+
+        self._max_scale_label = ttk.Entry(self._scale_frame, width=3, textvariable=self._max_scale_var)
+        self._max_scale_label.pack(side=tk.RIGHT)
+        self._max_scale = ttk.Scale(self._scale_frame, variable=self._max_scale_var,
+                                    style="B.Horizontal.TScale", from_=0, to=100, orient=tk.HORIZONTAL)
+        self._max_scale.pack(side=tk.RIGHT)
+        self._max_scale.bind("<ButtonRelease-1>", self._stretch)
+
+        self._equalize_button = ttk.Button(image_controls_frame,
+                                          text="Equalize",
+                                          command=self._equalize,
                                           style="B.TButton")
-        self._hist_button.pack(side=tk.TOP)
+
+        self._equalize_button.pack(side=tk.TOP)
 
         self._log_button = ttk.Button(image_controls_frame,
                                           text="Logarithm image",
@@ -163,6 +222,20 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           command=self._image_canvas.zoom_out,
                                           style="B.TButton")
         self._zoom_out_button.pack(side=tk.TOP)
+
+    def _stretch(self, event):
+        smin = float(self._min_scale_var.get())
+        smax = float(self._max_scale_var.get())
+        print(f"Min = {smin}, Max = {smax}")
+        self._normalizer.set_clipping((smin, smax))
+        self._draw_image()
+
+    def _equalize(self):
+        self._normalizer.set_equalize()
+        self._draw_image()
+
+    def _new_image_handler(self):
+        self._hist_image()
 
     def _hist_image(self):
         if self._current_raw_data is None:
@@ -289,23 +362,16 @@ class RemoteProcessGUI(ChildProcessGUI):
         return npimg
 
     def _convert_16b_np_image_into_pil(self, npimg):
-        epsilon = 0.1
 
-        if16 = npimg.astype(np.float16)
-        a = np.percentile(if16, 5)
-        b = np.percentile(if16, 95)
-
-        if b - a < epsilon:
-            normalized_not_clipped = a * np.ones_like(if16)
-        else:
-            normalized_not_clipped = (if16 - a) / (b - a)
-
-        img8b = np.clip(256 * normalized_not_clipped, 0, 255).astype(np.uint8)
         # print(f"a={a}, b={b}, span = {b - a}")
         # print(f"img8b max={np.max(img8b)}, img8b min={np.min(img8b)}")
-        npimg = img8b.astype(np.uint8)
+        npimg = self._normalizer.normalize(npimg)
 
         return PIL.Image.fromarray(npimg, mode="L")
+
+    def _draw_image(self):
+        pil_image = self._convert_16b_np_image_into_pil(self._current_raw_data)
+        self._image_canvas.update_with_pil_image(pil_image)
 
     def _single(self, getter):
         image_type = self._type_combobox.get()
@@ -318,9 +384,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         # Just for sake of displaying it correcly:
         # if type_info["astype"] == np.uint16:
 
-        pil_image = self._convert_16b_np_image_into_pil(npimg)
-
-        self._image_canvas.update_with_pil_image(pil_image)
+        self._draw_image()
 
     def _set_exposure_s(self, value):
         try:

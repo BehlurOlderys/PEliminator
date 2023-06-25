@@ -23,6 +23,7 @@ class BaseGuiApplication:
                         background=[('active', '#cc7755')],
                         foreground=[('active', 'white')])
         self._style.configure("B.TSeparator", background='#222222')
+        self._style.configure('B.Horizontal.TScale', background="#222222")
         self._style.configure('TButton', font=('calibre', 10, 'bold'), background='#333333', foreground='#cccccc')
         self._style.map('TButton', background=[('active', '#444444')],
                                   foreground=[('active', 'white')])
