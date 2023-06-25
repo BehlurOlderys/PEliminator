@@ -141,7 +141,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._capture_spin.pack(side=tk.LEFT)
 
         self._start_capturing_button = ttk.Button(continuous_capturing_frame,
-                                                  text="Start",
+                                                  text="Start capturing",
                                                   command=self._start_capturing,
                                                   style="B.TButton")
         self._start_capturing_button.pack(side=tk.LEFT)
@@ -252,7 +252,16 @@ class RemoteProcessGUI(ChildProcessGUI):
     def _log_image(self):
         self._image_canvas.log_image()
 
+    def _stop_capturing_internal(self):
+        self._start_capturing_button.configure(text="Start capturing",
+                                               state=tk.NORMAL,
+                                               style="B.TButton")
+        self._capturing = False
+
     def _start_capturing(self):
+        self._start_capturing_button.configure(text="Capturing in progress",
+                                               state=tk.DISABLED,
+                                               style="SunkableButton.TButton")
         number = self._capture_spin.get_value()
         exposure = self._exposure_s
         self._requester.put_capture(exposure, number)
@@ -332,20 +341,31 @@ class RemoteProcessGUI(ChildProcessGUI):
         if r.status_code == 200:
             self._capture_pb.finish()
             self._update_image_when_capturing()
-            self._capturing = False
+            self._stop_capturing_internal()
             return
 
         try:
             c_state = r.json()["Status"]
             print(f"Camera state = {c_state}")
+            if c_state == "ERROR":
+                err_msg = r.json()["ErrorMessage"]
+                print(f"Error from camera: {err_msg}, returning and stopping capture")
+                self._capture_pb.reset()
+                self._stop_capturing_internal()
+                return
+
             if "/" in c_state:
                 [progress, total] = c_state.split("/")
                 self._capture_pb.update(int(progress))
                 self._update_image_when_capturing()
         except KeyError as ke:
-            print(f"Status not found in result json: {repr(ke)}")
+            print(f"Some key was not found in result json: {repr(ke)}")
+            self._capture_pb.reset()
+            self._stop_capturing_internal()
         except Exception as e:
             print(f"Unknown exception happened on update for capturing: {repr(e)}")
+            self._capture_pb.reset()
+            self._stop_capturing_internal()
 
     def _get_np_array_from_camera(self, image_type, getter):
         """
@@ -370,6 +390,8 @@ class RemoteProcessGUI(ChildProcessGUI):
         return PIL.Image.fromarray(npimg, mode="L")
 
     def _draw_image(self):
+        if self._current_raw_data is None:
+            return
         pil_image = self._convert_16b_np_image_into_pil(self._current_raw_data)
         self._image_canvas.update_with_pil_image(pil_image)
 
