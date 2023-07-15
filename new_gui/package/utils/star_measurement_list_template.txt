@@ -1,0 +1,26 @@
+DSS file list
+CHECKED	TYPE	FILE
+1	light	light.tif
+#WS#Software\DeepSkyStacker\FitsDDP|BayerPattern=3
+#WS#Software\DeepSkyStacker\FitsDDP|BlueScale=1.0000
+#WS#Software\DeepSkyStacker\FitsDDP|Brighness=1.0000
+#WS#Software\DeepSkyStacker\FitsDDP|DSLR=Generic GBRG
+#WS#Software\DeepSkyStacker\FitsDDP|FITSisRAW=0
+#WS#Software\DeepSkyStacker\FitsDDP|ForceUnsigned=0
+#WS#Software\DeepSkyStacker\FitsDDP|Interpolation=Bilinear
+#WS#Software\DeepSkyStacker\FitsDDP|RedScale=1.0000
+#WS#Software\DeepSkyStacker\RawDDP|AHD=0
+#WS#Software\DeepSkyStacker\RawDDP|BlackPointTo0=0
+#WS#Software\DeepSkyStacker\RawDDP|BlueScale=1.0000
+#WS#Software\DeepSkyStacker\RawDDP|Brighness=1.0000
+#WS#Software\DeepSkyStacker\RawDDP|CameraWB=0
+#WS#Software\DeepSkyStacker\RawDDP|Interpolation=Bilinear
+#WS#Software\DeepSkyStacker\RawDDP|NoWB=0
+#WS#Software\DeepSkyStacker\RawDDP|RawBayer=0
+#WS#Software\DeepSkyStacker\RawDDP|RedScale=1.0000
+#WS#Software\DeepSkyStacker\RawDDP|SuperPixels=0
+#WS#Software\DeepSkyStacker\Register|ApplyMedianFilter=1
+#WS#Software\DeepSkyStacker\Register|DetectHotPixels=0
+#WS#Software\DeepSkyStacker\Register|DetectionThreshold=7
+#WS#Software\DeepSkyStacker\Register|PercentStack=100
+#WS#Software\DeepSkyStacker\Register|StackAfter=0

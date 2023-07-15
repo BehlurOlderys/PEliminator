@@ -60,8 +60,8 @@ class CameraRequests(AscomRequests):
     def get_continuous_image(self):
         return self._get_request(endpoint="currentimage")
 
-    def put_start_continuous_imaging(self):
-        return self._put_request(endpoint="startcontinuous")
+    def put_start_continuous_imaging(self, value):
+        return self._put_request(endpoint="startcontinuous", query_params={"Exposure": value})
 
     def put_stop_continuous_imaging(self):
         return self._put_request(endpoint="stopcontinuous")

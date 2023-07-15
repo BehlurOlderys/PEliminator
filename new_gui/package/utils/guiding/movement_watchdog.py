@@ -5,7 +5,7 @@ import logging
 log = logging.getLogger("guiding")
 
 
-max_possible_max_counter = 20
+max_possible_max_counter = 40
 max_ra_as_threshold = 15
 max_dec_as_threshold = 25
 
@@ -25,10 +25,10 @@ class MovementWatchdog(DataProcessor):
             return data
 
         if math.isnan(arcseconds[0]):
-            self._max_counter = max_possible_max_counter
+            self._max_counter += 2
 
         if math.isnan(arcseconds[1]):
-            self._max_counter = max_possible_max_counter
+            self._max_counter += 2
 
         if self._max_counter >= max_possible_max_counter:
             log.error(" ======\n====== Too many errors, skipping movement! ======\n====== ")

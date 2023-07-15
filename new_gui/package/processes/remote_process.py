@@ -6,13 +6,14 @@ from package.widgets.ip_address_input import IPAddressInput
 from package.widgets.capture_progress_bar import CaptureProgressBar
 from package.widgets.simple_plot import SimplePlot
 from package.processes.camera_requester import CameraRequests, get_diff_ms
+from package.utils.star_measurer import StarMeasurer
 from tkinter import ttk
 from datetime import datetime
 import tkinter as tk
 import requests
 import numpy as np
 import PIL
-import matplotlib.pyplot as plt
+from threading import Thread
 
 
 image_types_map = {
@@ -21,6 +22,26 @@ image_types_map = {
     "RAW16": {"astype": np.uint16, "mode": "I;16"},
     "RGB24": {"astype": np.uint8, "mode": "RGB"},
 }
+
+max_threads = 4
+
+
+def enqueue_task_if_possible(pool: list, pool_name: str, **kwargs):
+    for i, t in enumerate(pool):
+        if t is not None and not t.is_alive():
+            print(f"Joining {pool_name} thread {i}...")
+            t.join()
+            pool[i] = None
+    y = (i for i, v in enumerate(pool) if v is None)
+    try:
+        next_free = next(y)
+    except StopIteration:
+        print(f"== ERROR ==: No available {pool_name} threads!")
+        return
+
+    print(f"Next free {pool_name} thread = {next_free}")
+    pool[next_free] = Thread(**kwargs)
+    pool[next_free].start()
 
 
 class ImagePercentileNormalizer:
@@ -65,6 +86,7 @@ class RemoteProcessGUI(ChildProcessGUI):
     def __init__(self, *args, **kwargs):
         super(RemoteProcessGUI, self).__init__(title="Remote control", *args, **kwargs)
         self.maximize()
+        self._measurer = StarMeasurer()
         self._address_input = IPAddressInput(self._main_frame, self._connect, initial="192.168.1.102")
         self._continuous_imaging = False
         ttk.Separator(self._main_frame, orient=tk.HORIZONTAL, style="B.TSeparator").pack(side=tk.TOP, ipady=5)
@@ -75,13 +97,15 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._current_shape = [768, 1024]  # [H, W]
         self._capturing = False
         self._add_task(self._check_capture_progress, timeout_ms=1000)
-        self._add_task(self._check_continuous, timeout_ms=500)
+        self._add_task(self._check_continuous, timeout_ms=1000)
         self._temp_counter = 0
         self._current_raw_data = None
         self._last_good_image = datetime.now()
         self._normalizer = ImagePercentileNormalizer()
         self._min_scale_var = tk.DoubleVar(value=0)
         self._max_scale_var = tk.DoubleVar(value=100)
+        self._continuous_threads = [None for _ in range(0, max_threads)]
+        self._update_threads = [None for _ in range(0, max_threads)]
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -223,6 +247,21 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           style="B.TButton")
         self._zoom_out_button.pack(side=tk.TOP)
 
+        self._measure_button = ttk.Button(image_controls_frame,
+                                          text="Measure stars",
+                                          command=self._measure,
+                                          style="B.TButton")
+        self._measure_button.pack(side=tk.TOP)
+        self._star_size_label = ttk.Label(image_controls_frame, style="B.TLabel", text="-1")
+        self._star_size_label.pack(side=tk.RIGHT)
+
+    def _measure(self):
+        if self._current_raw_data is None:
+            print("No current data for star measurement!")
+            return
+        value = self._measurer.measure_stars_on_np_array(self._current_raw_data)
+        self._star_size_label.configure(text=value)
+
     def _stretch(self, event):
         smin = float(self._min_scale_var.get())
         smax = float(self._max_scale_var.get())
@@ -269,11 +308,12 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._capture_pb.reset(max_no=int(number))
 
     def _start_continuous_imaging(self):
+        exposure = self._exposure_s
         self._continuous_imaging = True
         self._continuous_button.configure(text="Stop continuous",
                                           command=self._stop_continuous_imaging,
                                           style="SunkableButton.TButton")
-        r = self._requester.put_start_continuous_imaging()
+        r = self._requester.put_start_continuous_imaging(exposure)
         print(f"Request to start continuous imaging returned: {r}")
 
     def _stop_continuous_imaging(self):
@@ -284,11 +324,8 @@ class RemoteProcessGUI(ChildProcessGUI):
         r = self._requester.put_stop_continuous_imaging()
         print(f"Request to stop continuous imaging returned: {r}")
 
-    def _check_continuous(self):
-        if not self._continuous_imaging:
-            return
+    def _check_continuous_thread(self):
         print("Checking for continuous image available!")
-
         before = datetime.now()
         res = self._requester.get_continuous_image()
         after = datetime.now()
@@ -303,9 +340,24 @@ class RemoteProcessGUI(ChildProcessGUI):
             ms = get_diff_ms(current_time, self._last_good_image)
             print(f"Time passed from last image was: {ms}")
             self._last_good_image = current_time
-            self._single(getter=lambda: res.content)
+
+            enqueue_task_if_possible(pool=self._continuous_threads,
+                                     pool_name="continuous imaging",
+                                     target=RemoteProcessGUI._single,
+                                     args=(self, lambda: res.content))
+            # self._single(getter=lambda: res.content)
         else:
             print(f"Got error: {res.status_code}")
+        print("Continuous thread finished!")
+        return
+
+    def _check_continuous(self):
+        if not self._continuous_imaging:
+            return
+        enqueue_task_if_possible(pool=self._continuous_threads,
+                                 pool_name="continuous imaging",
+                                 target=RemoteProcessGUI._check_continuous_thread,
+                                 args=(self,))
 
     def _get_one_shot_image(self):
         return self._single(getter=lambda: self._requester.get_one_image(self._exposure_s, self._current_shape))
