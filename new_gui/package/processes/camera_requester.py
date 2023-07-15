@@ -51,6 +51,26 @@ class AscomRequests:
         return {"ClientID": self._cid, "ClientTransactionID": self._rc.get_new_count()}
 
 
+class FocuserRequests:
+    def __init__(self):
+        self._endpoint = "http://192.168.1.200:8080/focuser/"
+
+    def put_move(self, focuser_no, value):
+        print(f"Moving focuser {focuser_no} by {value}")
+        final_endpoint = self._endpoint + f"{focuser_no}/move_relative"
+        r = self._put_request(final_endpoint, query_params={"Value": value})
+        return  True if r.status_code == 200 else False
+
+    def _put_request(self, endpoint, query_params=None):
+        print(f"Requesting PUT on {endpoint} with params= {query_params}...")
+        r = requests.put(f"{endpoint}", data=query_params)
+        if r.status_code != 200:
+            print(f"Received error response with code {r.status_code}: {r.text}")
+            return r
+        print(f"Received 200 OK with additional text: {r.text}")
+        return r
+
+
 class CameraRequests(AscomRequests):
     def __init__(self, camera_no, **kwargs):
         super(CameraRequests, self).__init__(**kwargs)

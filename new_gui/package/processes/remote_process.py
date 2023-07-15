@@ -1,11 +1,14 @@
+import math
+
 from .child_process import ChildProcessGUI
+from package.widgets.pe_base_widget import AppendablePeBaseWidget
 from package.widgets.value_controller import ValueController
 from package.widgets.image_canvas import PhotoImageWithRectangle
 from package.widgets.labeled_input import LabeledInput
 from package.widgets.ip_address_input import IPAddressInput
 from package.widgets.capture_progress_bar import CaptureProgressBar
 from package.widgets.simple_plot import SimplePlot
-from package.processes.camera_requester import CameraRequests, get_diff_ms
+from package.processes.camera_requester import CameraRequests, FocuserRequests, get_diff_ms
 from package.utils.star_measurer import StarMeasurer
 from tkinter import ttk
 from datetime import datetime
@@ -24,6 +27,72 @@ image_types_map = {
 }
 
 max_threads = 4
+
+
+colors_ip_map = {
+    "192.168.1.101": "red",
+    "192.168.1.102": "green",
+    "192.168.1.103": "blue",
+}
+
+
+focuser_numbers_map = {
+    "red": 0,
+    "green": 1,
+    "blue": 2
+}
+
+
+class FocusingAssistant(AppendablePeBaseWidget):
+    def __init__(self, color, **kwargs):
+        super(FocusingAssistant, self).__init__(**kwargs)
+        self._requester = FocuserRequests()
+
+        self._minus_100 = ttk.Button(self._frame,
+                                     text="Focus -100",
+                                     command=lambda: self._move(-100))
+        self._minus_100.pack(side=tk.LEFT, expand=False)
+        self._minus_10 = ttk.Button(self._frame,
+                                    text="-10",
+                                    width=4,
+                                    command=lambda: self._move(-10))
+        self._minus_10.pack(side=tk.LEFT)
+        self._minus_1 = ttk.Button(self._frame,
+                                   text="-1",
+                                   width=3,
+                                   command=lambda: self._move(-1))
+        self._minus_1.pack(side=tk.LEFT)
+        self._plus_1 = ttk.Button(self._frame,
+                                  width=3,
+                                   text="+1",
+                                   command=lambda: self._move(1))
+        self._plus_1.pack(side=tk.LEFT)
+        self._plus_10 = ttk.Button(self._frame,
+                                   text="+10",
+                                   width=4,
+                                   command=lambda: self._move(10))
+        self._plus_10.pack(side=tk.LEFT)
+        self._plus_100 = ttk.Button(self._frame,
+                                    width=5,
+                                    text="+100",
+                                    command=lambda: self._move(100))
+        self._plus_100.pack(side=tk.LEFT)
+
+        self._position = 0
+        self._number = focuser_numbers_map[color]
+        self._focus_data = []
+
+    def get_position(self):
+        return self._position
+
+    def _move(self, value):
+        int_value = int(value)
+        print(f"Moving by {int_value}")
+        if not self._requester.put_move(self._number, int_value):
+            print(f"Move by {value} failed")
+            return
+        print(f"Move by {value} succeeded")
+        self._position += int_value
 
 
 def enqueue_task_if_possible(pool: list, pool_name: str, **kwargs):
@@ -106,6 +175,8 @@ class RemoteProcessGUI(ChildProcessGUI):
         self._max_scale_var = tk.DoubleVar(value=100)
         self._continuous_threads = [None for _ in range(0, max_threads)]
         self._update_threads = [None for _ in range(0, max_threads)]
+        self._color = None
+        self._focus_data = []
 
     def _connect(self, host_name, port_number):
         if self._connected is False:
@@ -115,8 +186,10 @@ class RemoteProcessGUI(ChildProcessGUI):
                 self._requester.update_address(address)
                 if self._requester.set_init():
                     self._current_shape = self._requester.get_imagesize()
+                    self._color = colors_ip_map[host_name]
                     self._add_controls()
                     self._connected = True
+                    print(f"Init with {host_name} suceeded!")
                 else:
                     print("Init failed!")
             except requests.exceptions.ConnectionError:
@@ -203,7 +276,7 @@ class RemoteProcessGUI(ChildProcessGUI):
         image_controls_frame = ttk.Frame(image_frame, style="B.TFrame")
         image_controls_frame.pack(side=tk.LEFT)
 
-        self._hist_plot = SimplePlot((0, 0), frame=image_controls_frame)
+        self._hist_plot = SimplePlot((0, 0), frame=image_controls_frame, height=200)
         self._hist_plot.pack(side=tk.TOP)
 
         self._scale_frame = ttk.Frame(image_controls_frame, style="B.TFrame")
@@ -252,15 +325,27 @@ class RemoteProcessGUI(ChildProcessGUI):
                                           command=self._measure,
                                           style="B.TButton")
         self._measure_button.pack(side=tk.TOP)
-        self._star_size_label = ttk.Label(image_controls_frame, style="B.TLabel", text="-1")
-        self._star_size_label.pack(side=tk.RIGHT)
+        self._star_size_label = ttk.Label(image_controls_frame, style="B.TLabel", text="Star quality: Unknown")
+        self._star_size_label.pack(side=tk.TOP)
+
+        self._focus_assistant = FocusingAssistant(color=self._color, frame=image_controls_frame)
+        self._focus_assistant.pack(side=tk.TOP)
+        self._focus_plot = SimplePlot((0, 0), frame=image_controls_frame, height=200)
+        self._focus_plot.pack(side=tk.TOP)
 
     def _measure(self):
         if self._current_raw_data is None:
             print("No current data for star measurement!")
             return
         value = self._measurer.measure_stars_on_np_array(self._current_raw_data)
-        self._star_size_label.configure(text=value)
+        if not math.isnan(value) and value > 0:
+            p = self._focus_assistant.get_position()
+            self._focus_data.append((p, value))
+            x, y = zip(*self._focus_data.append)
+            self._focus_plot.replot((y, x))
+        elif len(self._focus_data) == 0:
+            self._focus_plot.replot(([0, 0, 0], [-10, 0, 10]))
+        self._star_size_label.configure(text=f"Star quality: {value}")
 
     def _stretch(self, event):
         smin = float(self._min_scale_var.get())

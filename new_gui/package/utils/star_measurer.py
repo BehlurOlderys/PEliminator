@@ -3,11 +3,13 @@ import shutil
 import os
 import numpy as np
 from PIL import Image
+import warnings
+warnings.filterwarnings("error")
 
 
 dss_cli_binary = "C:/Program Files/DeepSkyStacker (64 bit)/DeepSkyStackerCL.exe"
 work_directory = "C:/Users/Florek/Desktop/workspace/PEliminator/new_gui/star_measurement"
-template_file_path = "star_measurement_list_template.txt"
+template_file_path = "C:/Users/Florek/Desktop/workspace/PEliminator/new_gui/package/utils/star_measurement_list_template.txt"
 
 test_input_path = "C:/Users/Florek/Desktop/workspace/PEliminator/new_gui/star_measurement/tests/light.tif"
 test_input_ext = "tif"
@@ -61,8 +63,11 @@ class StarMeasurer:
             info_content = f.readlines()
 
         radiuses = [float(line.split("=")[-1]) for line in info_content if "MeanRadius" in line]
-        average_radius = np.average(np.array(radiuses))
-
+        try:
+            average_radius = np.average(np.array(radiuses))
+        except RuntimeWarning as rw:
+            print("Failed star measurement")
+            return -2
         return average_radius
 
     def measure_stars_on_file(self, input_image_path, input_extension):
